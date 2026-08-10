@@ -11,7 +11,7 @@ from rest_framework.views import APIView
 
 from apps.tables.models import ActiveTableSession, CustomerSession
 from apps.tables.services import get_table_by_qr_token
-from apps.users.permissions import IsWaiterRole
+from apps.users.permissions import IsKitchenRole, IsWaiterRole
 from apps.users.services import get_active_waiter_shift
 
 from .models import CartItem, Order
@@ -19,6 +19,7 @@ from .serializers import (
     CartItemCreateSerializer,
     CartItemSerializer,
     CartItemUpdateSerializer,
+    KitchenOrderSerializer,
     PublicOrderSerializer,
     WaiterOrderSerializer,
     WaiterTableSessionSerializer,
@@ -31,6 +32,8 @@ from .services import (
     create_order_from_cart,
     get_cart_items,
     mark_order_delivered,
+    mark_order_preparing,
+    mark_order_ready,
     remove_cart_item,
     update_cart_item,
 )
@@ -291,3 +294,58 @@ class CloseTableSessionView(ActiveWaiterShiftMixin, APIView):
             self.raise_service_error(exc)
         table_session = table_sessions_with_totals().get(pk=table_session.pk)
         return Response(WaiterTableSessionSerializer(table_session).data)
+
+
+class KitchenOrdersView(APIView):
+    permission_classes = (IsKitchenRole,)
+
+    def get(self, request):
+        orders = (
+            Order.objects.filter(
+                status__in=(Order.Status.NEW, Order.Status.PREPARING),
+            )
+            .select_related("table_session__table")
+            .prefetch_related("items")
+            .order_by("created_at")
+        )
+        return Response(KitchenOrderSerializer(orders, many=True).data)
+
+
+class MarkOrderPreparingView(APIView):
+    permission_classes = (IsKitchenRole,)
+
+    def post(self, request, order_id):
+        try:
+            order = Order.objects.get(pk=order_id)
+        except Order.DoesNotExist as exc:
+            raise NotFound("Order not found.") from exc
+        try:
+            order = mark_order_preparing(order, user=request.user)
+        except DjangoValidationError as exc:
+            raise ValidationError(exc.messages) from exc
+        order = (
+            Order.objects.select_related("table_session__table")
+            .prefetch_related("items")
+            .get(pk=order.pk)
+        )
+        return Response(KitchenOrderSerializer(order).data)
+
+
+class MarkOrderReadyView(APIView):
+    permission_classes = (IsKitchenRole,)
+
+    def post(self, request, order_id):
+        try:
+            order = Order.objects.get(pk=order_id)
+        except Order.DoesNotExist as exc:
+            raise NotFound("Order not found.") from exc
+        try:
+            order = mark_order_ready(order, user=request.user)
+        except DjangoValidationError as exc:
+            raise ValidationError(exc.messages) from exc
+        order = (
+            Order.objects.select_related("table_session__table")
+            .prefetch_related("items")
+            .get(pk=order.pk)
+        )
+        return Response(KitchenOrderSerializer(order).data)

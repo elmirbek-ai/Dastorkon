@@ -140,3 +140,7 @@ class WaiterOrderSerializer(serializers.ModelSerializer):
             "items",
         )
         read_only_fields = fields
+
+
+class KitchenOrderSerializer(WaiterOrderSerializer):
+    pass

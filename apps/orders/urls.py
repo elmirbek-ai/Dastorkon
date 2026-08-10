@@ -4,7 +4,10 @@ from .views import (
     AcceptTableSessionView,
     AvailableTableSessionsView,
     CloseTableSessionView,
+    KitchenOrdersView,
     MarkOrderDeliveredView,
+    MarkOrderPreparingView,
+    MarkOrderReadyView,
     MyOrdersView,
     MyTableSessionsView,
     PublicCartItemCreateView,
@@ -67,6 +70,24 @@ waiter_urlpatterns = [
         "orders/<int:order_id>/delivered/",
         MarkOrderDeliveredView.as_view(),
         name="waiter-order-delivered",
+    ),
+]
+
+kitchen_urlpatterns = [
+    path(
+        "orders/",
+        KitchenOrdersView.as_view(),
+        name="kitchen-orders",
+    ),
+    path(
+        "orders/<int:order_id>/preparing/",
+        MarkOrderPreparingView.as_view(),
+        name="kitchen-order-preparing",
+    ),
+    path(
+        "orders/<int:order_id>/ready/",
+        MarkOrderReadyView.as_view(),
+        name="kitchen-order-ready",
     ),
 ]
 
