@@ -9,7 +9,10 @@ from apps.menu.models import Category, MenuItem
 from apps.orders.models import Order
 from apps.orders.services import (
     assign_waiter_to_table_session,
+    change_order_status,
+    complete_table_session,
     create_order,
+    mark_order_delivered,
 )
 from apps.restaurants.models import Restaurant
 from apps.tables.models import RestaurantTable
@@ -58,9 +61,12 @@ class AdminStatisticsApiTests(APITestCase):
             restaurant=self.restaurant,
             number=1,
         )
-        table_session = get_or_create_active_table_session(self.table)
-        table_session = assign_waiter_to_table_session(table_session, self.waiter)
-        customer_session = create_customer_session(table_session)
+        self.table_session = get_or_create_active_table_session(self.table)
+        self.table_session = assign_waiter_to_table_session(
+            self.table_session,
+            self.waiter,
+        )
+        customer_session = create_customer_session(self.table_session)
 
         self.first_order = self.create_order(
             customer_session,
@@ -233,6 +239,36 @@ class AdminStatisticsApiTests(APITestCase):
         self.assertEqual(
             waiter_stats[self.other_waiter.pk]["total_amount"],
             "200.00",
+        )
+
+    def test_waiter_stats_include_waiter_assigned_on_delivery(self):
+        self.new_order.responsible_waiter = None
+        self.new_order.save(
+            update_fields=("responsible_waiter", "updated_at")
+        )
+        self.new_order = change_order_status(
+            self.new_order,
+            Order.Status.PREPARING,
+            self.kitchen,
+        )
+        self.new_order = change_order_status(
+            self.new_order,
+            Order.Status.READY,
+            self.kitchen,
+        )
+        self.new_order = mark_order_delivered(self.new_order, self.waiter)
+        complete_table_session(self.table_session, self.waiter)
+        self.authenticate(self.admin)
+
+        response = self.client.get(self.url)
+
+        waiter_stats = {
+            item["waiter"]: item for item in response.data["waiter_stats"]
+        }
+        self.assertEqual(waiter_stats[self.waiter.pk]["orders_count"], 3)
+        self.assertEqual(
+            waiter_stats[self.waiter.pk]["total_amount"],
+            "400.00",
         )
 
     def test_statistics_filters_by_restaurant(self):

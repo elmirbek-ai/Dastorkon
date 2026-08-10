@@ -11,6 +11,7 @@ from apps.orders.services import (
     assign_waiter_to_table_session,
     change_order_status,
     create_order,
+    mark_order_delivered,
 )
 from apps.restaurants.models import Restaurant
 from apps.tables.models import RestaurantTable
@@ -141,6 +142,28 @@ class AdminOrderHistoryApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 2)
+
+    def test_delivered_order_history_shows_responsible_waiter(self):
+        self.order.responsible_waiter = None
+        self.order.save(update_fields=("responsible_waiter", "updated_at"))
+        self.order = change_order_status(
+            self.order,
+            Order.Status.READY,
+            self.kitchen,
+        )
+        self.order = mark_order_delivered(self.order, self.waiter)
+        self.authenticate(self.admin)
+
+        response = self.client.get(self.list_url)
+
+        order_data = next(
+            item for item in response.data if item["id"] == self.order.pk
+        )
+        self.assertEqual(order_data["responsible_waiter"], self.waiter.pk)
+        self.assertEqual(
+            order_data["responsible_waiter_username"],
+            self.waiter.username,
+        )
 
     def test_admin_order_list_is_newest_first(self):
         self.authenticate(self.admin)

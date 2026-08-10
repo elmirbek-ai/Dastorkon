@@ -455,6 +455,9 @@ def mark_order_delivered(order, waiter):
         and waiter.pk != order.table_session.assigned_waiter_id
     ):
         raise ValidationError("Waiter is not assigned to this order.")
+    if order.responsible_waiter_id is None:
+        order.responsible_waiter = waiter
+        order.save(update_fields=("responsible_waiter", "updated_at"))
     return change_order_status(order, Order.Status.DELIVERED, waiter)
 
 

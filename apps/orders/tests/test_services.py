@@ -231,6 +231,17 @@ class OrderServicesTests(TestCase):
 
         self.assertEqual(order.status, Order.Status.DELIVERED)
 
+    def test_mark_order_delivered_assigns_responsible_waiter(self):
+        order = self.create_test_order()
+        order = change_order_status(order, Order.Status.PREPARING)
+        order = change_order_status(order, Order.Status.READY)
+        assign_waiter_to_table_session(self.table_session, self.waiter)
+
+        order = mark_order_delivered(order, self.waiter)
+
+        self.assertEqual(order.status, Order.Status.DELIVERED)
+        self.assertEqual(order.responsible_waiter, self.waiter)
+
     def test_mark_order_delivered_rejects_unrelated_waiter(self):
         assign_waiter_to_table_session(self.table_session, self.waiter)
         order = self.create_test_order()
