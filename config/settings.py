@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'channels',
     'rest_framework',
+    'drf_spectacular',
     'corsheaders',
     'apps.common.apps.CommonConfig',
     'apps.users.apps.UsersConfig',
@@ -61,6 +62,13 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Dastorkon API',
+    'DESCRIPTION': 'QR menu and restaurant order-management MVP backend',
+    'VERSION': '1.0.0',
 }
 
 SIMPLE_JWT = {
