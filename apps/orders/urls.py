@@ -3,6 +3,8 @@ from django.urls import path
 from .views import (
     AcceptTableSessionView,
     AcceptWaiterCallView,
+    AdminOrderDetailView,
+    AdminOrdersView,
     AvailableTableSessionsView,
     CloseTableSessionView,
     CompleteWaiterCallView,
@@ -112,6 +114,19 @@ kitchen_urlpatterns = [
         "orders/<int:order_id>/ready/",
         MarkOrderReadyView.as_view(),
         name="kitchen-order-ready",
+    ),
+]
+
+admin_urlpatterns = [
+    path(
+        "orders/",
+        AdminOrdersView.as_view(),
+        name="admin-orders",
+    ),
+    path(
+        "orders/<int:order_id>/",
+        AdminOrderDetailView.as_view(),
+        name="admin-order-detail",
     ),
 ]
 

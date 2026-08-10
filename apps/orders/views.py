@@ -12,6 +12,7 @@ from rest_framework.views import APIView
 from apps.tables.models import ActiveTableSession, CustomerSession
 from apps.tables.services import get_table_by_qr_token
 from apps.users.permissions import IsKitchenRole, IsWaiterRole
+from apps.users.permissions import IsAdminRole
 from apps.users.services import get_active_waiter_shift
 
 from .models import CartItem, Order, WaiterCall
@@ -19,6 +20,9 @@ from .serializers import (
     CartItemCreateSerializer,
     CartItemSerializer,
     CartItemUpdateSerializer,
+    AdminOrderDetailSerializer,
+    AdminOrderFilterSerializer,
+    AdminOrderListSerializer,
     KitchenOrderSerializer,
     PublicOrderSerializer,
     PublicWaiterCallSerializer,
@@ -427,3 +431,59 @@ class CompleteWaiterCallView(ActiveWaiterShiftMixin, APIView):
             "assigned_waiter",
         ).get(pk=waiter_call.pk)
         return Response(WaiterCallSerializer(waiter_call).data)
+
+
+def filter_admin_orders(queryset, filters):
+    if "restaurant" in filters:
+        queryset = queryset.filter(restaurant_id=filters["restaurant"])
+    if "table" in filters:
+        queryset = queryset.filter(table_session__table_id=filters["table"])
+    if "waiter" in filters:
+        queryset = queryset.filter(responsible_waiter_id=filters["waiter"])
+    if "status" in filters:
+        queryset = queryset.filter(status=filters["status"])
+    if "date_from" in filters:
+        queryset = queryset.filter(created_at__date__gte=filters["date_from"])
+    if "date_to" in filters:
+        queryset = queryset.filter(created_at__date__lte=filters["date_to"])
+    return queryset
+
+
+class AdminOrdersView(APIView):
+    permission_classes = (IsAdminRole,)
+
+    def get(self, request):
+        filter_serializer = AdminOrderFilterSerializer(data=request.query_params)
+        filter_serializer.is_valid(raise_exception=True)
+        orders = (
+            Order.objects.select_related(
+                "restaurant",
+                "table_session__table",
+                "customer_session",
+                "responsible_waiter",
+            )
+            .annotate(items_count=Count("items"))
+            .order_by("-created_at")
+        )
+        orders = filter_admin_orders(orders, filter_serializer.validated_data)
+        return Response(AdminOrderListSerializer(orders, many=True).data)
+
+
+class AdminOrderDetailView(APIView):
+    permission_classes = (IsAdminRole,)
+
+    def get(self, request, order_id):
+        try:
+            order = (
+                Order.objects.select_related(
+                    "restaurant",
+                    "table_session__table",
+                    "customer_session",
+                    "responsible_waiter",
+                )
+                .prefetch_related("items", "status_history__changed_by")
+                .get(pk=order_id)
+            )
+        except Order.DoesNotExist as exc:
+            raise NotFound("Order not found.") from exc
+        return Response(AdminOrderDetailSerializer(order).data)

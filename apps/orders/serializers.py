@@ -4,7 +4,7 @@ from apps.menu.models import MenuItem
 from apps.restaurants.models import Restaurant
 from apps.tables.models import ActiveTableSession, RestaurantTable
 
-from .models import CartItem, Order, OrderItem, WaiterCall
+from .models import CartItem, Order, OrderItem, OrderStatusHistory, WaiterCall
 
 
 class CartItemSerializer(serializers.ModelSerializer):
@@ -184,4 +184,91 @@ class WaiterCallSerializer(PublicWaiterCallSerializer):
             "accepted_at",
             "completed_at",
         )
+        read_only_fields = fields
+
+
+class AdminOrderFilterSerializer(serializers.Serializer):
+    restaurant = serializers.IntegerField(required=False)
+    table = serializers.IntegerField(required=False)
+    waiter = serializers.IntegerField(required=False)
+    status = serializers.ChoiceField(
+        choices=Order.Status.choices,
+        required=False,
+    )
+    date_from = serializers.DateField(required=False)
+    date_to = serializers.DateField(required=False)
+
+
+class AdminOrderListSerializer(serializers.ModelSerializer):
+    restaurant_name = serializers.CharField(
+        source="restaurant.name",
+        read_only=True,
+    )
+    table = serializers.IntegerField(
+        source="table_session.table_id",
+        read_only=True,
+    )
+    table_number = serializers.IntegerField(
+        source="table_session.table.number",
+        read_only=True,
+    )
+    responsible_waiter_username = serializers.CharField(
+        source="responsible_waiter.username",
+        read_only=True,
+        allow_null=True,
+    )
+    items_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Order
+        fields = (
+            "id",
+            "order_number",
+            "restaurant",
+            "restaurant_name",
+            "table_session",
+            "table",
+            "table_number",
+            "customer_session",
+            "responsible_waiter",
+            "responsible_waiter_username",
+            "status",
+            "total_amount",
+            "created_at",
+            "updated_at",
+            "items_count",
+        )
+        read_only_fields = fields
+
+
+class AdminOrderStatusHistorySerializer(serializers.ModelSerializer):
+    changed_by_username = serializers.CharField(
+        source="changed_by.username",
+        read_only=True,
+        allow_null=True,
+    )
+
+    class Meta:
+        model = OrderStatusHistory
+        fields = (
+            "id",
+            "from_status",
+            "to_status",
+            "changed_by",
+            "changed_by_username",
+            "created_at",
+        )
+        read_only_fields = fields
+
+
+class AdminOrderDetailSerializer(AdminOrderListSerializer):
+    items = PublicOrderItemSerializer(many=True, read_only=True)
+    status_history = AdminOrderStatusHistorySerializer(many=True, read_only=True)
+
+    class Meta(AdminOrderListSerializer.Meta):
+        fields = tuple(
+            field
+            for field in AdminOrderListSerializer.Meta.fields
+            if field != "items_count"
+        ) + ("items", "status_history")
         read_only_fields = fields
