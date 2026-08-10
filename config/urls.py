@@ -29,7 +29,7 @@ urlpatterns = [
     path('common/', include('apps.common.urls')),
     path('users/', include('apps.users.urls')),
     path('restaurants/', include('apps.restaurants.urls')),
-    path('menu/', include('apps.menu.urls')),
+    path('api/admin/', include('apps.menu.urls')),
     path('tables/', include('apps.tables.urls')),
     path('orders/', include('apps.orders.urls')),
     path('notifications/', include('apps.notifications.urls')),
