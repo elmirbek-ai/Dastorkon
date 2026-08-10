@@ -1,9 +1,20 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.models import Prefetch
+from rest_framework import status
 from rest_framework import viewsets
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
+from apps.tables.services import get_table_by_qr_token
 from apps.users.permissions import IsAdminRole
 
 from .models import Category, MenuItem
-from .serializers import CategorySerializer, MenuItemSerializer
+from .serializers import (
+    CategorySerializer,
+    MenuItemSerializer,
+    PublicCategorySerializer,
+)
 
 
 class CategoryAdminViewSet(viewsets.ModelViewSet):
@@ -45,4 +56,46 @@ class MenuItemAdminViewSet(viewsets.ModelViewSet):
                 "is_available",
                 "updated_at",
             )
+        )
+
+
+class PublicMenuView(APIView):
+    permission_classes = (AllowAny,)
+
+    def get(self, request, qr_token):
+        try:
+            table = get_table_by_qr_token(qr_token)
+        except DjangoValidationError:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        menu_items = MenuItem.objects.filter(
+            restaurant=table.restaurant,
+            is_deleted=False,
+            is_visible=True,
+            is_available=True,
+        )
+        categories = (
+            Category.objects.filter(
+                restaurant=table.restaurant,
+                is_deleted=False,
+                is_visible=True,
+            )
+            .prefetch_related(
+                Prefetch("items", queryset=menu_items, to_attr="public_items")
+            )
+        )
+        serializer = PublicCategorySerializer(
+            categories,
+            many=True,
+            context={"request": request},
+        )
+        return Response(
+            {
+                "restaurant": {
+                    "id": table.restaurant_id,
+                    "name": table.restaurant.name,
+                },
+                "table": {"id": table.pk, "number": table.number},
+                "categories": serializer.data,
+            }
         )

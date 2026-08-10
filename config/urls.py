@@ -18,6 +18,9 @@ from django.contrib import admin
 from django.urls import include, path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
+from apps.menu import urls as menu_urls
+from apps.tables import urls as table_urls
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/auth/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
@@ -29,8 +32,10 @@ urlpatterns = [
     path('common/', include('apps.common.urls')),
     path('users/', include('apps.users.urls')),
     path('restaurants/', include('apps.restaurants.urls')),
-    path('api/admin/', include('apps.menu.urls')),
-    path('api/admin/', include('apps.tables.urls')),
+    path('api/admin/', include(menu_urls.admin_urlpatterns)),
+    path('api/admin/', include(table_urls.admin_urlpatterns)),
+    path('api/public/', include(menu_urls.public_urlpatterns)),
+    path('api/public/', include(table_urls.public_urlpatterns)),
     path('orders/', include('apps.orders.urls')),
     path('notifications/', include('apps.notifications.urls')),
     path('analytics/', include('apps.analytics.urls')),

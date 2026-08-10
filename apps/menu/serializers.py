@@ -60,3 +60,34 @@ class MenuItemSerializer(serializers.ModelSerializer):
                 {"category": "Category must belong to the same restaurant."}
             )
         return attrs
+
+
+class PublicMenuItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MenuItem
+        fields = (
+            "id",
+            "name_ky",
+            "name_ru",
+            "description_ky",
+            "description_ru",
+            "image",
+            "price",
+            "ingredients_ky",
+            "ingredients_ru",
+            "allergens_ky",
+            "allergens_ru",
+            "cooking_time_min",
+        )
+
+
+class PublicCategorySerializer(serializers.ModelSerializer):
+    items = PublicMenuItemSerializer(
+        source="public_items",
+        many=True,
+        read_only=True,
+    )
+
+    class Meta:
+        model = Category
+        fields = ("id", "name_ky", "name_ru", "sort_order", "items")
