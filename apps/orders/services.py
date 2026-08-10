@@ -5,6 +5,14 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.menu.models import MenuItem
+from apps.notifications.services import (
+    build_order_notification_payload,
+    build_waiter_call_notification_payload,
+    notify_admins,
+    notify_kitchen,
+    notify_waiters,
+    send_notification_to_user,
+)
 from apps.tables.models import ActiveTableSession, CustomerSession
 from apps.tables.services import close_active_table_session
 from apps.users.models import User
@@ -141,7 +149,7 @@ def create_waiter_call(customer_session, reason):
     if reason not in WaiterCall.Reason.values:
         raise ValidationError("Invalid waiter call reason.")
 
-    return WaiterCall.objects.create(
+    waiter_call = WaiterCall.objects.create(
         restaurant=table_session.restaurant,
         table_session=table_session,
         customer_session=customer_session,
@@ -149,6 +157,21 @@ def create_waiter_call(customer_session, reason):
         reason=reason,
         status=WaiterCall.Status.NEW,
     )
+    payload = build_waiter_call_notification_payload(waiter_call)
+    waiter_id = waiter_call.assigned_waiter_id
+    if waiter_id:
+        transaction.on_commit(
+            lambda: send_notification_to_user(
+                waiter_id,
+                "waiter_call_created",
+                payload,
+            )
+        )
+    else:
+        transaction.on_commit(
+            lambda: notify_waiters("waiter_call_available", payload)
+        )
+    return waiter_call
 
 
 def validate_active_waiter(waiter):
@@ -194,6 +217,10 @@ def accept_waiter_call(waiter_call, waiter):
             "updated_at",
         )
     )
+    payload = build_waiter_call_notification_payload(waiter_call)
+    transaction.on_commit(
+        lambda: notify_waiters("waiter_call_accepted", payload)
+    )
     return waiter_call
 
 
@@ -209,6 +236,10 @@ def complete_waiter_call(waiter_call, waiter):
     waiter_call.status = WaiterCall.Status.DONE
     waiter_call.completed_at = timezone.now()
     waiter_call.save(update_fields=("status", "completed_at", "updated_at"))
+    payload = build_waiter_call_notification_payload(waiter_call)
+    transaction.on_commit(
+        lambda: notify_admins("waiter_call_completed", payload)
+    )
     return waiter_call
 
 
@@ -290,6 +321,21 @@ def create_order(customer_session, items_data):
         from_status="",
         to_status=Order.Status.NEW,
     )
+    payload = build_order_notification_payload(order)
+    transaction.on_commit(lambda: notify_kitchen("order_created", payload))
+    waiter_id = table_session.assigned_waiter_id
+    if waiter_id:
+        transaction.on_commit(
+            lambda: send_notification_to_user(
+                waiter_id,
+                "order_created",
+                payload,
+            )
+        )
+    else:
+        transaction.on_commit(
+            lambda: notify_waiters("order_available", payload)
+        )
     return order
 
 
@@ -381,7 +427,20 @@ def mark_order_preparing(order, user=None):
 
 
 def mark_order_ready(order, user=None):
-    return change_order_status(order, Order.Status.READY, user)
+    order = change_order_status(order, Order.Status.READY, user)
+    payload = build_order_notification_payload(order)
+    waiter_id = order.table_session.assigned_waiter_id
+    if waiter_id:
+        transaction.on_commit(
+            lambda: send_notification_to_user(
+                waiter_id,
+                "order_ready",
+                payload,
+            )
+        )
+    else:
+        transaction.on_commit(lambda: notify_waiters("order_ready", payload))
+    return order
 
 
 @transaction.atomic
