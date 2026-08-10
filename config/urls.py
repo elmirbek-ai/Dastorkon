@@ -21,6 +21,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from apps.menu import urls as menu_urls
 from apps.orders import urls as order_urls
 from apps.tables import urls as table_urls
+from apps.users import urls as user_urls
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -31,7 +32,7 @@ urlpatterns = [
         name='token_refresh',
     ),
     path('common/', include('apps.common.urls')),
-    path('users/', include('apps.users.urls')),
+    path('api/waiter/', include(user_urls.waiter_urlpatterns)),
     path('restaurants/', include('apps.restaurants.urls')),
     path('api/admin/', include(menu_urls.admin_urlpatterns)),
     path('api/admin/', include(table_urls.admin_urlpatterns)),
