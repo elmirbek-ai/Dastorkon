@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
-from .models import User
+from .models import User, WaiterShift
 
 
 @admin.register(User)
@@ -12,3 +12,9 @@ class DastorkonUserAdmin(UserAdmin):
     add_fieldsets = UserAdmin.add_fieldsets + (
         ("Dastorkon", {"fields": ("role", "phone", "avatar")}),
     )
+
+
+@admin.register(WaiterShift)
+class WaiterShiftAdmin(admin.ModelAdmin):
+    list_display = ("waiter", "started_at", "ended_at", "is_active")
+    list_filter = ("is_active",)
