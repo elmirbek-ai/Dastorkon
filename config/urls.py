@@ -40,6 +40,7 @@ urlpatterns = [
     path('api/admin/', include(menu_urls.admin_urlpatterns)),
     path('api/admin/', include(table_urls.admin_urlpatterns)),
     path('api/admin/', include(restaurant_urls.admin_urlpatterns)),
+    path('api/admin/', include(user_urls.admin_urlpatterns)),
     path('api/admin/', include(order_urls.admin_urlpatterns)),
     path('api/admin/', include(analytics_urls.admin_urlpatterns)),
     path('api/public/', include(menu_urls.public_urlpatterns)),
