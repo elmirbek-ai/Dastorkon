@@ -80,6 +80,24 @@ class OrderItem(models.Model):
         return f"{self.name_ky_at_order} x{self.quantity}"
 
 
+class CartItem(TimeStampedModel):
+    customer_session = models.ForeignKey(
+        CustomerSession,
+        on_delete=models.CASCADE,
+        related_name="cart_items",
+    )
+    menu_item = models.ForeignKey(
+        MenuItem,
+        on_delete=models.CASCADE,
+        related_name="cart_items",
+    )
+    quantity = models.PositiveIntegerField()
+    comment = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"{self.menu_item} x{self.quantity}"
+
+
 class OrderStatusHistory(TimeStampedModel):
     order = models.ForeignKey(
         Order,

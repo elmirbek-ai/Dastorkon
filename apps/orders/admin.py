@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Order, OrderItem, OrderStatusHistory, WaiterCall
+from .models import CartItem, Order, OrderItem, OrderStatusHistory, WaiterCall
 
 
 @admin.register(Order)
@@ -28,6 +28,18 @@ class OrderItemAdmin(admin.ModelAdmin):
         "total_price",
     )
     list_filter = ("order__restaurant",)
+
+
+@admin.register(CartItem)
+class CartItemAdmin(admin.ModelAdmin):
+    list_display = (
+        "customer_session",
+        "menu_item",
+        "quantity",
+        "comment",
+        "updated_at",
+    )
+    list_filter = ("menu_item__restaurant",)
 
 
 @admin.register(OrderStatusHistory)

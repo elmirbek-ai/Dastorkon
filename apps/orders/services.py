@@ -8,7 +8,117 @@ from apps.tables.models import ActiveTableSession, CustomerSession
 from apps.tables.services import close_active_table_session
 from apps.users.models import User
 
-from .models import Order, OrderItem, OrderStatusHistory
+from .models import CartItem, Order, OrderItem, OrderStatusHistory
+
+
+def validate_menu_item_for_customer_session(customer_session, menu_item):
+    if not customer_session.is_active:
+        raise ValidationError("Customer session is inactive.")
+
+    table_session = customer_session.active_table_session
+    if table_session.status != ActiveTableSession.Status.ACTIVE:
+        raise ValidationError("Table session is not active.")
+    if (
+        menu_item.restaurant_id != table_session.restaurant_id
+        or menu_item.is_deleted
+        or not menu_item.is_visible
+        or not menu_item.is_available
+    ):
+        raise ValidationError("Menu item is unavailable.")
+
+
+@transaction.atomic
+def add_cart_item(customer_session, menu_item, quantity=1, comment=""):
+    customer_session = (
+        CustomerSession.objects.select_for_update()
+        .select_related("active_table_session")
+        .get(pk=customer_session.pk)
+    )
+    menu_item = MenuItem.objects.get(pk=menu_item.pk)
+    validate_menu_item_for_customer_session(customer_session, menu_item)
+    if quantity <= 0:
+        raise ValidationError("Quantity must be greater than zero.")
+
+    cart_item = (
+        CartItem.objects.select_for_update()
+        .filter(
+            customer_session=customer_session,
+            menu_item=menu_item,
+            comment=comment,
+        )
+        .first()
+    )
+    if cart_item:
+        cart_item.quantity += quantity
+        cart_item.save(update_fields=("quantity", "updated_at"))
+        return cart_item
+    return CartItem.objects.create(
+        customer_session=customer_session,
+        menu_item=menu_item,
+        quantity=quantity,
+        comment=comment,
+    )
+
+
+@transaction.atomic
+def update_cart_item(cart_item, quantity=None, comment=None):
+    cart_item = (
+        CartItem.objects.select_for_update()
+        .select_related(
+            "customer_session__active_table_session",
+            "menu_item",
+        )
+        .get(pk=cart_item.pk)
+    )
+    validate_menu_item_for_customer_session(
+        cart_item.customer_session,
+        cart_item.menu_item,
+    )
+
+    update_fields = []
+    if quantity is not None:
+        if quantity <= 0:
+            raise ValidationError("Quantity must be greater than zero.")
+        cart_item.quantity = quantity
+        update_fields.append("quantity")
+    if comment is not None:
+        cart_item.comment = comment
+        update_fields.append("comment")
+    if update_fields:
+        cart_item.save(update_fields=(*update_fields, "updated_at"))
+    return cart_item
+
+
+def remove_cart_item(cart_item):
+    cart_item.delete()
+    return None
+
+
+def get_cart_items(customer_session):
+    if not customer_session.is_active:
+        raise ValidationError("Customer session is inactive.")
+    if (
+        customer_session.active_table_session.status
+        != ActiveTableSession.Status.ACTIVE
+    ):
+        raise ValidationError("Table session is not active.")
+    return CartItem.objects.filter(
+        customer_session=customer_session,
+    ).select_related("menu_item")
+
+
+def calculate_cart_total(customer_session):
+    return sum(
+        (
+            cart_item.menu_item.price * cart_item.quantity
+            for cart_item in get_cart_items(customer_session)
+        ),
+        Decimal("0"),
+    )
+
+
+def clear_cart(customer_session):
+    CartItem.objects.filter(customer_session=customer_session).delete()
 
 
 @transaction.atomic
@@ -89,6 +199,39 @@ def create_order(customer_session, items_data):
         from_status="",
         to_status=Order.Status.NEW,
     )
+    return order
+
+
+@transaction.atomic
+def create_order_from_cart(customer_session):
+    customer_session = (
+        CustomerSession.objects.select_for_update()
+        .select_related("active_table_session")
+        .get(pk=customer_session.pk)
+    )
+    if not customer_session.is_active:
+        raise ValidationError("Customer session is inactive.")
+
+    cart_items = list(
+        CartItem.objects.select_for_update()
+        .select_related("menu_item")
+        .filter(customer_session=customer_session)
+    )
+    if not cart_items:
+        raise ValidationError("Cart is empty.")
+
+    order = create_order(
+        customer_session,
+        [
+            {
+                "menu_item": cart_item.menu_item,
+                "quantity": cart_item.quantity,
+                "comment": cart_item.comment,
+            }
+            for cart_item in cart_items
+        ],
+    )
+    clear_cart(customer_session)
     return order
 
 
