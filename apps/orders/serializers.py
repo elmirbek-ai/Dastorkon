@@ -4,7 +4,7 @@ from apps.menu.models import MenuItem
 from apps.restaurants.models import Restaurant
 from apps.tables.models import ActiveTableSession, RestaurantTable
 
-from .models import CartItem, Order, OrderItem
+from .models import CartItem, Order, OrderItem, WaiterCall
 
 
 class CartItemSerializer(serializers.ModelSerializer):
@@ -144,3 +144,44 @@ class WaiterOrderSerializer(serializers.ModelSerializer):
 
 class KitchenOrderSerializer(WaiterOrderSerializer):
     pass
+
+
+class WaiterCallCreateSerializer(serializers.Serializer):
+    reason = serializers.ChoiceField(choices=WaiterCall.Reason.choices)
+
+
+class PublicWaiterCallSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WaiterCall
+        fields = (
+            "id",
+            "reason",
+            "status",
+            "table_session",
+            "assigned_waiter",
+            "created_at",
+            "accepted_at",
+            "completed_at",
+        )
+        read_only_fields = fields
+
+
+class WaiterCallSerializer(PublicWaiterCallSerializer):
+    table_number = serializers.IntegerField(
+        source="table_session.table.number",
+        read_only=True,
+    )
+
+    class Meta(PublicWaiterCallSerializer.Meta):
+        fields = (
+            "id",
+            "reason",
+            "status",
+            "table_session",
+            "table_number",
+            "assigned_waiter",
+            "created_at",
+            "accepted_at",
+            "completed_at",
+        )
+        read_only_fields = fields

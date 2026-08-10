@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db.models import Count, DecimalField, Sum, Value
+from django.db.models import Count, DecimalField, Q, Sum, Value
 from django.db.models.functions import Coalesce
 from rest_framework import status
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
@@ -14,21 +14,27 @@ from apps.tables.services import get_table_by_qr_token
 from apps.users.permissions import IsKitchenRole, IsWaiterRole
 from apps.users.services import get_active_waiter_shift
 
-from .models import CartItem, Order
+from .models import CartItem, Order, WaiterCall
 from .serializers import (
     CartItemCreateSerializer,
     CartItemSerializer,
     CartItemUpdateSerializer,
     KitchenOrderSerializer,
     PublicOrderSerializer,
+    PublicWaiterCallSerializer,
+    WaiterCallCreateSerializer,
+    WaiterCallSerializer,
     WaiterOrderSerializer,
     WaiterTableSessionSerializer,
 )
 from .services import (
     add_cart_item,
+    accept_waiter_call,
     assign_waiter_to_table_session,
     calculate_cart_total,
     complete_table_session,
+    complete_waiter_call,
+    create_waiter_call,
     create_order_from_cart,
     get_cart_items,
     mark_order_delivered,
@@ -349,3 +355,75 @@ class MarkOrderReadyView(APIView):
             .get(pk=order.pk)
         )
         return Response(KitchenOrderSerializer(order).data)
+
+
+class PublicWaiterCallCreateView(CustomerSessionMixin, APIView):
+    def post(self, request, qr_token):
+        customer_session = self.get_customer_session(request, qr_token)
+        serializer = WaiterCallCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            waiter_call = create_waiter_call(
+                customer_session,
+                serializer.validated_data["reason"],
+            )
+        except DjangoValidationError as exc:
+            self.raise_service_error(exc)
+        return Response(
+            PublicWaiterCallSerializer(waiter_call).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class WaiterCallsView(ActiveWaiterShiftMixin, APIView):
+    def get(self, request):
+        waiter_calls = (
+            WaiterCall.objects.filter(
+                status__in=(WaiterCall.Status.NEW, WaiterCall.Status.ACCEPTED),
+            )
+            .filter(
+                Q(assigned_waiter=request.user)
+                | Q(table_session__assigned_waiter=request.user)
+                | Q(
+                    assigned_waiter__isnull=True,
+                    table_session__assigned_waiter__isnull=True,
+                )
+            )
+            .select_related("table_session__table", "assigned_waiter")
+            .order_by("created_at")
+        )
+        return Response(WaiterCallSerializer(waiter_calls, many=True).data)
+
+
+class AcceptWaiterCallView(ActiveWaiterShiftMixin, APIView):
+    def post(self, request, call_id):
+        try:
+            waiter_call = WaiterCall.objects.get(pk=call_id)
+        except WaiterCall.DoesNotExist as exc:
+            raise NotFound("Waiter call not found.") from exc
+        try:
+            waiter_call = accept_waiter_call(waiter_call, request.user)
+        except DjangoValidationError as exc:
+            self.raise_service_error(exc)
+        waiter_call = WaiterCall.objects.select_related(
+            "table_session__table",
+            "assigned_waiter",
+        ).get(pk=waiter_call.pk)
+        return Response(WaiterCallSerializer(waiter_call).data)
+
+
+class CompleteWaiterCallView(ActiveWaiterShiftMixin, APIView):
+    def post(self, request, call_id):
+        try:
+            waiter_call = WaiterCall.objects.get(pk=call_id)
+        except WaiterCall.DoesNotExist as exc:
+            raise NotFound("Waiter call not found.") from exc
+        try:
+            waiter_call = complete_waiter_call(waiter_call, request.user)
+        except DjangoValidationError as exc:
+            self.raise_service_error(exc)
+        waiter_call = WaiterCall.objects.select_related(
+            "table_session__table",
+            "assigned_waiter",
+        ).get(pk=waiter_call.pk)
+        return Response(WaiterCallSerializer(waiter_call).data)

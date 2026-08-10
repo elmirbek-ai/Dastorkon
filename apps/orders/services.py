@@ -2,13 +2,15 @@ from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.utils import timezone
 
 from apps.menu.models import MenuItem
 from apps.tables.models import ActiveTableSession, CustomerSession
 from apps.tables.services import close_active_table_session
 from apps.users.models import User
+from apps.users.services import get_active_waiter_shift
 
-from .models import CartItem, Order, OrderItem, OrderStatusHistory
+from .models import CartItem, Order, OrderItem, OrderStatusHistory, WaiterCall
 
 
 def validate_menu_item_for_customer_session(customer_session, menu_item):
@@ -119,6 +121,95 @@ def calculate_cart_total(customer_session):
 
 def clear_cart(customer_session):
     CartItem.objects.filter(customer_session=customer_session).delete()
+
+
+@transaction.atomic
+def create_waiter_call(customer_session, reason):
+    table_session = (
+        ActiveTableSession.objects.select_for_update()
+        .select_related("restaurant", "assigned_waiter")
+        .get(pk=customer_session.active_table_session_id)
+    )
+    customer_session = CustomerSession.objects.select_for_update().get(
+        pk=customer_session.pk,
+        active_table_session=table_session,
+    )
+    if not customer_session.is_active:
+        raise ValidationError("Customer session is inactive.")
+    if table_session.status != ActiveTableSession.Status.ACTIVE:
+        raise ValidationError("Table session is not active.")
+    if reason not in WaiterCall.Reason.values:
+        raise ValidationError("Invalid waiter call reason.")
+
+    return WaiterCall.objects.create(
+        restaurant=table_session.restaurant,
+        table_session=table_session,
+        customer_session=customer_session,
+        assigned_waiter=table_session.assigned_waiter,
+        reason=reason,
+        status=WaiterCall.Status.NEW,
+    )
+
+
+def validate_active_waiter(waiter):
+    if waiter.role != User.Role.WAITER:
+        raise ValidationError("User is not a waiter.")
+    if get_active_waiter_shift(waiter) is None:
+        raise ValidationError("Waiter has no active shift.")
+
+
+@transaction.atomic
+def accept_waiter_call(waiter_call, waiter):
+    validate_active_waiter(waiter)
+    waiter_call = (
+        WaiterCall.objects.select_for_update()
+        .select_related("table_session")
+        .get(pk=waiter_call.pk)
+    )
+    if waiter_call.status not in (
+        WaiterCall.Status.NEW,
+        WaiterCall.Status.ACCEPTED,
+    ):
+        raise ValidationError("Waiter call cannot be accepted.")
+    if waiter_call.table_session.status != ActiveTableSession.Status.ACTIVE:
+        raise ValidationError("Table session is not active.")
+    if waiter_call.assigned_waiter_id not in (None, waiter.pk):
+        raise ValidationError("Waiter call is assigned to another waiter.")
+
+    table_session = waiter_call.table_session
+    if table_session.assigned_waiter_id not in (None, waiter.pk):
+        raise ValidationError("Table session is assigned to another waiter.")
+    if table_session.assigned_waiter_id is None:
+        table_session = assign_waiter_to_table_session(table_session, waiter)
+
+    waiter_call.assigned_waiter = waiter
+    waiter_call.status = WaiterCall.Status.ACCEPTED
+    if waiter_call.accepted_at is None:
+        waiter_call.accepted_at = timezone.now()
+    waiter_call.save(
+        update_fields=(
+            "assigned_waiter",
+            "status",
+            "accepted_at",
+            "updated_at",
+        )
+    )
+    return waiter_call
+
+
+@transaction.atomic
+def complete_waiter_call(waiter_call, waiter):
+    validate_active_waiter(waiter)
+    waiter_call = WaiterCall.objects.select_for_update().get(pk=waiter_call.pk)
+    if waiter_call.assigned_waiter_id != waiter.pk:
+        raise ValidationError("Waiter call is assigned to another waiter.")
+    if waiter_call.status != WaiterCall.Status.ACCEPTED:
+        raise ValidationError("Waiter call is not accepted.")
+
+    waiter_call.status = WaiterCall.Status.DONE
+    waiter_call.completed_at = timezone.now()
+    waiter_call.save(update_fields=("status", "completed_at", "updated_at"))
+    return waiter_call
 
 
 @transaction.atomic
