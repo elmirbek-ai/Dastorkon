@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema
 from rest_framework import viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -41,10 +42,15 @@ class RestaurantSettingsView(APIView):
         )
         return settings
 
+    @extend_schema(responses=RestaurantSettingsSerializer)
     def get(self, request, restaurant_id):
         settings = self.get_settings(restaurant_id)
         return Response(RestaurantSettingsSerializer(settings).data)
 
+    @extend_schema(
+        request=RestaurantSettingsSerializer,
+        responses=RestaurantSettingsSerializer,
+    )
     def patch(self, request, restaurant_id):
         settings = self.get_settings(restaurant_id)
         serializer = RestaurantSettingsSerializer(

@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
+from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
 from rest_framework import status
 from rest_framework import serializers, viewsets
 from rest_framework.permissions import AllowAny
@@ -40,6 +41,22 @@ class RestaurantTableAdminViewSet(viewsets.ModelViewSet):
 class CustomerSessionStartView(APIView):
     permission_classes = (AllowAny,)
 
+    @extend_schema(
+        request=None,
+        responses={
+            200: inline_serializer(
+                name="CustomerSessionStartResponse",
+                fields={
+                    "restaurant": serializers.DictField(),
+                    "table": serializers.DictField(),
+                    "table_session_id": serializers.IntegerField(),
+                    "customer_session_id": serializers.IntegerField(),
+                    "comments_enabled": serializers.BooleanField(),
+                },
+            ),
+            404: OpenApiResponse(description="QR table not found."),
+        },
+    )
     def post(self, request, qr_token):
         try:
             table = get_table_by_qr_token(qr_token)

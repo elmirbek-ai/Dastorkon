@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
+from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
@@ -40,6 +41,7 @@ class AdminUserViewSet(viewsets.ModelViewSet):
 class WaiterShiftStartView(APIView):
     permission_classes = (IsWaiterRole,)
 
+    @extend_schema(request=None, responses=WaiterShiftSerializer)
     def post(self, request):
         shift = start_waiter_shift(request.user)
         return Response(WaiterShiftSerializer(shift).data)
@@ -48,6 +50,7 @@ class WaiterShiftStartView(APIView):
 class WaiterShiftEndView(APIView):
     permission_classes = (IsWaiterRole,)
 
+    @extend_schema(request=None, responses=WaiterShiftSerializer)
     def post(self, request):
         try:
             shift = end_waiter_shift(request.user)
@@ -59,6 +62,7 @@ class WaiterShiftEndView(APIView):
 class CurrentWaiterShiftView(APIView):
     permission_classes = (IsWaiterRole,)
 
+    @extend_schema(responses=WaiterShiftSerializer)
     def get(self, request):
         shift = get_active_waiter_shift(request.user)
         if shift is None:

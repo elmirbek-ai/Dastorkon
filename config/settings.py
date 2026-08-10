@@ -69,6 +69,29 @@ SPECTACULAR_SETTINGS = {
     'TITLE': 'Dastorkon API',
     'DESCRIPTION': 'QR menu and restaurant order-management MVP backend',
     'VERSION': '1.0.0',
+    'ENUM_NAME_OVERRIDES': {
+        'OrderStatusEnum': (
+            ('NEW', 'New'),
+            ('PREPARING', 'Preparing'),
+            ('READY', 'Ready'),
+            ('DELIVERED', 'Delivered'),
+            ('COMPLETED', 'Completed'),
+            ('CANCELLED', 'Cancelled'),
+        ),
+        'WaiterCallStatusEnum': (
+            ('NEW', 'New'),
+            ('ACCEPTED', 'Accepted'),
+            ('DONE', 'Done'),
+        ),
+        'TableStatusEnum': (
+            ('FREE', 'Free'),
+            ('OCCUPIED', 'Occupied'),
+        ),
+        'TableSessionStatusEnum': (
+            ('ACTIVE', 'Active'),
+            ('CLOSED', 'Closed'),
+        ),
+    },
 }
 
 SIMPLE_JWT = {

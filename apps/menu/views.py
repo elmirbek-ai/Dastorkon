@@ -1,7 +1,7 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Prefetch
-from rest_framework import status
-from rest_framework import viewsets
+from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
+from rest_framework import serializers, status, viewsets
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -62,6 +62,19 @@ class MenuItemAdminViewSet(viewsets.ModelViewSet):
 class PublicMenuView(APIView):
     permission_classes = (AllowAny,)
 
+    @extend_schema(
+        responses={
+            200: inline_serializer(
+                name="PublicMenuResponse",
+                fields={
+                    "restaurant": serializers.DictField(),
+                    "table": serializers.DictField(),
+                    "categories": PublicCategorySerializer(many=True),
+                },
+            ),
+            404: OpenApiResponse(description="QR table not found."),
+        }
+    )
     def get(self, request, qr_token):
         try:
             table = get_table_by_qr_token(qr_token)

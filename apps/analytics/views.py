@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -10,6 +11,10 @@ from .services import get_statistics_summary
 class StatisticsSummaryView(APIView):
     permission_classes = (IsAdminRole,)
 
+    @extend_schema(
+        parameters=[StatisticsFilterSerializer],
+        responses=StatisticsSummarySerializer,
+    )
     def get(self, request):
         filter_serializer = StatisticsFilterSerializer(data=request.query_params)
         filter_serializer.is_valid(raise_exception=True)

@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from .models import ActiveTableSession, RestaurantTable
@@ -28,6 +29,7 @@ class RestaurantTableSerializer(serializers.ModelSerializer):
             "updated_at",
         )
 
+    @extend_schema_field(str)
     def get_qr_url(self, obj):
         return f"/menu/{obj.qr_token}/"
 

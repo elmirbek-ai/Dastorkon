@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.menu.models import MenuItem
@@ -37,6 +38,7 @@ class CartItemSerializer(serializers.ModelSerializer):
             "line_total",
         )
 
+    @extend_schema_field(str)
     def get_line_total(self, obj):
         return f"{obj.menu_item.price * obj.quantity:.2f}"
 

@@ -3,6 +3,8 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Count, DecimalField, Q, Sum, Value
 from django.db.models.functions import Coalesce
+from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
+from rest_framework import serializers as drf_serializers
 from rest_framework import status
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.permissions import AllowAny
@@ -49,6 +51,25 @@ from .services import (
 )
 
 
+PublicCartResponseSchema = inline_serializer(
+    name="PublicCartResponse",
+    fields={
+        "items": CartItemSerializer(many=True),
+        "total": drf_serializers.DecimalField(max_digits=10, decimal_places=2),
+    },
+)
+PublicOrdersResponseSchema = inline_serializer(
+    name="PublicOrdersResponse",
+    fields={
+        "orders": PublicOrderSerializer(many=True),
+        "total_amount": drf_serializers.DecimalField(
+            max_digits=10,
+            decimal_places=2,
+        ),
+    },
+)
+
+
 class CustomerSessionMixin:
     permission_classes = (AllowAny,)
 
@@ -84,6 +105,7 @@ class CustomerSessionMixin:
 
 
 class PublicCartView(CustomerSessionMixin, APIView):
+    @extend_schema(responses=PublicCartResponseSchema)
     def get(self, request, qr_token):
         customer_session = self.get_customer_session(request, qr_token)
         try:
@@ -100,6 +122,10 @@ class PublicCartView(CustomerSessionMixin, APIView):
 
 
 class PublicCartItemCreateView(CustomerSessionMixin, APIView):
+    @extend_schema(
+        request=CartItemCreateSerializer,
+        responses={201: CartItemSerializer},
+    )
     def post(self, request, qr_token):
         customer_session = self.get_customer_session(request, qr_token)
         serializer = CartItemCreateSerializer(data=request.data)
@@ -127,6 +153,10 @@ class PublicCartItemDetailView(CustomerSessionMixin, APIView):
         except CartItem.DoesNotExist as exc:
             raise NotFound("Cart item not found.") from exc
 
+    @extend_schema(
+        request=CartItemUpdateSerializer,
+        responses=CartItemSerializer,
+    )
     def patch(self, request, qr_token, item_id):
         customer_session = self.get_customer_session(request, qr_token)
         cart_item = self.get_cart_item(customer_session, item_id)
@@ -141,6 +171,10 @@ class PublicCartItemDetailView(CustomerSessionMixin, APIView):
             self.raise_service_error(exc)
         return Response(CartItemSerializer(cart_item).data)
 
+    @extend_schema(
+        request=None,
+        responses={204: OpenApiResponse(description="Cart item removed.")},
+    )
     def delete(self, request, qr_token, item_id):
         customer_session = self.get_customer_session(request, qr_token)
         cart_item = self.get_cart_item(customer_session, item_id)
@@ -149,6 +183,7 @@ class PublicCartItemDetailView(CustomerSessionMixin, APIView):
 
 
 class PublicOrderView(CustomerSessionMixin, APIView):
+    @extend_schema(responses=PublicOrdersResponseSchema)
     def get(self, request, qr_token):
         customer_session = self.get_customer_session(request, qr_token)
         orders = Order.objects.filter(
@@ -167,6 +202,7 @@ class PublicOrderView(CustomerSessionMixin, APIView):
             }
         )
 
+    @extend_schema(request=None, responses={201: PublicOrderSerializer})
     def post(self, request, qr_token):
         customer_session = self.get_customer_session(request, qr_token)
         try:
@@ -210,6 +246,7 @@ class ActiveWaiterShiftMixin:
 
 
 class AvailableTableSessionsView(ActiveWaiterShiftMixin, APIView):
+    @extend_schema(responses=WaiterTableSessionSerializer(many=True))
     def get(self, request):
         table_sessions = (
             table_sessions_with_totals()
@@ -226,6 +263,7 @@ class AvailableTableSessionsView(ActiveWaiterShiftMixin, APIView):
 
 
 class MyTableSessionsView(ActiveWaiterShiftMixin, APIView):
+    @extend_schema(responses=WaiterTableSessionSerializer(many=True))
     def get(self, request):
         table_sessions = (
             table_sessions_with_totals()
@@ -241,6 +279,7 @@ class MyTableSessionsView(ActiveWaiterShiftMixin, APIView):
 
 
 class AcceptTableSessionView(ActiveWaiterShiftMixin, APIView):
+    @extend_schema(request=None, responses=WaiterTableSessionSerializer)
     def post(self, request, session_id):
         try:
             table_session = ActiveTableSession.objects.get(pk=session_id)
@@ -258,6 +297,7 @@ class AcceptTableSessionView(ActiveWaiterShiftMixin, APIView):
 
 
 class MyOrdersView(ActiveWaiterShiftMixin, APIView):
+    @extend_schema(responses=WaiterOrderSerializer(many=True))
     def get(self, request):
         orders = (
             Order.objects.filter(table_session__assigned_waiter=request.user)
@@ -270,6 +310,7 @@ class MyOrdersView(ActiveWaiterShiftMixin, APIView):
 
 
 class MarkOrderDeliveredView(ActiveWaiterShiftMixin, APIView):
+    @extend_schema(request=None, responses=WaiterOrderSerializer)
     def post(self, request, order_id):
         try:
             order = Order.objects.get(pk=order_id)
@@ -288,6 +329,7 @@ class MarkOrderDeliveredView(ActiveWaiterShiftMixin, APIView):
 
 
 class CloseTableSessionView(ActiveWaiterShiftMixin, APIView):
+    @extend_schema(request=None, responses=WaiterTableSessionSerializer)
     def post(self, request, session_id):
         try:
             table_session = ActiveTableSession.objects.get(pk=session_id)
@@ -309,6 +351,7 @@ class CloseTableSessionView(ActiveWaiterShiftMixin, APIView):
 class KitchenOrdersView(APIView):
     permission_classes = (IsKitchenRole,)
 
+    @extend_schema(responses=KitchenOrderSerializer(many=True))
     def get(self, request):
         orders = (
             Order.objects.filter(
@@ -324,6 +367,7 @@ class KitchenOrdersView(APIView):
 class MarkOrderPreparingView(APIView):
     permission_classes = (IsKitchenRole,)
 
+    @extend_schema(request=None, responses=KitchenOrderSerializer)
     def post(self, request, order_id):
         try:
             order = Order.objects.get(pk=order_id)
@@ -344,6 +388,7 @@ class MarkOrderPreparingView(APIView):
 class MarkOrderReadyView(APIView):
     permission_classes = (IsKitchenRole,)
 
+    @extend_schema(request=None, responses=KitchenOrderSerializer)
     def post(self, request, order_id):
         try:
             order = Order.objects.get(pk=order_id)
@@ -362,6 +407,10 @@ class MarkOrderReadyView(APIView):
 
 
 class PublicWaiterCallCreateView(CustomerSessionMixin, APIView):
+    @extend_schema(
+        request=WaiterCallCreateSerializer,
+        responses={201: PublicWaiterCallSerializer},
+    )
     def post(self, request, qr_token):
         customer_session = self.get_customer_session(request, qr_token)
         serializer = WaiterCallCreateSerializer(data=request.data)
@@ -380,6 +429,7 @@ class PublicWaiterCallCreateView(CustomerSessionMixin, APIView):
 
 
 class WaiterCallsView(ActiveWaiterShiftMixin, APIView):
+    @extend_schema(responses=WaiterCallSerializer(many=True))
     def get(self, request):
         waiter_calls = (
             WaiterCall.objects.filter(
@@ -400,6 +450,7 @@ class WaiterCallsView(ActiveWaiterShiftMixin, APIView):
 
 
 class AcceptWaiterCallView(ActiveWaiterShiftMixin, APIView):
+    @extend_schema(request=None, responses=WaiterCallSerializer)
     def post(self, request, call_id):
         try:
             waiter_call = WaiterCall.objects.get(pk=call_id)
@@ -417,6 +468,7 @@ class AcceptWaiterCallView(ActiveWaiterShiftMixin, APIView):
 
 
 class CompleteWaiterCallView(ActiveWaiterShiftMixin, APIView):
+    @extend_schema(request=None, responses=WaiterCallSerializer)
     def post(self, request, call_id):
         try:
             waiter_call = WaiterCall.objects.get(pk=call_id)
@@ -452,6 +504,11 @@ def filter_admin_orders(queryset, filters):
 class AdminOrdersView(APIView):
     permission_classes = (IsAdminRole,)
 
+    @extend_schema(
+        operation_id="admin_orders_list",
+        parameters=[AdminOrderFilterSerializer],
+        responses=AdminOrderListSerializer(many=True),
+    )
     def get(self, request):
         filter_serializer = AdminOrderFilterSerializer(data=request.query_params)
         filter_serializer.is_valid(raise_exception=True)
@@ -472,6 +529,10 @@ class AdminOrdersView(APIView):
 class AdminOrderDetailView(APIView):
     permission_classes = (IsAdminRole,)
 
+    @extend_schema(
+        operation_id="admin_orders_retrieve",
+        responses=AdminOrderDetailSerializer,
+    )
     def get(self, request, order_id):
         try:
             order = (
