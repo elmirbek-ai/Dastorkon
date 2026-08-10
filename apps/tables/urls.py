@@ -1,5 +1,9 @@
-from django.urls import path
+from rest_framework.routers import DefaultRouter
+
+from .views import RestaurantTableAdminViewSet
 
 
-app_name = "tables"
-urlpatterns = []
+router = DefaultRouter()
+router.register("tables", RestaurantTableAdminViewSet, basename="admin-table")
+
+urlpatterns = router.urls
