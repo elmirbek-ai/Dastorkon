@@ -1,7 +1,8 @@
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db.models import Sum
+from django.db.models import Count, DecimalField, Sum, Value
+from django.db.models.functions import Coalesce
 from rest_framework import status
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.permissions import AllowAny
@@ -10,6 +11,8 @@ from rest_framework.views import APIView
 
 from apps.tables.models import ActiveTableSession, CustomerSession
 from apps.tables.services import get_table_by_qr_token
+from apps.users.permissions import IsWaiterRole
+from apps.users.services import get_active_waiter_shift
 
 from .models import CartItem, Order
 from .serializers import (
@@ -17,12 +20,17 @@ from .serializers import (
     CartItemSerializer,
     CartItemUpdateSerializer,
     PublicOrderSerializer,
+    WaiterOrderSerializer,
+    WaiterTableSessionSerializer,
 )
 from .services import (
     add_cart_item,
+    assign_waiter_to_table_session,
     calculate_cart_total,
+    complete_table_session,
     create_order_from_cart,
     get_cart_items,
+    mark_order_delivered,
     remove_cart_item,
     update_cart_item,
 )
@@ -156,3 +164,130 @@ class PublicOrderView(CustomerSessionMixin, APIView):
             PublicOrderSerializer(order).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+def table_sessions_with_totals():
+    return (
+        ActiveTableSession.objects.select_related(
+            "table",
+            "restaurant",
+            "assigned_waiter",
+        )
+        .annotate(
+            orders_count=Count("orders"),
+            total_amount=Coalesce(
+                Sum("orders__total_amount"),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=10, decimal_places=2),
+            ),
+        )
+    )
+
+
+class ActiveWaiterShiftMixin:
+    permission_classes = (IsWaiterRole,)
+
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        if get_active_waiter_shift(request.user) is None:
+            raise PermissionDenied("An active waiter shift is required.")
+
+    def raise_service_error(self, exc):
+        raise ValidationError(exc.messages) from exc
+
+
+class AvailableTableSessionsView(ActiveWaiterShiftMixin, APIView):
+    def get(self, request):
+        table_sessions = (
+            table_sessions_with_totals()
+            .filter(
+                status=ActiveTableSession.Status.ACTIVE,
+                assigned_waiter__isnull=True,
+                orders_count__gt=0,
+            )
+            .order_by("created_at")
+        )
+        return Response(
+            WaiterTableSessionSerializer(table_sessions, many=True).data
+        )
+
+
+class MyTableSessionsView(ActiveWaiterShiftMixin, APIView):
+    def get(self, request):
+        table_sessions = (
+            table_sessions_with_totals()
+            .filter(
+                status=ActiveTableSession.Status.ACTIVE,
+                assigned_waiter=request.user,
+            )
+            .order_by("-created_at")
+        )
+        return Response(
+            WaiterTableSessionSerializer(table_sessions, many=True).data
+        )
+
+
+class AcceptTableSessionView(ActiveWaiterShiftMixin, APIView):
+    def post(self, request, session_id):
+        try:
+            table_session = ActiveTableSession.objects.get(pk=session_id)
+        except ActiveTableSession.DoesNotExist as exc:
+            raise NotFound("Table session not found.") from exc
+        try:
+            table_session = assign_waiter_to_table_session(
+                table_session,
+                request.user,
+            )
+        except DjangoValidationError as exc:
+            self.raise_service_error(exc)
+        table_session = table_sessions_with_totals().get(pk=table_session.pk)
+        return Response(WaiterTableSessionSerializer(table_session).data)
+
+
+class MyOrdersView(ActiveWaiterShiftMixin, APIView):
+    def get(self, request):
+        orders = (
+            Order.objects.filter(table_session__assigned_waiter=request.user)
+            .exclude(status__in=(Order.Status.COMPLETED, Order.Status.CANCELLED))
+            .select_related("table_session__table")
+            .prefetch_related("items")
+            .order_by("-created_at")
+        )
+        return Response(WaiterOrderSerializer(orders, many=True).data)
+
+
+class MarkOrderDeliveredView(ActiveWaiterShiftMixin, APIView):
+    def post(self, request, order_id):
+        try:
+            order = Order.objects.get(pk=order_id)
+        except Order.DoesNotExist as exc:
+            raise NotFound("Order not found.") from exc
+        try:
+            order = mark_order_delivered(order, request.user)
+        except DjangoValidationError as exc:
+            self.raise_service_error(exc)
+        order = (
+            Order.objects.select_related("table_session__table")
+            .prefetch_related("items")
+            .get(pk=order.pk)
+        )
+        return Response(WaiterOrderSerializer(order).data)
+
+
+class CloseTableSessionView(ActiveWaiterShiftMixin, APIView):
+    def post(self, request, session_id):
+        try:
+            table_session = ActiveTableSession.objects.get(pk=session_id)
+        except ActiveTableSession.DoesNotExist as exc:
+            raise NotFound("Table session not found.") from exc
+        if table_session.assigned_waiter_id != request.user.pk:
+            raise PermissionDenied("Table session is assigned to another waiter.")
+        try:
+            table_session = complete_table_session(
+                table_session,
+                request.user,
+            )
+        except DjangoValidationError as exc:
+            self.raise_service_error(exc)
+        table_session = table_sessions_with_totals().get(pk=table_session.pk)
+        return Response(WaiterTableSessionSerializer(table_session).data)

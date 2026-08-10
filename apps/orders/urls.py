@@ -1,6 +1,12 @@
 from django.urls import path
 
 from .views import (
+    AcceptTableSessionView,
+    AvailableTableSessionsView,
+    CloseTableSessionView,
+    MarkOrderDeliveredView,
+    MyOrdersView,
+    MyTableSessionsView,
     PublicCartItemCreateView,
     PublicCartItemDetailView,
     PublicCartView,
@@ -28,6 +34,39 @@ public_urlpatterns = [
         "qr/<uuid:qr_token>/orders/",
         PublicOrderView.as_view(),
         name="public-orders",
+    ),
+]
+
+waiter_urlpatterns = [
+    path(
+        "table-sessions/available/",
+        AvailableTableSessionsView.as_view(),
+        name="waiter-table-sessions-available",
+    ),
+    path(
+        "table-sessions/my/",
+        MyTableSessionsView.as_view(),
+        name="waiter-table-sessions-my",
+    ),
+    path(
+        "table-sessions/<int:session_id>/accept/",
+        AcceptTableSessionView.as_view(),
+        name="waiter-table-session-accept",
+    ),
+    path(
+        "table-sessions/<int:session_id>/close/",
+        CloseTableSessionView.as_view(),
+        name="waiter-table-session-close",
+    ),
+    path(
+        "orders/",
+        MyOrdersView.as_view(),
+        name="waiter-orders",
+    ),
+    path(
+        "orders/<int:order_id>/delivered/",
+        MarkOrderDeliveredView.as_view(),
+        name="waiter-order-delivered",
     ),
 ]
 

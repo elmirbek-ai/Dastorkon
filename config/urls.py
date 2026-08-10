@@ -33,6 +33,7 @@ urlpatterns = [
     ),
     path('common/', include('apps.common.urls')),
     path('api/waiter/', include(user_urls.waiter_urlpatterns)),
+    path('api/waiter/', include(order_urls.waiter_urlpatterns)),
     path('restaurants/', include('apps.restaurants.urls')),
     path('api/admin/', include(menu_urls.admin_urlpatterns)),
     path('api/admin/', include(table_urls.admin_urlpatterns)),

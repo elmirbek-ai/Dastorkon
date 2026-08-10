@@ -1,6 +1,8 @@
 from rest_framework import serializers
 
 from apps.menu.models import MenuItem
+from apps.restaurants.models import Restaurant
+from apps.tables.models import ActiveTableSession, RestaurantTable
 
 from .models import CartItem, Order, OrderItem
 
@@ -79,3 +81,62 @@ class PublicOrderSerializer(serializers.ModelSerializer):
             "created_at",
             "items",
         )
+
+
+class WaiterTableSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RestaurantTable
+        fields = ("id", "number")
+
+
+class WaiterRestaurantSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Restaurant
+        fields = ("id", "name")
+
+
+class WaiterTableSessionSerializer(serializers.ModelSerializer):
+    table = WaiterTableSerializer(read_only=True)
+    restaurant = WaiterRestaurantSerializer(read_only=True)
+    orders_count = serializers.IntegerField(read_only=True)
+    total_amount = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        read_only=True,
+    )
+
+    class Meta:
+        model = ActiveTableSession
+        fields = (
+            "id",
+            "table",
+            "restaurant",
+            "assigned_waiter",
+            "status",
+            "created_at",
+            "orders_count",
+            "total_amount",
+        )
+        read_only_fields = fields
+
+
+class WaiterOrderSerializer(serializers.ModelSerializer):
+    table_number = serializers.IntegerField(
+        source="table_session.table.number",
+        read_only=True,
+    )
+    items = PublicOrderItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Order
+        fields = (
+            "id",
+            "order_number",
+            "table_session",
+            "table_number",
+            "status",
+            "total_amount",
+            "created_at",
+            "items",
+        )
+        read_only_fields = fields
