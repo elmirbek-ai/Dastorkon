@@ -49,8 +49,8 @@ class SeedDemoCommandTests(TestCase):
         output = self.run_command()
         restaurant = Restaurant.objects.get(name="Dastorkon Demo Cafe")
 
-        self.assertEqual(Category.objects.filter(restaurant=restaurant).count(), 4)
-        self.assertEqual(MenuItem.objects.filter(restaurant=restaurant).count(), 6)
+        self.assertEqual(Category.objects.filter(restaurant=restaurant).count(), 8)
+        self.assertEqual(MenuItem.objects.filter(restaurant=restaurant).count(), 43)
         self.assertEqual(
             RestaurantTable.objects.filter(restaurant=restaurant).count(),
             10,
@@ -60,12 +60,19 @@ class SeedDemoCommandTests(TestCase):
         self.assertTrue(plov.is_available)
         self.assertTrue(plov.is_visible)
         self.assertFalse(plov.is_deleted)
+        self.assertTrue(plov.image)
+        self.assertTrue(plov.description_ky)
+        self.assertTrue(plov.description_ru)
+        self.assertTrue(plov.ingredients_ky)
+        self.assertTrue(plov.ingredients_ru)
+        self.assertTrue(plov.allergens_ky)
+        self.assertTrue(plov.allergens_ru)
         self.assertEqual(
             set(restaurant.tables.values_list("number", flat=True)),
             set(range(1, 11)),
         )
         self.assertIn(
-            f"/menu/{restaurant.tables.get(number=1).qr_token}/",
+            f"/api/public/qr/{restaurant.tables.get(number=1).qr_token}/menu/",
             output,
         )
 
@@ -83,7 +90,7 @@ class SeedDemoCommandTests(TestCase):
             3,
         )
         self.assertEqual(Restaurant.objects.filter(name=restaurant.name).count(), 1)
-        self.assertEqual(restaurant.categories.count(), 4)
-        self.assertEqual(restaurant.menu_items.count(), 6)
+        self.assertEqual(restaurant.categories.count(), 8)
+        self.assertEqual(restaurant.menu_items.count(), 43)
         self.assertEqual(restaurant.tables.count(), 10)
         self.assertEqual(restaurant.tables.get(number=1).qr_token, first_qr_token)

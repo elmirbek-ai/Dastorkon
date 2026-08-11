@@ -27,7 +27,11 @@ SECRET_KEY = 'django-insecure-3uk#107+yqzoj&!8rlaf=#a*ts#8i+&mjar0284p$7tsdks!6!
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    '192.168.88.239',
+    'localhost',
+    '127.0.0.1',
+]
 
 
 # Application definition
@@ -169,6 +173,7 @@ AUTH_PASSWORD_VALIDATORS = [
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
+    'http://192.168.88.239:5173',
 ]
 CORS_ALLOW_CREDENTIALS = True
 
@@ -192,6 +197,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = 'static/'
+
+MEDIA_URL = 'media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 
 # Email
