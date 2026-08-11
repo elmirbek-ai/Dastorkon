@@ -34,4 +34,18 @@ waiterApiClient.interceptors.request.use((config) => {
   return config
 })
 
+export const ADMIN_TOKEN_KEY = 'admin_access_token'
+
+export const adminApiClient = axios.create({
+  baseURL:
+    import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000',
+  withCredentials: true,
+})
+
+adminApiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem(ADMIN_TOKEN_KEY)
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
+
 export default apiClient
