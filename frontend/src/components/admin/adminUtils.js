@@ -8,7 +8,7 @@ export const orderStatusLabels = {
 }
 
 export const roleLabels = {
-  ADMIN: 'Администратор',
+  ADMIN: 'Админ',
   WAITER: 'Официант',
   KITCHEN: 'Ашкана',
 }
@@ -19,8 +19,10 @@ const apiErrorTranslations = {
   'you cannot deactivate your own account': 'Өз аккаунтуңузду өчүрө албайсыз.',
   'restaurant not found': 'Ресторан табылган жок.',
   'order not found': 'Заказ табылган жок.',
-  'this field is required': 'Бул талааны толтуруңуз.',
-  'a user with that username already exists': 'Мындай колдонуучу аты мурунтан бар.',
+  'this field is required': 'Бул талаа милдеттүү.',
+  'a user with that username already exists': 'Бул username менен аккаунт мурунтан бар.',
+  'passwords do not match': 'Паролдор дал келген жок.',
+  'user is inactive': 'Бул аккаунт өчүрүлгөн.',
   'the fields restaurant, number must make a unique set': 'Мындай номердеги стол мурунтан бар.',
   'invalid input': 'Берилген маалымат туура эмес.',
   'the submitted data was not a file. check the encoding type on the form': 'Сүрөт файлы туура жөнөтүлгөн жок.',

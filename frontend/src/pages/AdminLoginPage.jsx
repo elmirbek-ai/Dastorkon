@@ -1,27 +1,25 @@
 import { useState } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
-import apiClient, { ADMIN_TOKEN_KEY } from '../api/client.js'
-import { extractAdminError } from '../components/admin/adminUtils.js'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { ADMIN_TOKEN_KEY } from '../api/client.js'
+import { loginForRole, roleLoginError } from '../auth/roleAuth.js'
 
-export default function AdminLoginPage() {
+export default function AdminLoginPage({ guardError = '' }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const [username, setUsername] = useState('admin')
   const [password, setPassword] = useState('admin12345')
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState('')
-
-  if (localStorage.getItem(ADMIN_TOKEN_KEY)) return <Navigate to="/admin/dashboard" replace />
+  const [error, setError] = useState(location.state?.authError || guardError)
 
   async function submit(event) {
     event.preventDefault()
     setSubmitting(true)
     setError('')
     try {
-      const response = await apiClient.post('/api/auth/token/', { username, password })
-      localStorage.setItem(ADMIN_TOKEN_KEY, response.data.access)
+      await loginForRole({ username, password, expectedRole: 'ADMIN', tokenKey: ADMIN_TOKEN_KEY })
       navigate('/admin/dashboard', { replace: true })
     } catch (requestError) {
-      setError(extractAdminError(requestError, 'Логин же сырсөз туура эмес.'))
+      setError(roleLoginError(requestError, 'ADMIN'))
     } finally {
       setSubmitting(false)
     }

@@ -51,6 +51,7 @@ urlpatterns = [
         TokenRefreshView.as_view(),
         name='token_refresh',
     ),
+    path('api/auth/', include(user_urls.auth_urlpatterns)),
     path('common/', include('apps.common.urls')),
     path('api/waiter/', include(user_urls.waiter_urlpatterns)),
     path('api/waiter/', include(order_urls.waiter_urlpatterns)),

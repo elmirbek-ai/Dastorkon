@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { ADMIN_TOKEN_KEY, KITCHEN_TOKEN_KEY, WAITER_TOKEN_KEY } from './api/client.js'
+import { ProtectedRoleRoute, RoleLoginRoute } from './auth/RoleRoutes.jsx'
 import AdminLayout from './components/admin/AdminLayout.jsx'
 import AdminCategoriesPage from './pages/AdminCategoriesPage.jsx'
 import AdminDashboardPage from './pages/AdminDashboardPage.jsx'
@@ -13,6 +14,7 @@ import AdminUsersPage from './pages/AdminUsersPage.jsx'
 import CustomerMenuPage from './pages/CustomerMenuPage.jsx'
 import KitchenDisplayPage from './pages/KitchenDisplayPage.jsx'
 import KitchenLoginPage from './pages/KitchenLoginPage.jsx'
+import LoginHubPage from './pages/LoginHubPage.jsx'
 import WaiterDashboardPage from './pages/WaiterDashboardPage.jsx'
 import WaiterLoginPage from './pages/WaiterLoginPage.jsx'
 import './App.css'
@@ -26,36 +28,19 @@ function HomePage() {
   )
 }
 
-function KitchenRoute() {
-  return localStorage.getItem(KITCHEN_TOKEN_KEY)
-    ? <KitchenDisplayPage />
-    : <Navigate to="/kitchen/login" replace />
-}
-
-function WaiterRoute() {
-  return localStorage.getItem(WAITER_TOKEN_KEY)
-    ? <WaiterDashboardPage />
-    : <Navigate to="/waiter/login" replace />
-}
-
-function AdminRoute() {
-  return localStorage.getItem(ADMIN_TOKEN_KEY)
-    ? <AdminLayout />
-    : <Navigate to="/admin/login" replace />
-}
-
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/login" element={<LoginHubPage />} />
         <Route path="/menu/:qrToken" element={<CustomerMenuPage />} />
-        <Route path="/kitchen/login" element={<KitchenLoginPage />} />
-        <Route path="/kitchen/orders" element={<KitchenRoute />} />
-        <Route path="/waiter/login" element={<WaiterLoginPage />} />
-        <Route path="/waiter/dashboard" element={<WaiterRoute />} />
-        <Route path="/admin/login" element={<AdminLoginPage />} />
-        <Route path="/admin" element={<AdminRoute />}>
+        <Route path="/kitchen/login" element={<RoleLoginRoute tokenKey={KITCHEN_TOKEN_KEY} expectedRole="KITCHEN"><KitchenLoginPage /></RoleLoginRoute>} />
+        <Route path="/kitchen/orders" element={<ProtectedRoleRoute tokenKey={KITCHEN_TOKEN_KEY} expectedRole="KITCHEN"><KitchenDisplayPage /></ProtectedRoleRoute>} />
+        <Route path="/waiter/login" element={<RoleLoginRoute tokenKey={WAITER_TOKEN_KEY} expectedRole="WAITER"><WaiterLoginPage /></RoleLoginRoute>} />
+        <Route path="/waiter/dashboard" element={<ProtectedRoleRoute tokenKey={WAITER_TOKEN_KEY} expectedRole="WAITER"><WaiterDashboardPage /></ProtectedRoleRoute>} />
+        <Route path="/admin/login" element={<RoleLoginRoute tokenKey={ADMIN_TOKEN_KEY} expectedRole="ADMIN"><AdminLoginPage /></RoleLoginRoute>} />
+        <Route path="/admin" element={<ProtectedRoleRoute tokenKey={ADMIN_TOKEN_KEY} expectedRole="ADMIN"><AdminLayout /></ProtectedRoleRoute>}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<AdminDashboardPage />} />
           <Route path="menu" element={<AdminMenuPage />} />

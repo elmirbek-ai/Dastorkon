@@ -1,17 +1,15 @@
 import { useState } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
-import apiClient, { KITCHEN_TOKEN_KEY } from '../api/client.js'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { KITCHEN_TOKEN_KEY } from '../api/client.js'
+import { loginForRole, roleLoginError } from '../auth/roleAuth.js'
 
-function KitchenLoginPage() {
+function KitchenLoginPage({ guardError = '' }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const [username, setUsername] = useState('kitchen')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+  const [error, setError] = useState(location.state?.authError || guardError)
   const [submitting, setSubmitting] = useState(false)
-
-  if (localStorage.getItem(KITCHEN_TOKEN_KEY)) {
-    return <Navigate to="/kitchen/orders" replace />
-  }
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -19,11 +17,10 @@ function KitchenLoginPage() {
     setError('')
 
     try {
-      const response = await apiClient.post('/api/auth/token/', { username, password })
-      localStorage.setItem(KITCHEN_TOKEN_KEY, response.data.access)
+      await loginForRole({ username, password, expectedRole: 'KITCHEN', tokenKey: KITCHEN_TOKEN_KEY })
       navigate('/kitchen/orders', { replace: true })
-    } catch {
-      setError('Логин же сырсөз туура эмес. Кайра аракет кылыңыз.')
+    } catch (requestError) {
+      setError(roleLoginError(requestError, 'KITCHEN'))
     } finally {
       setSubmitting(false)
     }

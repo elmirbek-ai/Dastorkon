@@ -1,17 +1,15 @@
 import { useState } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
-import apiClient, { WAITER_TOKEN_KEY } from '../api/client.js'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { WAITER_TOKEN_KEY } from '../api/client.js'
+import { loginForRole, roleLoginError } from '../auth/roleAuth.js'
 
-function WaiterLoginPage() {
+function WaiterLoginPage({ guardError = '' }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const [username, setUsername] = useState('waiter')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+  const [error, setError] = useState(location.state?.authError || guardError)
   const [submitting, setSubmitting] = useState(false)
-
-  if (localStorage.getItem(WAITER_TOKEN_KEY)) {
-    return <Navigate to="/waiter/dashboard" replace />
-  }
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -19,11 +17,10 @@ function WaiterLoginPage() {
     setError('')
 
     try {
-      const response = await apiClient.post('/api/auth/token/', { username, password })
-      localStorage.setItem(WAITER_TOKEN_KEY, response.data.access)
+      await loginForRole({ username, password, expectedRole: 'WAITER', tokenKey: WAITER_TOKEN_KEY })
       navigate('/waiter/dashboard', { replace: true })
-    } catch {
-      setError('Логин же сырсөз туура эмес. Кайра аракет кылыңыз.')
+    } catch (requestError) {
+      setError(roleLoginError(requestError, 'WAITER'))
     } finally {
       setSubmitting(false)
     }

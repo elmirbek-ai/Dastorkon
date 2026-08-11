@@ -75,6 +75,11 @@ class AdminUserApiTests(APITestCase):
         response = self.client.get(self.url)
         self.assertNotIn(self.inactive.username, {item["username"] for item in response.data})
 
+    def test_admin_can_explicitly_list_inactive_users(self):
+        self.authenticate_admin()
+        response = self.client.get(self.url, {"include_inactive": "true"})
+        self.assertIn(self.inactive.username, {item["username"] for item in response.data})
+
     def test_admin_can_retrieve_user_detail(self):
         self.authenticate_admin()
         response = self.client.get(f"{self.url}{self.waiter.pk}/")
@@ -143,3 +148,34 @@ class AdminUserApiTests(APITestCase):
         self.authenticate_admin()
         response = self.client.get(f"{self.url}999999/")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class CurrentUserApiTests(APITestCase):
+    url = "/api/auth/me/"
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            "waiter-me",
+            password="password",
+            role=User.Role.WAITER,
+            phone="+996700000001",
+        )
+
+    def test_anonymous_user_cannot_get_current_user(self):
+        self.assertEqual(self.client.get(self.url).status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_authenticated_user_gets_safe_identity_fields(self):
+        self.client.force_authenticate(self.user)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data,
+            {
+                "id": self.user.pk,
+                "username": self.user.username,
+                "role": User.Role.WAITER,
+                "phone": self.user.phone,
+                "is_active": True,
+            },
+        )
+        self.assertNotIn("password", response.data)

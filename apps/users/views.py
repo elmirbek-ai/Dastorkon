@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 
 from .models import User
 from .permissions import IsAdminRole, IsWaiterRole
-from .serializers import AdminUserSerializer, WaiterShiftSerializer
+from .serializers import AdminUserSerializer, CurrentUserSerializer, WaiterShiftSerializer
 from .services import (
     end_waiter_shift,
     get_active_waiter_shift,
@@ -22,7 +22,7 @@ class AdminUserViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        if self.action == "list":
+        if self.action == "list" and self.request.query_params.get("include_inactive") != "true":
             queryset = queryset.filter(is_active=True)
         return queryset
 
@@ -36,6 +36,12 @@ class AdminUserViewSet(viewsets.ModelViewSet):
             raise ValidationError("You cannot deactivate your own account.")
         instance.is_active = False
         instance.save(update_fields=("is_active",))
+
+
+class CurrentUserView(APIView):
+    @extend_schema(responses=CurrentUserSerializer)
+    def get(self, request):
+        return Response(CurrentUserSerializer(request.user).data)
 
 
 class WaiterShiftStartView(APIView):

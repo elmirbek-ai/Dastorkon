@@ -45,6 +45,13 @@ class AdminUserSerializer(serializers.ModelSerializer):
         return user
 
 
+class CurrentUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ("id", "username", "role", "phone", "is_active")
+        read_only_fields = fields
+
+
 class WaiterShiftSerializer(serializers.ModelSerializer):
     class Meta:
         model = WaiterShift
