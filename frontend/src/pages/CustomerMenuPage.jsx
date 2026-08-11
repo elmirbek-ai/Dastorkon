@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import apiClient from '../api/client.js'
 
@@ -477,6 +477,7 @@ function WaiterCallSheet({ open, sending, onClose, onCall }) {
 
 function CustomerMenuPage() {
   const { qrToken } = useParams()
+  const sessionRequestRef = useRef({ basePath: '', promise: null })
   const [menu, setMenu] = useState(null)
   const [cart, setCart] = useState(emptyCart)
   const [orders, setOrders] = useState(emptyOrders)
@@ -527,7 +528,25 @@ function CustomerMenuPage() {
       setError('')
 
       try {
-        await apiClient.post(`${basePath}/session/`)
+        if (sessionRequestRef.current.basePath !== basePath) {
+          sessionRequestRef.current = { basePath, promise: null }
+        }
+
+        if (!sessionRequestRef.current.promise) {
+          sessionRequestRef.current.promise = apiClient.post(`${basePath}/session/`)
+            .catch((requestError) => {
+              sessionRequestRef.current.promise = null
+              throw requestError
+            })
+        }
+
+        try {
+          await sessionRequestRef.current.promise
+        } catch {
+          if (active) setError('Стол сессиясын ачуу мүмкүн болгон жок.')
+          return
+        }
+
         const [menuResponse, cartResponse, ordersResponse] = await Promise.all([
           apiClient.get(`${basePath}/menu/`),
           apiClient.get(`${basePath}/cart/`),
