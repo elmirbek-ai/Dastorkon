@@ -263,7 +263,7 @@ function MyTableCard({ session, hasUnfinishedOrders, pending, error, onClose }) 
 
 function WaiterCallCard({ waiterCall, compact = false, pending, error, onAction }) {
   return (
-    <article className={`waiter-call-row ${compact ? 'is-compact' : ''}`}>
+    <article className={`waiter-call-row waiter-call-row--${waiterCall.status.toLowerCase()} ${compact ? 'is-compact' : ''}`}>
       <span className="waiter-call-row__icon" aria-hidden="true"><AppIcon name="bell" /></span>
       <div>
         <strong>Стол №{waiterCall.table_number}</strong>
@@ -296,7 +296,11 @@ function ReadyOrderCard({ order, compact = false, pending, error, onDeliver }) {
       <div className="waiter-ready-row__copy">
         <div><strong>Стол №{order.table_number}</strong><small>{order.order_number}</small></div>
         <p>{itemSummary(order)}</p>
-        <time>{timeAgo(order.created_at)}</time>
+        <div className="waiter-ready-row__meta">
+          <time>{timeAgo(order.created_at)}</time>
+          <span>✓ Даяр</span>
+          <strong>{formatMoney(order.total_amount)}</strong>
+        </div>
       </div>
       {!compact && (
         <ul>
@@ -339,7 +343,7 @@ function ProfilePanel({ shift, refreshing, pending, error, onRefresh, onStart, o
         </div>
       </div>
       <div className="waiter-profile-actions">
-        <button className="is-primary" type="button" onClick={shift ? onEnd : onStart} disabled={pending}>
+        <button className={shift ? 'is-end-shift' : 'is-primary'} type="button" onClick={shift ? onEnd : onStart} disabled={pending}>
           {pending ? <span className="waiter-action-spinner" /> : shift ? 'Сменаны бүтүрүү' : 'Сменаны баштоо'}
         </button>
         <button type="button" onClick={onRefresh} disabled={refreshing}><AppIcon name="refresh" />Маалыматты жаңыртуу</button>
@@ -507,13 +511,13 @@ function WaiterDashboardPage() {
 
         {activeView === 'overview' && (
           <div className="waiter-overview-grid">
-            <OverviewSection icon="orders" tone="green" title="Жаңы заказдар" count={counts.available} onViewAll={() => navigateView('new')} emptyText="Азырынча маалымат жок">
+            <OverviewSection icon="orders" tone="info" title="Жаңы заказдар" count={counts.available} onViewAll={() => navigateView('new')} emptyText="Азырынча маалымат жок">
               {newCards(true, 3)}
             </OverviewSection>
             <OverviewSection icon="bell" tone="orange" title="Чакыруулар" count={counts.calls} onViewAll={() => navigateView('calls')} emptyText="Жаңы чакыруу жок">
               {callCards(true, 2)}
             </OverviewSection>
-            <OverviewSection icon="ready" tone="green" title="Даяр заказдар" count={counts.ready} onViewAll={() => navigateView('ready')} emptyText="Даяр заказ жок">
+            <OverviewSection icon="ready" tone="success" title="Даяр заказдар" count={counts.ready} onViewAll={() => navigateView('ready')} emptyText="Даяр заказ жок">
               {readyCards(true, 2)}
             </OverviewSection>
           </div>
