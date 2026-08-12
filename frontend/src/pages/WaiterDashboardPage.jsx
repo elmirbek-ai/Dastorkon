@@ -18,7 +18,7 @@ const callStatuses = {
 const unfinishedOrderStatuses = new Set(['NEW', 'PREPARING', 'READY'])
 
 const backendErrorTranslations = {
-  'table session has unfinished orders': 'Столду жабуу үчүн бардык заказдар жеткирилген болушу керек.',
+  'table session has unfinished orders': 'Столду азыр жабууга болбойт. Адегенде бардык заказдарды жеткириңиз.',
   'table session is not active': 'Бул столдун сессиясы активдүү эмес.',
   'table session not found': 'Столдун сессиясы табылган жок.',
   'an active waiter shift is required': 'Бул аракет үчүн активдүү смена керек.',
@@ -244,7 +244,9 @@ function NewOrderCard({ session, compact = false, pending, error, onAccept, refe
   )
 }
 
-function MyTableCard({ session, hasUnfinishedOrders, pending, error, onClose }) {
+function MyTableCard({ session, unfinishedCounts, pending, error, onClose }) {
+  const hasUnfinishedOrders = Object.values(unfinishedCounts).some((count) => count > 0)
+
   return (
     <article className="waiter-my-table-card">
       <div className="waiter-list-card-heading">
@@ -252,8 +254,25 @@ function MyTableCard({ session, hasUnfinishedOrders, pending, error, onClose }) 
         <span>ACTIVE</span>
       </div>
       <SessionFacts session={session} />
-      {hasUnfinishedOrders && <p className="waiter-table-warning">Бул столдо бүтө элек заказдар бар.</p>}
-      <button type="button" onClick={() => onClose(session)} disabled={pending}>
+      {hasUnfinishedOrders && (
+        <div className="waiter-table-warning" id={`table-warning-${session.id}`}>
+          <strong>Столду азыр жабууга болбойт.</strong>
+          <p>Бүтө элек заказдар бар:</p>
+          <ul>
+            {unfinishedCounts.NEW > 0 && <li className="is-new"><span aria-hidden="true">●</span> Жаңы: <b>{unfinishedCounts.NEW}</b></li>}
+            {unfinishedCounts.PREPARING > 0 && <li className="is-preparing"><span aria-hidden="true">◷</span> Даярдалууда: <b>{unfinishedCounts.PREPARING}</b></li>}
+            {unfinishedCounts.READY > 0 && <li className="is-ready"><span aria-hidden="true">✓</span> Даяр, жеткириле элек: <b>{unfinishedCounts.READY}</b></li>}
+          </ul>
+          <small>Адегенде даяр заказдарды жеткирип, калган заказдардын бүтүшүн күтүңүз.</small>
+        </div>
+      )}
+      <button
+        className={hasUnfinishedOrders ? 'is-blocked' : ''}
+        type="button"
+        onClick={() => onClose(session)}
+        disabled={pending}
+        aria-describedby={hasUnfinishedOrders ? `table-warning-${session.id}` : undefined}
+      >
         {pending ? <span className="waiter-dark-spinner" /> : 'Столду жабуу'}
       </button>
       {error && <p className="waiter-card-error" role="alert">{error}</p>}
@@ -425,6 +444,19 @@ function WaiterDashboardPage() {
   }, [loadDashboard])
 
   const readyOrders = useMemo(() => orders.filter((order) => order.status === 'READY'), [orders])
+  const unfinishedCountsBySession = useMemo(() => {
+    const countsBySession = new Map()
+
+    orders.forEach((order) => {
+      if (!unfinishedOrderStatuses.has(order.status)) return
+      const sessionId = Number(order.table_session)
+      const counts = countsBySession.get(sessionId) || { NEW: 0, PREPARING: 0, READY: 0 }
+      counts[order.status] += 1
+      countsBySession.set(sessionId, counts)
+    })
+
+    return countsBySession
+  }, [orders])
   const counts = {
     available: availableSessions.length,
     tables: mySessions.length,
@@ -529,7 +561,7 @@ function WaiterDashboardPage() {
             {mySessions.map((session) => (
               <MyTableCard
                 session={session}
-                hasUnfinishedOrders={orders.some((order) => Number(order.table_session) === Number(session.id) && unfinishedOrderStatuses.has(order.status))}
+                unfinishedCounts={unfinishedCountsBySession.get(Number(session.id)) || { NEW: 0, PREPARING: 0, READY: 0 }}
                 pending={pendingAction === `session-${session.id}`}
                 error={cardError(`session-${session.id}`)}
                 onClose={closeSession}

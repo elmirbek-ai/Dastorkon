@@ -4252,6 +4252,12 @@ button:disabled {
   background: var(--warning-border);
 }
 
+.waiter-my-table-card > button.is-blocked {
+  border-style: dashed;
+  color: var(--warning-dark);
+  background: var(--surface);
+}
+
 .waiter-table-warning {
   margin: -2px 0 0;
   padding: 9px 10px;
@@ -4260,8 +4266,65 @@ button:disabled {
   color: var(--warning-dark);
   background: var(--warning-bg);
   font-size: 0.72rem;
-  font-weight: 700;
   line-height: 1.35;
+}
+
+.waiter-table-warning > strong {
+  display: block;
+  color: var(--text-primary);
+  font-size: 0.78rem;
+}
+
+.waiter-table-warning > p {
+  margin: 3px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+}
+
+.waiter-table-warning ul {
+  display: grid;
+  gap: 5px;
+  margin: 9px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.waiter-table-warning li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 4px 7px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  background: var(--surface);
+  font-size: 0.69rem;
+}
+
+.waiter-table-warning li b {
+  margin-left: auto;
+  font-size: 0.74rem;
+}
+
+.waiter-table-warning li.is-new span {
+  color: var(--info);
+}
+
+.waiter-table-warning li.is-preparing span {
+  color: var(--warning);
+}
+
+.waiter-table-warning li.is-ready span {
+  color: var(--success);
+}
+
+.waiter-table-warning > small {
+  display: block;
+  margin-top: 8px;
+  color: var(--warning-dark);
+  font-size: 0.66rem;
+  font-weight: 700;
 }
 
 .waiter-call-row {
