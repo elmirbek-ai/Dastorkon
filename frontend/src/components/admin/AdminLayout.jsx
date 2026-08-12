@@ -4,36 +4,26 @@ import { ADMIN_TOKEN_KEY, adminApiClient } from '../../api/client.js'
 import { extractAdminError } from './adminUtils.js'
 import { AdminIcon } from './AdminComponents.jsx'
 import { AdminContext } from './AdminContext.js'
-
-const navigation = [
-  { to: '/admin/dashboard', label: 'Башкы бет', icon: 'dashboard' },
-  { to: '/admin/menu', label: 'Меню', icon: 'menu' },
-  { to: '/admin/categories', label: 'Категориялар', icon: 'category' },
-  { to: '/admin/tables', label: 'Столдор', icon: 'tables' },
-  { to: '/admin/orders', label: 'Заказдар', icon: 'orders' },
-  { to: '/admin/users', label: 'Официанттар', icon: 'users' },
-  { to: '/admin/statistics', label: 'Статистика', icon: 'stats' },
-  { to: '/admin/settings', label: 'Жөндөөлөр', icon: 'settings' },
-]
-
-const pageTitles = {
-  '/admin/dashboard': 'Башкы бет',
-  '/admin/menu': 'Меню башкаруу',
-  '/admin/categories': 'Категориялар',
-  '/admin/tables': 'Столдор жана QR коддор',
-  '/admin/orders': 'Заказдар',
-  '/admin/users': 'Кызматкерлер',
-  '/admin/statistics': 'Статистика',
-  '/admin/settings': 'Жөндөөлөр',
-}
+import { useLanguage } from '../../i18n/LanguageContext.jsx'
 
 function AdminSidebar({ restaurant, open, onClose, onLogout }) {
   const location = useLocation()
+  const { t } = useLanguage()
+  const navigation = [
+    { to: '/admin/dashboard', label: t('admin.dashboard'), icon: 'dashboard' },
+    { to: '/admin/menu', label: t('admin.menu'), icon: 'menu' },
+    { to: '/admin/categories', label: t('admin.categories'), icon: 'category' },
+    { to: '/admin/tables', label: t('admin.tables'), icon: 'tables' },
+    { to: '/admin/orders', label: t('admin.orders'), icon: 'orders' },
+    { to: '/admin/users', label: t('admin.users'), icon: 'users' },
+    { to: '/admin/statistics', label: t('admin.statistics'), icon: 'stats' },
+    { to: '/admin/settings', label: t('admin.settings'), icon: 'settings' },
+  ]
   return (
     <>
-      <button className={`admin-sidebar-overlay ${open ? 'is-open' : ''}`} type="button" onClick={onClose} aria-label="Менюну жабуу" />
+      <button className={`admin-sidebar-overlay ${open ? 'is-open' : ''}`} type="button" onClick={onClose} aria-label={t('common.close')} />
       <aside className={`admin-sidebar ${open ? 'is-open' : ''}`}>
-        <div className="admin-sidebar-brand"><span>D</span><div><strong>Dastorkon</strong><small>Restaurant OS</small></div></div>
+        <div className="admin-sidebar-brand"><span>D</span><div><strong>Dastorkon</strong><small>{t('auth.restaurantOS')}</small></div></div>
         <nav>
           {navigation.map((item) => {
             const [pathname, search = ''] = item.to.split('?')
@@ -42,8 +32,8 @@ function AdminSidebar({ restaurant, open, onClose, onLogout }) {
           })}
         </nav>
         <div className="admin-sidebar-bottom">
-          <div className="admin-restaurant-mini"><span>{restaurant?.name?.slice(0, 1) || 'D'}</span><div><strong>{restaurant?.name || 'Ресторан'}</strong><small><i />Система иштеп жатат</small></div></div>
-          <button type="button" onClick={onLogout}><AdminIcon name="logout" />Чыгуу</button>
+          <div className="admin-restaurant-mini"><span>{restaurant?.name?.slice(0, 1) || 'D'}</span><div><strong>{restaurant?.name || t('common.restaurant')}</strong><small><i />{t('admin.systemWorking')}</small></div></div>
+          <button type="button" onClick={onLogout}><AdminIcon name="logout" />{t('common.logout')}</button>
         </div>
       </aside>
     </>
@@ -51,12 +41,17 @@ function AdminSidebar({ restaurant, open, onClose, onLogout }) {
 }
 
 function AdminHeader({ title, refreshing, onRefresh, onMenu, onLogout }) {
-  return <header className="admin-topbar"><button className="admin-menu-toggle" type="button" onClick={onMenu} aria-label="Менюну ачуу"><span /><span /><span /></button><div><small>Dastorkon башкаруу панели</small><h1>{title}</h1></div><div className="admin-topbar-actions"><button type="button" onClick={onRefresh} disabled={refreshing} aria-label="Маалыматты жаңыртуу"><AdminIcon name="refresh" /> <span>Жаңыртуу</span></button><div className="admin-profile"><b>А</b><span><strong>Админ</strong><small>Администратор</small></span></div><button className="admin-logout-button" type="button" onClick={onLogout} aria-label="Системадан чыгуу"><AdminIcon name="logout" /></button></div></header>
+  const { t } = useLanguage()
+  return <header className="admin-topbar"><button className="admin-menu-toggle" type="button" onClick={onMenu} aria-label={t('common.menu')}><span /><span /><span /></button><div><small>Dastorkon · {t('admin.adminLogin')}</small><h1>{title}</h1></div><div className="admin-topbar-actions"><button type="button" onClick={onRefresh} disabled={refreshing} aria-label={t('common.refresh')}><AdminIcon name="refresh" /> <span>{t('common.refresh')}</span></button><div className="admin-profile"><b>А</b><span><strong>{t('role.ADMIN')}</strong><small>{t('role.ADMIN')}</small></span></div><button className="admin-logout-button" type="button" onClick={onLogout} aria-label={t('common.logout')}><AdminIcon name="logout" /></button></div></header>
 }
 
 export default function AdminLayout() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { language, t } = useLanguage()
+  const pageTitles = {
+    '/admin/dashboard': t('admin.dashboard'), '/admin/menu': t('admin.menuManagement'), '/admin/categories': t('admin.categories'), '/admin/tables': t('admin.tablesAndQr'), '/admin/orders': t('admin.orders'), '/admin/users': t('admin.users'), '/admin/statistics': t('admin.statistics'), '/admin/settings': t('admin.settings'),
+  }
   const [restaurants, setRestaurants] = useState([])
   const [restaurantId, setRestaurantId] = useState(null)
   const [loadingRestaurant, setLoadingRestaurant] = useState(true)
@@ -75,8 +70,8 @@ export default function AdminLayout() {
       logout()
       return ''
     }
-    return extractAdminError(error, fallback)
-  }, [logout])
+    return extractAdminError(error, fallback, language)
+  }, [language, logout])
 
   useEffect(() => {
     let active = true
@@ -85,12 +80,12 @@ export default function AdminLayout() {
         if (!active) return
         setRestaurants(response.data)
         setRestaurantId((current) => current || response.data[0]?.id || null)
-        setLayoutError(response.data.length ? '' : 'Активдүү ресторан табылган жок.')
+        setLayoutError(response.data.length ? '' : t('common.noData'))
       })
-      .catch((error) => active && setLayoutError(handleApiError(error, 'Ресторан жүктөлгөн жок.')))
+      .catch((error) => active && setLayoutError(handleApiError(error, t('errors.generic'))))
       .finally(() => active && setLoadingRestaurant(false))
     return () => { active = false }
-  }, [handleApiError])
+  }, [handleApiError, t])
 
   function refresh() {
     setRefreshing(true)
@@ -101,5 +96,5 @@ export default function AdminLayout() {
   const restaurant = restaurants.find((item) => item.id === restaurantId) || restaurants[0] || null
   const context = { restaurant, restaurants, restaurantId, setRestaurantId, loadingRestaurant, layoutError, refreshKey, handleApiError }
 
-  return <AdminContext.Provider value={context}><main className="admin-app"><AdminSidebar restaurant={restaurant} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={logout} /><div className="admin-main"><AdminHeader title={pageTitles[location.pathname] || 'Админ панели'} refreshing={refreshing} onRefresh={refresh} onMenu={() => setSidebarOpen(true)} onLogout={logout} /><div className="admin-content"><Outlet /></div></div></main></AdminContext.Provider>
+  return <AdminContext.Provider value={context}><main className="admin-app"><AdminSidebar restaurant={restaurant} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={logout} /><div className="admin-main"><AdminHeader title={pageTitles[location.pathname] || t('admin.adminLogin')} refreshing={refreshing} onRefresh={refresh} onMenu={() => setSidebarOpen(true)} onLogout={logout} /><div className="admin-content"><Outlet /></div></div></main></AdminContext.Provider>
 }

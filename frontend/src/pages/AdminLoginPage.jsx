@@ -2,10 +2,13 @@ import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ADMIN_TOKEN_KEY } from '../api/client.js'
 import { loginForRole, roleLoginError } from '../auth/roleAuth.js'
+import StaffLoginCard from '../components/StaffLoginCard.jsx'
+import { useLanguage } from '../i18n/LanguageContext.jsx'
 
 export default function AdminLoginPage({ guardError = '' }) {
   const navigate = useNavigate()
   const location = useLocation()
+  const { language, t } = useLanguage()
   const [username, setUsername] = useState('admin')
   const [password, setPassword] = useState('admin12345')
   const [submitting, setSubmitting] = useState(false)
@@ -19,11 +22,11 @@ export default function AdminLoginPage({ guardError = '' }) {
       await loginForRole({ username, password, expectedRole: 'ADMIN', tokenKey: ADMIN_TOKEN_KEY })
       navigate('/admin/dashboard', { replace: true })
     } catch (requestError) {
-      setError(roleLoginError(requestError, 'ADMIN'))
+      setError(roleLoginError(requestError, 'ADMIN', language))
     } finally {
       setSubmitting(false)
     }
   }
 
-  return <main className="admin-login-page"><section className="admin-login-card"><div className="admin-login-brand"><span>D</span><div><strong>Dastorkon</strong><small>Restaurant OS</small></div></div><div className="admin-login-copy"><small>КОШ КЕЛИҢИЗ</small><h1>Админ панели</h1><p>Ресторанды башкаруу үчүн аккаунтуңузга кириңиз.</p></div>{error && <div className="admin-error-banner" role="alert">{error}</div>}<form onSubmit={submit}><label>Колдонуучу аты<input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" required /></label><label>Сырсөз<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required /></label><button type="submit" disabled={submitting}>{submitting ? <span className="admin-button-spinner" /> : 'Кирүү'}</button></form><p className="admin-login-demo">Demo: admin / admin12345</p></section></main>
+  return <StaffLoginCard pageClass="admin-login-page" title={t('admin.adminLogin')} description={t('admin.loginDescription')} username={username} password={password} onUsernameChange={(event) => setUsername(event.target.value)} onPasswordChange={(event) => setPassword(event.target.value)} onSubmit={submit} submitting={submitting} error={error} demoUsername="admin" demoPassword="admin12345" />
 }

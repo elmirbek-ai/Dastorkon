@@ -1,21 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { kitchenApiClient, KITCHEN_TOKEN_KEY } from '../api/client.js'
+import LanguageSwitch from '../components/LanguageSwitch.jsx'
+import { useLanguage } from '../i18n/LanguageContext.jsx'
+import { getBackendErrorMessage, getLocalizedField, getStatusLabel } from '../i18n/index.js'
 
 const ACTIVE_STATUSES = ['NEW', 'PREPARING', 'READY']
 const READY_RETENTION_MS = 15 * 60 * 1000
-
-const columns = [
-  { status: 'NEW', title: 'Жаңы заказдар', subtitle: 'Күтүп жаткан заказдар' },
-  { status: 'PREPARING', title: 'Даярдалууда', subtitle: 'Азыр жасалып жатат' },
-  { status: 'READY', title: 'Даяр', subtitle: 'Берүүгө даяр заказдар' },
-]
-
-const statusLabels = {
-  NEW: 'Жаңы',
-  PREPARING: 'Даярдалууда',
-  READY: 'Даяр',
-}
 
 function formatMoney(value) {
   const amount = Number(value ?? 0)
@@ -48,6 +39,7 @@ function LogoutIcon() {
 }
 
 function KitchenHeader({ lastUpdated, refreshing, onRefresh, onLogout }) {
+  const { t } = useLanguage()
   return (
     <header className="kitchen-header">
       <div className="kitchen-brand">
@@ -58,17 +50,18 @@ function KitchenHeader({ lastUpdated, refreshing, onRefresh, onLogout }) {
         </div>
       </div>
       <div className="kitchen-header__actions">
+        <LanguageSwitch />
         <p>
-          <span>Акыркы жаңыртуу</span>
+          <span>{t('common.updated')}</span>
           <strong>{lastUpdated ? formatTime(lastUpdated) : '—'}</strong>
         </p>
-        <button type="button" onClick={onRefresh} disabled={refreshing} aria-label="Заказдарды жаңыртуу">
+        <button type="button" onClick={onRefresh} disabled={refreshing} aria-label={t('common.refresh')}>
           <RefreshIcon />
-          <span>{refreshing ? 'Жаңыртылууда' : 'Жаңыртуу'}</span>
+          <span>{refreshing ? t('common.working') : t('common.refresh')}</span>
         </button>
-        <button className="kitchen-logout" type="button" onClick={onLogout} aria-label="Системадан чыгуу">
+        <button className="kitchen-logout" type="button" onClick={onLogout} aria-label={t('common.logout')}>
           <LogoutIcon />
-          <span>Чыгуу</span>
+          <span>{t('common.logout')}</span>
         </button>
       </div>
     </header>
@@ -76,24 +69,25 @@ function KitchenHeader({ lastUpdated, refreshing, onRefresh, onLogout }) {
 }
 
 function KitchenOrderCard({ order, pending, onAdvance }) {
-  const actionLabel = order.status === 'NEW' ? 'Даярдай баштоо' : 'Даяр болду'
+  const { language, t } = useLanguage()
+  const actionLabel = order.status === 'NEW' ? t('kitchen.startPreparing') : t('kitchen.markReady')
   const canAdvance = order.status === 'NEW' || order.status === 'PREPARING'
 
   return (
     <article className={`kitchen-order-card kitchen-order-card--${order.status.toLowerCase()}`}>
       <div className="kitchen-order-card__top">
         <div>
-          <strong>Стол №{order.table_number}</strong>
+          <strong>{t('customer.tableLabel', { number: order.table_number })}</strong>
           <span>{order.order_number}</span>
         </div>
         <span className={`kitchen-status kitchen-status--${order.status.toLowerCase()}`}>
-          {statusLabels[order.status] || order.status}
+          {getStatusLabel(order.status, language)}
         </span>
       </div>
 
       <div className="kitchen-order-meta">
-        <span>Кабыл алынды <strong>{formatTime(order.created_at)}</strong></span>
-        <span>Жалпы <strong>{formatMoney(order.total_amount)}</strong></span>
+        <span>{t('kitchen.acceptedAt')} <strong>{formatTime(order.created_at)}</strong></span>
+        <span>{t('common.total')} <strong>{formatMoney(order.total_amount)}</strong></span>
       </div>
 
       {order.comment && <p className="kitchen-order-comment">{order.comment}</p>}
@@ -103,9 +97,9 @@ function KitchenOrderCard({ order, pending, onAdvance }) {
           <li key={item.id}>
             <div>
               <b>{item.quantity}×</b>
-              <strong>{item.name_ky_at_order}</strong>
+              <strong>{getLocalizedField(item, 'name_at_order', language)}</strong>
             </div>
-            {item.comment && <p>Эскертүү: {item.comment}</p>}
+            {item.comment && <p>{t('kitchen.comment')}: {item.comment}</p>}
           </li>
         ))}
       </ul>
@@ -120,13 +114,15 @@ function KitchenOrderCard({ order, pending, onAdvance }) {
           {pending ? <span className="kitchen-action-spinner" /> : actionLabel}
         </button>
       ) : (
-        <div className="kitchen-ready-confirmation" aria-label="Заказ даяр">✓ Даяр</div>
+        <div className="kitchen-ready-confirmation" aria-label={t('kitchen.ready')}>✓ {t('kitchen.ready')}</div>
       )}
     </article>
   )
 }
 
 function KitchenColumn({ column, orders, pendingOrderId, onAdvance }) {
+  const { t } = useLanguage()
+  const emptyKey = { NEW: 'kitchen.noNewOrders', PREPARING: 'kitchen.noPreparingOrders', READY: 'kitchen.noReadyOrders' }[column.status]
   return (
     <section className={`kitchen-column kitchen-column--${column.status.toLowerCase()}`}>
       <header className="kitchen-column__header">
@@ -140,7 +136,7 @@ function KitchenColumn({ column, orders, pendingOrderId, onAdvance }) {
         {orders.length === 0 ? (
           <div className="kitchen-empty-state">
             <span aria-hidden="true">✓</span>
-            <p>Азырынча заказ жок</p>
+            <p>{t(emptyKey)}</p>
           </div>
         ) : (
           orders.map((order) => (
@@ -159,6 +155,12 @@ function KitchenColumn({ column, orders, pendingOrderId, onAdvance }) {
 
 function KitchenDisplayPage() {
   const navigate = useNavigate()
+  const { language, t } = useLanguage()
+  const columns = useMemo(() => [
+    { status: 'NEW', title: t('kitchen.newOrders'), subtitle: t('kitchen.noNewOrders') },
+    { status: 'PREPARING', title: t('kitchen.preparing'), subtitle: t('kitchen.noPreparingOrders') },
+    { status: 'READY', title: t('kitchen.ready'), subtitle: t('kitchen.noReadyOrders') },
+  ], [t])
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -194,16 +196,12 @@ function KitchenDisplayPage() {
         logout()
         return
       }
-      setError(
-        requestError.response?.status === 403
-          ? 'Бул аккаунтка ашкана панелин колдонууга уруксат жок.'
-          : 'Заказдар жүктөлгөн жок. Байланышты текшерип, кайра жаңыртыңыз.',
-      )
+      setError(getBackendErrorMessage(requestError, language))
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [logout])
+  }, [language, logout])
 
   useEffect(() => {
     const initialLoadTimer = window.setTimeout(loadOrders, 0)
@@ -221,7 +219,7 @@ function KitchenDisplayPage() {
         orders.filter((order) => order.status === column.status),
       ]),
     ),
-    [orders],
+    [columns, orders],
   )
 
   async function advanceOrder(order) {
@@ -246,7 +244,7 @@ function KitchenDisplayPage() {
         logout()
         return
       }
-      setError('Заказдын статусу өзгөргөн жок. Кайра аракет кылыңыз.')
+      setError(t('kitchen.statusChangeError'))
     } finally {
       setPendingOrderId(null)
     }
@@ -256,7 +254,7 @@ function KitchenDisplayPage() {
     return (
       <main className="kitchen-loading">
         <span className="kitchen-screen-spinner" aria-hidden="true" />
-        <strong>Ашкана заказдары жүктөлүүдө...</strong>
+        <strong>{t('common.loading')}</strong>
       </main>
     )
   }
@@ -277,7 +275,7 @@ function KitchenDisplayPage() {
 
       {error && <div className="kitchen-error-banner" role="alert">{error}</div>}
 
-      <section className="kitchen-board" aria-label="Ашкана заказдары">
+      <section className="kitchen-board" aria-label={t('kitchen.kitchenDisplay')}>
         {columns.map((column) => (
           <KitchenColumn
             column={column}

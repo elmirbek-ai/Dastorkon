@@ -4,6 +4,8 @@ import { adminApiClient } from '../api/client.js'
 import { AdminIcon, AdminModal, EmptyState, ErrorBanner, LoadingState, PageIntro, Toggle } from '../components/admin/AdminComponents.jsx'
 import { adminImageUrl, formatAdminMoney } from '../components/admin/adminUtils.js'
 import { useAdminContext } from '../components/admin/AdminContext.js'
+import { useLanguage } from '../i18n/LanguageContext.jsx'
+import { getLocalizedField } from '../i18n/index.js'
 
 const emptyMenuItem = {
   name_ky: '',
@@ -28,6 +30,7 @@ const editableFields = [
 ]
 
 function MenuForm({ value, categories, imagePreview, saving, error, onChange, onImageChange, onClearImage, onSubmit, onCancel }) {
+  const { language, t } = useLanguage()
   const shownInMenu = value.is_available && value.is_visible
 
   return (
@@ -36,76 +39,76 @@ function MenuForm({ value, categories, imagePreview, saving, error, onChange, on
 
       <section className="admin-menu-form-section">
         <header>
-          <div><small>НЕГИЗГИ МААЛЫМАТ</small><h3>Жалпы параметрлер</h3></div>
-          <p>Категория, баа жана кардар менюсундагы абал.</p>
+          <div><small>{t('admin.basicInformation')}</small><h3>{t('admin.generalParameters')}</h3></div>
+          <p>{t('admin.generalParametersHelp')}</p>
         </header>
         <div className="admin-menu-general-grid">
           <label>
-            Категория
+            {t('admin.category')}
             <select value={value.category} onChange={(event) => onChange('category', event.target.value)} required>
-              <option value="">Тандаңыз</option>
-              {categories.map((category) => <option value={category.id} key={category.id}>{category.name_ky}</option>)}
+              <option value="">{t('common.apply')}</option>
+              {categories.map((category) => <option value={category.id} key={category.id}>{getLocalizedField(category, 'name', language)}</option>)}
             </select>
           </label>
           <label>
-            Баасы
+            {t('common.price')}
             <input type="number" min="0" step="0.01" value={value.price} onChange={(event) => onChange('price', event.target.value)} required />
           </label>
           <label>
-            Даярдоо убактысы (мүнөт)
+            {t('customer.averageCookingTime')} ({t('common.minutes')})
             <input type="number" min="0" value={value.cooking_time_min} onChange={(event) => onChange('cooking_time_min', event.target.value)} />
           </label>
           <label className="admin-menu-image-field">
-            Сүрөт
-            <span className="admin-file-input"><AdminIcon name="plus" /><b>{imagePreview ? 'Сүрөттү алмаштыруу' : 'Сүрөт тандоо'}</b><input type="file" accept="image/*" onChange={(event) => onImageChange(event.target.files?.[0] || null)} /></span>
+            {t('common.image')}
+            <span className="admin-file-input"><AdminIcon name="plus" /><b>{imagePreview ? t('admin.changeImage') : t('admin.chooseImage')}</b><input type="file" accept="image/*" onChange={(event) => onImageChange(event.target.files?.[0] || null)} /></span>
           </label>
         </div>
 
         <div className="admin-menu-image-status">
           {imagePreview ? (
             <div className="admin-menu-image-preview">
-              <img src={imagePreview} alt="Тамактын сүрөтү" />
-              <div><strong>Сүрөт даяр</strong><small>Жаңы файл тандалбаса учурдагы сүрөт сакталат.</small></div>
-              {imagePreview.startsWith('blob:') && <button type="button" onClick={onClearImage}>Тандоону тазалоо</button>}
+              <img src={imagePreview} alt={t('admin.foodImageAlt')} />
+              <div><strong>{t('admin.imageReady')}</strong><small>{t('admin.currentImagePreserved')}</small></div>
+              {imagePreview.startsWith('blob:') && <button type="button" onClick={onClearImage}>{t('admin.clearSelection')}</button>}
             </div>
-          ) : <p className="admin-menu-no-image">Сүрөт тандалган эмес. JPG, PNG же башка сүрөт файлын кошсоңуз болот.</p>}
+          ) : <p className="admin-menu-no-image">{t('admin.noImageSelected')}</p>}
           <Toggle
             checked={shownInMenu}
             onChange={(checked) => {
               onChange('is_available', checked)
               onChange('is_visible', checked)
             }}
-            label="Менюда көрсөтүү"
+            label={t('admin.visible')}
           />
         </div>
       </section>
 
       <section className="admin-menu-form-section">
         <header>
-          <div><small>ЭКИ ТИЛДЕГИ МАЗМУН</small><h3>Аталышы жана сүрөттөмөсү</h3></div>
-          <p>Кыргызча жана орусча маалыматты тиешелүү тил тилкесине жазыңыз.</p>
+          <div><small>{t('admin.bilingualContent')}</small><h3>{t('admin.nameAndDescription')}</h3></div>
+          <p>{t('admin.bilingualFormHelp')}</p>
         </header>
         <div className="admin-bilingual-grid">
           <div className="admin-language-column">
-            <div className="admin-language-heading"><span>KG</span><strong>Кыргызча</strong></div>
-            <label>Кыргызча аталышы<input value={value.name_ky} onChange={(event) => onChange('name_ky', event.target.value)} required /></label>
-            <label>Кыргызча сүрөттөмө<textarea value={value.description_ky} onChange={(event) => onChange('description_ky', event.target.value)} rows="3" /></label>
-            <label>Курамы (KG)<textarea value={value.ingredients_ky} onChange={(event) => onChange('ingredients_ky', event.target.value)} rows="2" /></label>
-            <label>Аллергендер (KG)<textarea value={value.allergens_ky} onChange={(event) => onChange('allergens_ky', event.target.value)} rows="2" /></label>
+            <div className="admin-language-heading"><span>KY</span><strong>{t('common.kyrgyz')}</strong></div>
+            <label>{t('admin.kyrgyzName')}<input value={value.name_ky} onChange={(event) => onChange('name_ky', event.target.value)} required /></label>
+            <label>{t('admin.kyrgyzDescription')}<textarea value={value.description_ky} onChange={(event) => onChange('description_ky', event.target.value)} rows="3" /></label>
+            <label>{t('admin.ingredientsKy')}<textarea value={value.ingredients_ky} onChange={(event) => onChange('ingredients_ky', event.target.value)} rows="2" /></label>
+            <label>{t('admin.allergensKy')}<textarea value={value.allergens_ky} onChange={(event) => onChange('allergens_ky', event.target.value)} rows="2" /></label>
           </div>
           <div className="admin-language-column">
-            <div className="admin-language-heading"><span>RU</span><strong>Русский</strong></div>
-            <label>Орусча аталышы<input value={value.name_ru} onChange={(event) => onChange('name_ru', event.target.value)} required /></label>
-            <label>Орусча сүрөттөмө<textarea value={value.description_ru} onChange={(event) => onChange('description_ru', event.target.value)} rows="3" /></label>
-            <label>Курамы (RU)<textarea value={value.ingredients_ru} onChange={(event) => onChange('ingredients_ru', event.target.value)} rows="2" /></label>
-            <label>Аллергендер (RU)<textarea value={value.allergens_ru} onChange={(event) => onChange('allergens_ru', event.target.value)} rows="2" /></label>
+            <div className="admin-language-heading"><span>RU</span><strong>{t('common.russian')}</strong></div>
+            <label>{t('admin.russianName')}<input value={value.name_ru} onChange={(event) => onChange('name_ru', event.target.value)} required /></label>
+            <label>{t('admin.russianDescription')}<textarea value={value.description_ru} onChange={(event) => onChange('description_ru', event.target.value)} rows="3" /></label>
+            <label>{t('admin.ingredientsRu')}<textarea value={value.ingredients_ru} onChange={(event) => onChange('ingredients_ru', event.target.value)} rows="2" /></label>
+            <label>{t('admin.allergensRu')}<textarea value={value.allergens_ru} onChange={(event) => onChange('allergens_ru', event.target.value)} rows="2" /></label>
           </div>
         </div>
       </section>
 
       <div className="admin-form-actions admin-menu-form-actions">
-        <button type="button" onClick={onCancel}>Жокко чыгаруу</button>
-        <button className="is-primary" type="submit" disabled={saving}>{saving ? <span className="admin-button-spinner" /> : 'Сактоо'}</button>
+        <button type="button" onClick={onCancel}>{t('common.cancel')}</button>
+        <button className="is-primary" type="submit" disabled={saving}>{saving ? <span className="admin-button-spinner" /> : t('common.save')}</button>
       </div>
     </form>
   )
@@ -113,6 +116,7 @@ function MenuForm({ value, categories, imagePreview, saving, error, onChange, on
 
 export default function AdminMenuPage() {
   const { restaurantId, loadingRestaurant, layoutError, refreshKey, handleApiError } = useAdminContext()
+  const { language, t } = useLanguage()
   const [searchParams] = useSearchParams()
   const [items, setItems] = useState([])
   const [categories, setCategories] = useState([])
@@ -137,10 +141,10 @@ export default function AdminMenuPage() {
         setItems(itemsResponse.data.filter((item) => item.restaurant === restaurantId))
         setCategories(categoryResponse.data.filter((item) => item.restaurant === restaurantId))
         setError('')
-      }).catch((requestError) => active && setError(handleApiError(requestError, 'Меню жүктөлгөн жок.')))
+      }).catch((requestError) => active && setError(handleApiError(requestError, t('errors.generic'))))
       .finally(() => active && setLoading(false))
     return () => { active = false }
-  }, [restaurantId, refreshKey, revision, handleApiError])
+  }, [restaurantId, refreshKey, revision, handleApiError, t])
 
   useEffect(() => () => {
     if (imagePreview.startsWith('blob:')) URL.revokeObjectURL(imagePreview)
@@ -175,7 +179,7 @@ export default function AdminMenuPage() {
   function selectImage(file) {
     if (!file) return
     if (!file.type.startsWith('image/')) {
-      setFormError('Сүрөт форматындагы файлды тандаңыз.')
+      setFormError(t('admin.selectImageFile'))
       return
     }
     setFormError('')
@@ -213,7 +217,7 @@ export default function AdminMenuPage() {
       closeForm()
       setRevision((value) => value + 1)
     } catch (requestError) {
-      setFormError(handleApiError(requestError, imageFile ? 'Сүрөт же тамак маалыматы сакталган жок.' : 'Тамак сакталган жок.'))
+      setFormError(handleApiError(requestError, t('errors.generic')))
     } finally {
       setSaving(false)
     }
@@ -226,20 +230,20 @@ export default function AdminMenuPage() {
       await adminApiClient.patch(`/api/admin/menu-items/${item.id}/`, { is_available: nextStatus, is_visible: nextStatus })
       setItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, is_available: nextStatus, is_visible: nextStatus } : entry))
     } catch (requestError) {
-      setError(handleApiError(requestError, 'Меню статусу өзгөргөн жок.'))
+      setError(handleApiError(requestError, t('errors.generic')))
     } finally {
       setBusyId(null)
     }
   }
 
   async function remove(item) {
-    if (!window.confirm(`“${item.name_ky}” өчүрүлсүнбү?`)) return
+    if (!window.confirm(t('admin.foodDeleteConfirm', { name: getLocalizedField(item, 'name', language) }))) return
     setBusyId(item.id)
     try {
       await adminApiClient.delete(`/api/admin/menu-items/${item.id}/`)
       setItems((current) => current.filter((entry) => entry.id !== item.id))
     } catch (requestError) {
-      setError(handleApiError(requestError, 'Тамак өчүрүлгөн жок.'))
+      setError(handleApiError(requestError, t('errors.generic')))
     } finally {
       setBusyId(null)
     }
@@ -249,33 +253,33 @@ export default function AdminMenuPage() {
 
   return (
     <>
-      <PageIntro title="Тамактар" description={`${items.length} меню позициясы`} action={<button className="admin-primary-action" type="button" onClick={openCreate}><AdminIcon name="plus" />Тамак кошуу</button>} />
+      <PageIntro title={t('admin.menuManagement')} description={t('customer.itemCount', { count: items.length })} action={<button className="admin-primary-action" type="button" onClick={openCreate}><AdminIcon name="plus" />{t('admin.addMenuItem')}</button>} />
       <ErrorBanner message={layoutError || error} />
       <div className="admin-toolbar">
-        <label className="admin-search-field"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Тамак издөө..." /></label>
-        <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}><option value="">Бардык категориялар</option>{categories.map((category) => <option value={category.id} key={category.id}>{category.name_ky}</option>)}</select>
-        <span>{filteredItems.length} позиция</span>
+        <label className="admin-search-field"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('admin.searchFood')} /></label>
+        <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}><option value="">{t('admin.allCategories')}</option>{categories.map((category) => <option value={category.id} key={category.id}>{getLocalizedField(category, 'name', language)}</option>)}</select>
+        <span>{t('admin.menuItemCount', { count: filteredItems.length })}</span>
       </div>
       {filteredItems.length ? (
         <div className="admin-data-card">
           <div className="admin-table-wrap">
             <table className="admin-table admin-menu-table">
-              <thead><tr><th>Тамак</th><th>Категория</th><th>Баасы</th><th>Статус</th><th>Аракет</th></tr></thead>
+              <thead><tr><th>{t('admin.food')}</th><th>{t('admin.category')}</th><th>{t('common.price')}</th><th>{t('common.status')}</th><th>{t('common.action')}</th></tr></thead>
               <tbody>{filteredItems.map((item) => (
                 <tr key={item.id}>
-                  <td><div className="admin-menu-cell">{item.image ? <img src={adminImageUrl(item.image)} alt="" /> : <span>{item.name_ky.slice(0, 1)}</span>}<div><strong>{item.name_ky}</strong><small>{item.name_ru}</small></div></div></td>
-                  <td>{categoryMap[item.category]?.name_ky || '—'}</td>
+                  <td><div className="admin-menu-cell">{item.image ? <img src={adminImageUrl(item.image)} alt="" /> : <span>{getLocalizedField(item, 'name', language).slice(0, 1)}</span>}<div><strong>{getLocalizedField(item, 'name', language)}</strong></div></div></td>
+                  <td>{getLocalizedField(categoryMap[item.category], 'name', language) || '—'}</td>
                   <td><strong>{formatAdminMoney(item.price)}</strong></td>
-                  <td><Toggle checked={item.is_available && item.is_visible} onChange={() => toggleMenuStatus(item)} label={item.is_available && item.is_visible ? 'Менюда' : 'Жашырылган'} disabled={busyId === item.id} /></td>
-                  <td><div className="admin-row-actions"><button type="button" onClick={() => openEdit(item)} aria-label="Өзгөртүү"><AdminIcon name="edit" /></button><button className="is-danger" type="button" onClick={() => remove(item)} disabled={busyId === item.id} aria-label="Өчүрүү"><AdminIcon name="trash" /></button></div></td>
+                  <td><Toggle checked={item.is_available && item.is_visible} onChange={() => toggleMenuStatus(item)} label={item.is_available && item.is_visible ? t('admin.available') : t('admin.hidden')} disabled={busyId === item.id} /></td>
+                  <td><div className="admin-row-actions"><button type="button" onClick={() => openEdit(item)} aria-label={t('common.edit')}><AdminIcon name="edit" /></button><button className="is-danger" type="button" onClick={() => remove(item)} disabled={busyId === item.id} aria-label={t('common.delete')}><AdminIcon name="trash" /></button></div></td>
                 </tr>
               ))}</tbody>
             </table>
           </div>
         </div>
-      ) : <EmptyState title="Тамак табылган жок" description="Издөө же категория чыпкасын өзгөртүңүз." />}
+      ) : <EmptyState title={t('admin.noMenuItems')} />}
       {editing && (
-        <AdminModal title={editing.id ? 'Тамакты өзгөртүү' : 'Жаңы тамак'} onClose={closeForm} wide>
+        <AdminModal title={editing.id ? t('common.edit') : t('admin.addMenuItem')} onClose={closeForm} wide>
           <MenuForm value={editing} categories={categories} imagePreview={imagePreview} saving={saving} error={formError} onChange={(field, value) => setEditing((current) => ({ ...current, [field]: value }))} onImageChange={selectImage} onClearImage={() => { setImageFile(null); setImagePreview(editing.image ? adminImageUrl(editing.image) : '') }} onSubmit={save} onCancel={closeForm} />
         </AdminModal>
       )}

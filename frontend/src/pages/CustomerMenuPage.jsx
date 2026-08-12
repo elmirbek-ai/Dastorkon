@@ -1,67 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import apiClient from '../api/client.js'
+import LanguageSwitch from '../components/LanguageSwitch.jsx'
+import { useLanguage } from '../i18n/LanguageContext.jsx'
+import { getBackendErrorMessage, getLocalizedField, getStatusLabel } from '../i18n/index.js'
 
 const emptyCart = { items: [], total: '0.00' }
 const emptyOrders = { orders: [], total_amount: '0.00' }
-const CUSTOMER_LANGUAGE_KEY = 'dastorkon_customer_language'
-
-function getStoredLanguage() {
-  const storedLanguage = localStorage.getItem(CUSTOMER_LANGUAGE_KEY)
-  return storedLanguage === 'RU' ? 'RU' : 'KG'
-}
-
-const orderStatuses = {
-  NEW: 'Жаңы',
-  PREPARING: 'Даярдалууда',
-  READY: 'Даяр',
-  DELIVERED: 'Жеткирилди',
-  COMPLETED: 'Жабылды',
-  CANCELLED: 'Жокко чыгарылды',
-}
-
-const waiterReasons = [
-  {
-    value: 'WAITER_NEEDED',
-    label: 'Официант керек',
-    subtitle: 'Столго официант чакыруу',
-    icon: '🙋',
-  },
-  {
-    value: 'BILL_REQUEST',
-    label: 'Эсеп сурайм',
-    subtitle: 'Эсепти алып келүүнү сураңыз',
-    icon: '🧾',
-  },
-  {
-    value: 'EXTRA_ORDER',
-    label: 'Кошумча заказ',
-    subtitle: 'Дагы заказ берүүгө жардам',
-    icon: '＋',
-  },
-  {
-    value: 'HELP_NEEDED',
-    label: 'Жардам керек',
-    subtitle: 'Башка суроо боюнча жардам',
-    icon: '💬',
-  },
-]
-
-function getErrorMessage(error) {
-  if (!error.response) {
-    return 'Серверге туташуу мүмкүн болгон жок. Кийинчерээк кайра аракет кылыңыз.'
-  }
-
-  if (error.response.status === 404) {
-    return 'QR-код жараксыз же стол табылган жок.'
-  }
-
-  const detail = error.response.data?.detail
-  return typeof detail === 'string'
-    ? detail
-    : 'Маалымат жүктөлгөн жок. Кайра аракет кылыңыз.'
-}
-
 function money(value) {
   const amount = Number(value ?? 0)
   return `${Number.isInteger(amount) ? amount : amount.toFixed(2)} сом`
@@ -116,38 +61,28 @@ function OrdersIcon() {
   )
 }
 
-export function CustomerHeader({ language, onLanguageChange }) {
+export function CustomerHeader() {
+  const { t } = useLanguage()
   return (
     <header className="app-header">
       <div className="brand">
         <span className="brand__mark" aria-hidden="true">D</span>
         <div className="brand__copy">
           <p className="brand__name">Dastorkon</p>
-          <p className="brand__subtitle">QR меню жана заказ системасы</p>
+          <p className="brand__subtitle">{t('customer.systemSubtitle')}</p>
         </div>
       </div>
-      <div className="language-toggle" aria-label="Тил тандоо">
-        {['KG', 'RU'].map((option) => (
-          <button
-            className={language === option ? 'is-active' : ''}
-            type="button"
-            key={option}
-            onClick={() => onLanguageChange(option)}
-            aria-pressed={language === option}
-          >
-            {option}
-          </button>
-        ))}
-      </div>
+      <LanguageSwitch />
     </header>
   )
 }
 
-function CustomerContextBar({ tableNumber, language, orderCount, onOrdersClick }) {
-  const ordersLabel = language === 'RU' ? 'Мои заказы' : 'Менин заказдарым'
+function CustomerContextBar({ tableNumber, orderCount, onOrdersClick }) {
+  const { t } = useLanguage()
+  const ordersLabel = t('customer.myOrders')
 
   return (
-    <section className="customer-context-bar" aria-label={`Стол №${tableNumber}`}>
+    <section className="customer-context-bar" aria-label={t('customer.tableLabel', { number: tableNumber })}>
       <div className="customer-context-bar__table">
         <span className="customer-context-bar__icon" aria-hidden="true">
         <svg viewBox="0 0 24 24">
@@ -155,8 +90,8 @@ function CustomerContextBar({ tableNumber, language, orderCount, onOrdersClick }
         </svg>
         </span>
         <div>
-          <small>{language === 'RU' ? 'Ваш стол' : 'Сиздин стол'}</small>
-          <strong>Стол №{tableNumber}</strong>
+          <small>{t('customer.yourTable')}</small>
+          <strong>{t('customer.tableLabel', { number: tableNumber })}</strong>
         </div>
       </div>
       <button
@@ -175,6 +110,7 @@ function CustomerContextBar({ tableNumber, language, orderCount, onOrdersClick }
 }
 
 function SearchBar({ search, onSearchChange, onClear }) {
+  const { t } = useLanguage()
   return (
     <label className="search-box">
       <span className="search-box__icon"><SearchIcon /></span>
@@ -182,17 +118,18 @@ function SearchBar({ search, onSearchChange, onClear }) {
         type="search"
         value={search}
         onChange={(event) => onSearchChange(event.target.value)}
-        placeholder="Тамак издөө..."
-        aria-label="Тамак издөө"
+        placeholder={t('customer.searchPlaceholder')}
+        aria-label={t('customer.searchPlaceholder')}
       />
       {search && (
-        <button type="button" onClick={onClear} aria-label="Издөөнү тазалоо">×</button>
+        <button type="button" onClick={onClear} aria-label={t('customer.clearSearch')}>×</button>
       )}
     </label>
   )
 }
 
 function CategoryChips({ categories, activeCategory, onCategoryChange }) {
+  const { language, t } = useLanguage()
   return (
     <div className="category-chips" aria-label="Категориялар">
       <button
@@ -200,7 +137,7 @@ function CategoryChips({ categories, activeCategory, onCategoryChange }) {
         type="button"
         onClick={() => onCategoryChange('all')}
       >
-        Баары
+        {t('customer.allCategories')}
       </button>
       {categories.map((category) => (
         <button
@@ -209,7 +146,7 @@ function CategoryChips({ categories, activeCategory, onCategoryChange }) {
           key={category.id}
           onClick={() => onCategoryChange(category.id)}
         >
-          {category.name_ky}
+          {getLocalizedField(category, 'name', language)}
         </button>
       ))}
     </div>
@@ -226,7 +163,9 @@ function FoodPlaceholder({ itemName }) {
 }
 
 function MenuItemCard({ item, cartItem, pendingItemId, onAdd, onIncrease, onDecrease }) {
+  const { language, t } = useLanguage()
   const [imageFailed, setImageFailed] = useState(false)
+  const itemName = getLocalizedField(item, 'name', language)
   const imageUrl = resolveImageUrl(item.image)
   const showImage = imageUrl && !imageFailed
   const actionPending = pendingItemId === item.id
@@ -237,38 +176,38 @@ function MenuItemCard({ item, cartItem, pendingItemId, onAdd, onIncrease, onDecr
         {showImage ? (
           <img
             src={imageUrl}
-            alt={item.name_ky}
+            alt={itemName}
             loading="lazy"
             decoding="async"
             onError={() => setImageFailed(true)}
           />
         ) : (
-          <FoodPlaceholder itemName={item.name_ky} />
+          <FoodPlaceholder itemName={itemName} />
         )}
-        <span className="availability-badge">Бар</span>
+        <span className="availability-badge">{t('common.available')}</span>
       </div>
       <div className="menu-card__body">
-        <h4>{item.name_ky}</h4>
+        <h4>{itemName}</h4>
         {(item.description_ky || item.description_ru) && (
           <p className="menu-card__description">
-            {item.description_ky || item.description_ru}
+            {getLocalizedField(item, 'description', language)}
           </p>
         )}
         <div className="menu-card__footer">
           <div className="menu-card__meta">
             <strong className="price">{money(item.price)}</strong>
             {item.cooking_time_min > 0 && (
-              <span className="cooking-time">◷ {item.cooking_time_min} мүн.</span>
+              <span className="cooking-time">◷ {item.cooking_time_min} {t('common.minutes')}</span>
             )}
           </div>
           {cartItem ? (
-            <div className="quantity-stepper" aria-label={`${item.name_ky}: ${cartItem.quantity}`}>
+            <div className="quantity-stepper" aria-label={`${itemName}: ${cartItem.quantity}`}>
               <button
                 className="quantity-stepper__minus"
                 type="button"
                 onClick={() => onDecrease(item, cartItem)}
                 disabled={actionPending}
-                aria-label="Санын азайтуу"
+                aria-label={t('customer.decreaseQuantity')}
               >
                 −
               </button>
@@ -280,7 +219,7 @@ function MenuItemCard({ item, cartItem, pendingItemId, onAdd, onIncrease, onDecr
                 type="button"
                 onClick={() => onIncrease(item, cartItem)}
                 disabled={actionPending}
-                aria-label="Санын көбөйтүү"
+                aria-label={t('customer.increaseQuantity')}
               >
                 +
               </button>
@@ -291,7 +230,7 @@ function MenuItemCard({ item, cartItem, pendingItemId, onAdd, onIncrease, onDecr
               type="button"
               onClick={() => onAdd(item)}
               disabled={actionPending}
-              aria-label="Себетке кошуу"
+              aria-label={t('customer.addToCart')}
             >
               {actionPending ? <span className="button-loader" /> : <CartAddIcon />}
             </button>
@@ -303,20 +242,21 @@ function MenuItemCard({ item, cartItem, pendingItemId, onAdd, onIncrease, onDecr
 }
 
 function CartPanel({ cart, itemCount, submitting, onSubmit }) {
+  const { language, t } = useLanguage()
   return (
     <aside className="cart-section" id="cart" aria-labelledby="cart-title">
       <div className="cart-section__heading">
         <div>
-          <p>Сиздин тандооңуз</p>
-          <h2 id="cart-title">Себет</h2>
+          <p>{t('customer.yourSelection')}</p>
+          <h2 id="cart-title">{t('customer.cart')}</h2>
         </div>
         {itemCount > 0 && <span>{itemCount}</span>}
       </div>
       {cart.items.length === 0 ? (
         <div className="empty-cart">
           <span aria-hidden="true"><CartIcon /></span>
-          <strong>Себет бош</strong>
-          <p>Жаккан тамактарды менюдан кошуңуз.</p>
+          <strong>{t('customer.cartEmpty')}</strong>
+          <p>{t('customer.addFavoriteHelp')}</p>
         </div>
       ) : (
         <>
@@ -325,16 +265,15 @@ function CartPanel({ cart, itemCount, submitting, onSubmit }) {
               <article className="cart-item" key={item.id}>
                 <div className="cart-item__quantity">{item.quantity}×</div>
                 <div className="cart-item__details">
-                  <h3>{item.menu_item_name_ky}</h3>
-                  {item.menu_item_name_ru && <p>{item.menu_item_name_ru}</p>}
-                  {item.comment && <small>Комментарий: {item.comment}</small>}
+                  <h3>{getLocalizedField(item, 'menu_item_name', language)}</h3>
+                  {item.comment && <small>{t('common.comments')}: {item.comment}</small>}
                 </div>
                 <strong>{money(item.line_total)}</strong>
               </article>
             ))}
           </div>
           <div className="cart-total">
-            <span>Жалпы</span>
+            <span>{t('common.total')}</span>
             <strong>{money(cart.total)}</strong>
           </div>
           <button
@@ -343,7 +282,7 @@ function CartPanel({ cart, itemCount, submitting, onSubmit }) {
             onClick={onSubmit}
             disabled={submitting}
           >
-            {submitting ? 'Заказ берилүүдө...' : 'Заказ берүү'}
+            {submitting ? t('customer.placingOrder') : t('customer.placeOrder')}
             {!submitting && <span aria-hidden="true">→</span>}
           </button>
         </>
@@ -352,11 +291,8 @@ function CartPanel({ cart, itemCount, submitting, onSubmit }) {
   )
 }
 
-export function OrderHistory({ orders, language = 'KG' }) {
-  const copy = language === 'RU'
-    ? { eyebrow: 'История заказов', title: 'Мои заказы', empty: 'Заказов пока нет.', order: 'Заказ', total: 'Итого', comment: 'Комментарий' }
-    : { eyebrow: 'Заказ тарыхы', title: 'Менин заказдарым', empty: 'Азырынча заказдар жок.', order: 'Заказ', total: 'Жалпы', comment: 'Комментарий' }
-
+export function OrderHistory({ orders }) {
+  const { language, t } = useLanguage()
   return (
     <section
       className="orders-section"
@@ -366,37 +302,37 @@ export function OrderHistory({ orders, language = 'KG' }) {
     >
       <div className="orders-heading">
         <div>
-          <p>{copy.eyebrow}</p>
-          <h2 id="orders-title">{copy.title}</h2>
+          <p>{t('customer.orderHistory')}</p>
+          <h2 id="orders-title">{t('customer.myOrders')}</h2>
         </div>
         {orders.orders.length > 0 && <span>{orders.orders.length}</span>}
       </div>
       {orders.orders.length === 0 ? (
-        <p className="empty-message">{copy.empty}</p>
+        <p className="empty-message">{t('customer.emptyOrders')}</p>
       ) : (
         <div className="orders-list">
           {orders.orders.map((order) => (
             <article className="order-card" key={order.id}>
               <div className="order-card__heading">
                 <div>
-                  <p>{copy.order}</p>
+                  <p>{t('common.order')}</p>
                   <h3>№{order.order_number}</h3>
                 </div>
                 <span className={`status-badge status-badge--${order.status.toLowerCase()}`}>
-                  {orderStatuses[order.status] || order.status}
+                  {getStatusLabel(order.status, language)}
                 </span>
               </div>
               <ul>
                 {order.items.map((item) => (
                   <li key={item.id}>
-                    <span>{item.name_ky_at_order} × {item.quantity}</span>
+                    <span>{getLocalizedField(item, 'name_at_order', language)} × {item.quantity}</span>
                     <strong>{money(item.total_price)}</strong>
-                    {item.comment && <small>{copy.comment}: {item.comment}</small>}
+                    {item.comment && <small>{t('common.comments')}: {item.comment}</small>}
                   </li>
                 ))}
               </ul>
               <div className="order-card__total">
-                <span>{copy.total}</span>
+                <span>{t('common.total')}</span>
                 <strong>{money(order.total_amount)}</strong>
               </div>
             </article>
@@ -408,9 +344,10 @@ export function OrderHistory({ orders, language = 'KG' }) {
 }
 
 function CartReviewItem({ cartItem, menuItem, pending, onIncrease, onDecrease, onRemove }) {
+  const { language, t } = useLanguage()
   const [imageFailed, setImageFailed] = useState(false)
   const imageUrl = resolveImageUrl(menuItem?.image)
-  const itemName = menuItem?.name_ky || cartItem.menu_item_name_ky
+  const itemName = getLocalizedField(menuItem, 'name', language) || getLocalizedField(cartItem, 'menu_item_name', language)
   const unitPrice = menuItem?.price ?? Number(cartItem.line_total) / cartItem.quantity
 
   return (
@@ -438,10 +375,10 @@ function CartReviewItem({ cartItem, menuItem, pending, onIncrease, onDecrease, o
             type="button"
             onClick={onRemove}
             disabled={pending}
-            aria-label={`${itemName}: себеттен өчүрүү`}
+            aria-label={`${itemName}: ${t('customer.removeItem')}`}
           >
             <span aria-hidden="true">×</span>
-            <small>Өчүрүү</small>
+            <small>{t('customer.removeItem')}</small>
           </button>
         </div>
         <div className="cart-sheet-item__footer">
@@ -450,7 +387,7 @@ function CartReviewItem({ cartItem, menuItem, pending, onIncrease, onDecrease, o
               type="button"
               onClick={onDecrease}
               disabled={pending}
-              aria-label="Санын азайтуу"
+              aria-label={t('customer.decreaseQuantity')}
             >
               −
             </button>
@@ -461,7 +398,7 @@ function CartReviewItem({ cartItem, menuItem, pending, onIncrease, onDecrease, o
               type="button"
               onClick={onIncrease}
               disabled={pending}
-              aria-label="Санын көбөйтүү"
+              aria-label={t('customer.increaseQuantity')}
             >
               +
             </button>
@@ -487,6 +424,7 @@ function CartReviewSheet({
   onRequestRemoval,
   onSubmit,
 }) {
+  const { language, t } = useLanguage()
   if (!open) return null
 
   return (
@@ -501,10 +439,10 @@ function CartReviewSheet({
         <div className="sheet-handle" aria-hidden="true" />
         <header className="cart-sheet__heading">
           <div>
-            <h2 id="cart-sheet-title">Себет</h2>
-            <p>{itemCount} тамак</p>
+            <h2 id="cart-sheet-title">{t('customer.cart')}</h2>
+            <p>{t('customer.itemCount', { count: itemCount })}</p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Себетти жабуу">×</button>
+          <button type="button" onClick={onClose} aria-label={t('customer.closeCart')}>×</button>
         </header>
 
         {error && <div className="notice notice--error" role="alert">{error}</div>}
@@ -512,8 +450,8 @@ function CartReviewSheet({
         {cart.items.length === 0 ? (
           <div className="cart-sheet-empty">
             <span aria-hidden="true"><CartIcon /></span>
-            <strong>Себетиңиз бош</strong>
-            <button type="button" onClick={onClose}>Менюга кайтуу</button>
+            <strong>{t('customer.cartEmpty')}</strong>
+            <button type="button" onClick={onClose}>{t('customer.goToMenu')}</button>
           </div>
         ) : (
           <>
@@ -521,7 +459,7 @@ function CartReviewSheet({
               {cart.items.map((cartItem) => {
                 const menuItem = menuItemsById.get(cartItem.menu_item)
                 const item = menuItem || { id: cartItem.menu_item }
-                const itemName = menuItem?.name_ky || cartItem.menu_item_name_ky
+                const itemName = getLocalizedField(menuItem, 'name', language) || getLocalizedField(cartItem, 'menu_item_name', language)
                 const pending = pendingItemId === item.id
 
                 return (
@@ -543,7 +481,7 @@ function CartReviewSheet({
             </div>
             <footer className="cart-sheet__footer">
               <div className="cart-sheet__total">
-                <span>Жалпы · {itemCount} тамак</span>
+                <span>{t('common.total')} · {t('customer.itemCount', { count: itemCount })}</span>
                 <strong>{money(cart.total)}</strong>
               </div>
               <button
@@ -552,7 +490,7 @@ function CartReviewSheet({
                 onClick={onSubmit}
                 disabled={submitting || pendingItemId !== null}
               >
-                {submitting ? 'Заказ берилүүдө...' : 'Заказ берүү'}
+                {submitting ? t('customer.placingOrder') : t('customer.placeOrder')}
                 {!submitting && <span aria-hidden="true">→</span>}
               </button>
             </footer>
@@ -564,9 +502,8 @@ function CartReviewSheet({
 }
 
 function DeleteConfirmation({ itemName, deleting, onCancel, onConfirm }) {
-  const message = itemName
-    ? `«${itemName}» себеттен өчүрүлсүнбү?`
-    : 'Бул тамакты себеттен өчүрөсүзбү?'
+  const { t } = useLanguage()
+  const message = t('customer.deleteCartItemConfirm', { itemName })
 
   return (
     <div
@@ -583,14 +520,14 @@ function DeleteConfirmation({ itemName, deleting, onCancel, onConfirm }) {
       >
         <p id="delete-confirmation-message">{message}</p>
         <div className="delete-confirmation__actions">
-          <button type="button" onClick={onCancel} disabled={deleting}>Жок</button>
+          <button type="button" onClick={onCancel} disabled={deleting}>{t('customer.no')}</button>
           <button
             className="delete-confirmation__confirm"
             type="button"
             onClick={onConfirm}
             disabled={deleting}
           >
-            {deleting ? 'Өчүрүлүүдө...' : 'Ооба, өчүрүү'}
+            {deleting ? t('common.working') : t('customer.yesDelete')}
           </button>
         </div>
       </section>
@@ -599,6 +536,7 @@ function DeleteConfirmation({ itemName, deleting, onCancel, onConfirm }) {
 }
 
 function StickyCartBar({ itemCount, total, onOpen }) {
+  const { t } = useLanguage()
   return (
     <button
       className="mobile-cart-bar"
@@ -612,30 +550,38 @@ function StickyCartBar({ itemCount, total, onOpen }) {
         <b>{itemCount}</b>
       </span>
       <strong className="mobile-cart-bar__summary">
-        {itemCount} тамак <i>•</i> {money(total)}
+        {t('customer.cartSummary', { count: itemCount, total: Number(total) })}
       </strong>
       <span className="mobile-cart-bar__review">
-        Себетти көрүү <i aria-hidden="true">›</i>
+        {t('customer.viewCart')} <i aria-hidden="true">›</i>
       </span>
     </button>
   )
 }
 
 function WaiterCallButton({ raised, onOpen }) {
+  const { t } = useLanguage()
   return (
     <button
       className={`waiter-fab ${raised ? 'waiter-fab--raised' : ''}`}
       type="button"
       onClick={onOpen}
-      aria-label="Официант чакыруу"
+      aria-label={t('customer.callWaiter')}
     >
       <span aria-hidden="true">♧</span>
-      <small>Официант</small>
+      <small>{t('common.waiter')}</small>
     </button>
   )
 }
 
 function WaiterCallSheet({ open, sending, onClose, onCall }) {
+  const { t } = useLanguage()
+  const waiterReasons = [
+    { value: 'WAITER_NEEDED', label: t('customer.waiterNeeded'), subtitle: t('customer.waiterNeededHelp'), icon: '🙋' },
+    { value: 'BILL_REQUEST', label: t('customer.billRequest'), subtitle: t('customer.billRequestHelp'), icon: '🧾' },
+    { value: 'EXTRA_ORDER', label: t('customer.extraOrder'), subtitle: t('customer.extraOrderHelp'), icon: '＋' },
+    { value: 'HELP_NEEDED', label: t('customer.helpNeeded'), subtitle: t('customer.helpNeededHelp'), icon: '💬' },
+  ]
   if (!open) return null
 
   return (
@@ -650,10 +596,10 @@ function WaiterCallSheet({ open, sending, onClose, onCall }) {
         <div className="sheet-handle" aria-hidden="true" />
         <div className="waiter-sheet__heading">
           <div>
-            <h2 id="waiter-sheet-title">Официант чакыруу</h2>
-            <p>Сураныч, себебин тандаңыз</p>
+            <h2 id="waiter-sheet-title">{t('customer.callWaiter')}</h2>
+            <p>{t('customer.chooseWaiterReason')}</p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Жабуу">×</button>
+          <button type="button" onClick={onClose} aria-label={t('common.close')}>×</button>
         </div>
         <div className="waiter-reasons">
           {waiterReasons.map((reason) => (
@@ -680,6 +626,7 @@ function WaiterCallSheet({ open, sending, onClose, onCall }) {
 function CustomerMenuPage() {
   const { qrToken } = useParams()
   const navigate = useNavigate()
+  const { language, t } = useLanguage()
   const sessionRequestRef = useRef({ basePath: '', promise: null })
   const [menu, setMenu] = useState(null)
   const [cart, setCart] = useState(emptyCart)
@@ -691,7 +638,6 @@ function CustomerMenuPage() {
   const [submittingOrder, setSubmittingOrder] = useState(false)
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState('all')
-  const [language, setLanguage] = useState(getStoredLanguage)
   const [cartSheetOpen, setCartSheetOpen] = useState(false)
   const [deleteConfirmation, setDeleteConfirmation] = useState(null)
   const [waiterSheetOpen, setWaiterSheetOpen] = useState(false)
@@ -755,7 +701,7 @@ function CustomerMenuPage() {
         try {
           await sessionRequestRef.current.promise
         } catch {
-          if (active) setError('Стол сессиясын ачуу мүмкүн болгон жок.')
+          if (active) setError(t('customer.sessionError'))
           return
         }
 
@@ -771,7 +717,7 @@ function CustomerMenuPage() {
           setOrders(ordersResponse.data)
         }
       } catch (requestError) {
-        if (active) setError(getErrorMessage(requestError))
+        if (active) setError(getBackendErrorMessage(requestError, language))
       } finally {
         if (active) setLoading(false)
       }
@@ -781,7 +727,7 @@ function CustomerMenuPage() {
     return () => {
       active = false
     }
-  }, [basePath])
+  }, [basePath, language, t])
 
   useEffect(() => {
     if (!waiterSheetOpen) return undefined
@@ -810,11 +756,6 @@ function CustomerMenuPage() {
     return () => document.removeEventListener('keydown', closeOnEscape)
   }, [cartSheetOpen, deleteConfirmation, pendingMenuItemId])
 
-  function changeLanguage(nextLanguage) {
-    localStorage.setItem(CUSTOMER_LANGUAGE_KEY, nextLanguage)
-    setLanguage(nextLanguage)
-  }
-
   async function refreshCart() {
     const response = await apiClient.get(`${basePath}/cart/`)
     setCart(response.data)
@@ -838,7 +779,7 @@ function CustomerMenuPage() {
       })
       await refreshCart()
     } catch (requestError) {
-      setError(getErrorMessage(requestError))
+      setError(getBackendErrorMessage(requestError, language))
     } finally {
       setPendingMenuItemId(null)
     }
@@ -859,7 +800,7 @@ function CustomerMenuPage() {
       await refreshCart()
       return true
     } catch (requestError) {
-      setError(getErrorMessage(requestError))
+      setError(getBackendErrorMessage(requestError, language))
       return false
     } finally {
       setPendingMenuItemId(null)
@@ -901,10 +842,10 @@ function CustomerMenuPage() {
       await apiClient.post(`${basePath}/orders/`)
       await Promise.all([refreshCart(), refreshOrders()])
       setCartSheetOpen(false)
-      setSuccess('Заказ ийгиликтүү берилди.')
+      setSuccess(t('customer.orderAccepted'))
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (requestError) {
-      setError(getErrorMessage(requestError))
+      setError(getBackendErrorMessage(requestError, language))
     } finally {
       setSubmittingOrder(false)
     }
@@ -918,9 +859,9 @@ function CustomerMenuPage() {
     try {
       await apiClient.post(`${basePath}/waiter-calls/`, { reason })
       setWaiterSheetOpen(false)
-      setSuccess('Өтүнүч официантка жөнөтүлдү.')
+      setSuccess(t('customer.waiterCalled'))
     } catch (requestError) {
-      setError(getErrorMessage(requestError))
+      setError(getBackendErrorMessage(requestError, language))
       setWaiterSheetOpen(false)
     } finally {
       setSendingWaiterCall(false)
@@ -931,7 +872,7 @@ function CustomerMenuPage() {
     return (
       <main className="page-state">
         <span className="loader" aria-hidden="true" />
-        <span>Меню жүктөлүүдө...</span>
+        <span>{t('customer.menuLoading')}</span>
       </main>
     )
   }
@@ -940,7 +881,7 @@ function CustomerMenuPage() {
     return (
       <main className="page-state page-state--error" role="alert">
         <span className="state-icon" aria-hidden="true">!</span>
-        {error || 'Меню табылган жок.'}
+        {error || t('customer.menuEmpty')}
       </main>
     )
   }
@@ -952,11 +893,10 @@ function CustomerMenuPage() {
 
   return (
     <main className={`customer-menu ${cartItemCount > 0 ? 'has-mobile-cart' : ''}`}>
-      <CustomerHeader language={language} onLanguageChange={changeLanguage} />
+      <CustomerHeader />
 
       <CustomerContextBar
         tableNumber={menu.table.number}
-        language={language}
         orderCount={orders.orders.length}
         onOrdersClick={() => navigate(`/menu/${encodeURIComponent(qrToken)}/orders`)}
       />
@@ -964,7 +904,7 @@ function CustomerMenuPage() {
       {error && <div className="notice notice--error" role="alert">{error}</div>}
       {success && <div className="notice notice--success" role="status">{success}</div>}
 
-      <section className="menu-tools" aria-label="Меню издөө жана категориялар">
+      <section className="menu-tools" aria-label={t('customer.searchAndCategories')}>
         <SearchBar search={search} onSearchChange={setSearch} onClear={() => setSearch('')} />
         <CategoryChips
           categories={menu.categories}
@@ -977,25 +917,21 @@ function CustomerMenuPage() {
         <section className="menu-section" aria-labelledby="menu-title">
           <div className="section-heading">
             <div>
-              <h2 id="menu-title">Меню</h2>
+              <h2 id="menu-title">{t('customer.menu')}</h2>
             </div>
-            <span>{visibleItemCount} тамак</span>
+            <span>{t('customer.itemCount', { count: visibleItemCount })}</span>
           </div>
 
           {visibleCategories.length === 0 ? (
             <div className="empty-message empty-message--large">
               <span aria-hidden="true"><SearchIcon /></span>
-              <strong>Тамак табылган жок</strong>
-              <p>Башка аталыш менен издеп көрүңүз.</p>
+              <strong>{t('customer.noSearchResults')}</strong>
             </div>
           ) : (
             visibleCategories.map((category) => (
               <section className="category" key={category.id}>
                 <div className="category__heading">
-                  <h3>{category.name_ky}</h3>
-                  {category.name_ru && category.name_ru !== category.name_ky && (
-                    <span>{category.name_ru}</span>
-                  )}
+                  <h3>{getLocalizedField(category, 'name', language)}</h3>
                 </div>
                 <div className="menu-items">
                   {category.items.map((item) => (

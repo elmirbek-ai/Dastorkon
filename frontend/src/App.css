@@ -3677,6 +3677,216 @@ button:disabled {
   }
 }
 
+/* Shared staff authentication */
+.staff-login-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: clamp(16px, 4vw, 32px);
+  color: var(--text-primary);
+  background: var(--bg);
+}
+
+.staff-login-card {
+  width: min(520px, 100%);
+  padding: clamp(24px, 5vw, 38px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.staff-login-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.staff-login-brand {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.staff-login-brand > span {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 15px;
+  color: var(--on-primary);
+  background: var(--secondary);
+  box-shadow: var(--shadow-sm);
+  font-size: 1.35rem;
+  font-weight: 900;
+}
+
+.staff-login-brand > div {
+  min-width: 0;
+  display: grid;
+}
+
+.staff-login-brand strong {
+  color: var(--text-heading);
+  font-size: 1.16rem;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+}
+
+.staff-login-brand small {
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+}
+
+.staff-login-header .language-switch {
+  flex: 0 0 auto;
+}
+
+.staff-login-copy {
+  margin: 32px 0 24px;
+}
+
+.staff-login-copy > small {
+  color: var(--primary);
+  font-size: 0.7rem;
+  font-weight: 850;
+  letter-spacing: 0.09em;
+}
+
+.staff-login-copy h1 {
+  margin: 5px 0 0;
+  color: var(--text-heading);
+  font-size: clamp(1.75rem, 5vw, 2rem);
+  letter-spacing: -0.04em;
+}
+
+.staff-login-copy p {
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.staff-login-error {
+  margin-bottom: 20px;
+  padding: 13px 15px;
+  border: 1px solid var(--error-border);
+  border-radius: var(--radius-sm);
+  color: var(--error-dark);
+  background: var(--error-bg);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.staff-login-card form {
+  display: grid;
+  gap: 16px;
+}
+
+.staff-login-card form label {
+  display: grid;
+  gap: 7px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.staff-login-card form input {
+  width: 100%;
+  min-height: 54px;
+  padding: 0 15px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  outline: 0;
+  color: var(--text-primary);
+  background: var(--surface);
+  font: inherit;
+  font-size: 0.95rem;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.staff-login-card form input:focus {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px var(--info-border);
+}
+
+.staff-login-card form > button {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-top: 4px;
+  border: 0;
+  border-radius: var(--radius-md);
+  color: var(--on-primary);
+  background: var(--primary);
+  box-shadow: var(--shadow-sm);
+  font-size: 0.94rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.staff-login-card form > button:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+.staff-login-card form > button:focus-visible {
+  outline: 3px solid var(--info-border);
+  outline-offset: 2px;
+}
+
+.staff-login-card form > button:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.staff-login-spinner {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 auto;
+  border: 3px solid rgba(255, 255, 255, 0.42);
+  border-top-color: var(--on-primary);
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+
+.staff-login-demo {
+  margin: 17px 0 0;
+  color: var(--text-placeholder);
+  font-size: 0.7rem;
+  text-align: center;
+}
+
+@media (max-width: 420px) {
+  .staff-login-page {
+    padding: 13px;
+  }
+
+  .staff-login-card {
+    padding: 23px 19px;
+    border-radius: var(--radius-lg);
+  }
+
+  .staff-login-header {
+    gap: 12px;
+  }
+
+  .staff-login-header .language-switch button {
+    min-width: 34px;
+    min-height: 30px;
+    padding: 4px 7px;
+  }
+
+  .staff-login-copy {
+    margin: 27px 0 21px;
+  }
+}
+
 /* Waiter mobile app refinement */
 .waiter-mobile-app {
   --waiter-safe-bottom: max(12px, env(safe-area-inset-bottom));
@@ -3754,6 +3964,44 @@ button:disabled {
   border-radius: 15px;
   color: var(--text-primary);
   background: var(--surface);
+}
+
+.waiter-header-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.waiter-header-tools > button {
+  position: relative;
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+.waiter-header-tools > button svg {
+  width: 21px;
+  height: 21px;
+}
+
+.waiter-header-tools > button b {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: grid;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 10px;
 }
 
 .waiter-app-header > button svg,

@@ -1190,6 +1190,20 @@
 .admin-settings-form input, .admin-settings-form select { min-height: 42px; padding: 0 11px; }
 .admin-settings-form .admin-primary-action { justify-self: end; }
 
+.admin-interface-language {
+  grid-column: 1 / -1;
+}
+
+.admin-interface-language__control {
+  display: flex;
+  align-items: center;
+  padding: 17px;
+}
+
+.admin-interface-language__control .language-switch {
+  box-shadow: var(--shadow-sm);
+}
+
 .admin-modal-backdrop {
   position: fixed;
   z-index: 100;
@@ -2585,6 +2599,61 @@
   color: var(--text-placeholder);
 }
 
+/* Admin login composition */
+.admin-login-page {
+  padding: clamp(16px, 4vw, 32px);
+}
+
+.admin-login-card {
+  width: min(540px, 100%);
+  padding: clamp(24px, 5vw, 38px);
+}
+
+.admin-login-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.admin-login-header .admin-login-brand {
+  min-width: 0;
+}
+
+.admin-login-header .language-switch {
+  flex: 0 0 auto;
+}
+
+.admin-login-copy {
+  margin: 32px 0 24px;
+}
+
+.admin-login-card form,
+.admin-login-card form input,
+.admin-login-card form button {
+  width: 100%;
+}
+
+@media (max-width: 420px) {
+  .admin-login-card {
+    padding: 23px 19px;
+  }
+
+  .admin-login-header {
+    gap: 12px;
+  }
+
+  .admin-login-header .language-switch button {
+    min-width: 34px;
+    min-height: 30px;
+    padding: 4px 7px;
+  }
+
+  .admin-login-copy {
+    margin-top: 27px;
+  }
+}
+
 .admin-button-spinner {
   border-color: rgba(255, 255, 255, 0.45);
   border-top-color: var(--on-primary);
@@ -2597,4 +2666,62 @@
 .admin-app textarea:disabled {
   cursor: wait;
   opacity: 0.62;
+}
+
+/* Employee login hub */
+.login-hub-page {
+  background: var(--bg);
+}
+
+.login-hub-page > section > header {
+  justify-content: flex-start;
+}
+
+.login-hub-page > section > header > span {
+  color: var(--on-primary);
+  background: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.login-hub-page > section > header .login-hub-brand {
+  min-width: 0;
+  display: grid;
+}
+
+.login-hub-page > section > header .language-switch {
+  display: flex;
+  margin-left: auto;
+}
+
+.login-hub-page > section > header strong,
+.login-hub-grid h2 {
+  color: var(--text-heading);
+}
+
+.login-hub-page > section > header small,
+.login-hub-copy p,
+.login-hub-grid p {
+  color: var(--text-secondary);
+}
+
+.login-hub-copy small,
+.login-hub-grid b {
+  color: var(--primary);
+}
+
+.login-hub-grid a {
+  border-color: var(--border);
+  color: var(--text-primary);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.login-hub-grid a:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+}
+
+.login-hub-grid a > span {
+  color: var(--primary);
+  background: var(--primary-light);
 }

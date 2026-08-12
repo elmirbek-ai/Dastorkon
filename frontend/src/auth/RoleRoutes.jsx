@@ -1,9 +1,11 @@
 import { cloneElement, useEffect, useState } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { roleDestinations, roleLoginPaths, verifyRoleToken } from './roleAuth.js'
+import { useLanguage } from '../i18n/LanguageContext.jsx'
 
 function RoleCheckLoading() {
-  return <main className="role-check-loading"><span /><strong>Аккаунт текшерилүүдө...</strong></main>
+  const { t } = useLanguage()
+  return <main className="role-check-loading"><span /><strong>{t('common.checkingAccount')}</strong></main>
 }
 
 export function ProtectedRoleRoute({ tokenKey, expectedRole, children }) {

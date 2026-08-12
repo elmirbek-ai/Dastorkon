@@ -2,13 +2,16 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { adminApiClient } from '../api/client.js'
 import { AdminModal, EmptyState, ErrorBanner, LoadingState, PageIntro, StatusBadge } from '../components/admin/AdminComponents.jsx'
-import { formatAdminDate, formatAdminMoney, orderStatusLabels } from '../components/admin/adminUtils.js'
+import { formatAdminDate, formatAdminMoney } from '../components/admin/adminUtils.js'
 import { useAdminContext } from '../components/admin/AdminContext.js'
+import { useLanguage } from '../i18n/LanguageContext.jsx'
+import { getLocalizedField, getStatusLabel } from '../i18n/index.js'
 
 const statuses = ['NEW', 'PREPARING', 'READY', 'DELIVERED', 'COMPLETED', 'CANCELLED']
 
 export default function AdminOrdersPage() {
   const { restaurantId, loadingRestaurant, layoutError, refreshKey, handleApiError } = useAdminContext()
+  const { language, t } = useLanguage()
   const [searchParams] = useSearchParams()
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
@@ -25,19 +28,19 @@ export default function AdminOrdersPage() {
       if (!active) return
       setOrders(response.data)
       setError('')
-    }).catch((requestError) => active && setError(handleApiError(requestError, 'Заказдар жүктөлгөн жок.')))
+    }).catch((requestError) => active && setError(handleApiError(requestError, t('errors.generic'))))
       .finally(() => active && setLoading(false))
     return () => { active = false }
-  }, [restaurantId, status, refreshKey, handleApiError])
+  }, [restaurantId, status, refreshKey, handleApiError, t])
 
   useEffect(() => {
     if (!detailId) return
     let active = true
     adminApiClient.get(`/api/admin/orders/${detailId}/`).then((response) => active && setDetail(response.data))
-      .catch((requestError) => active && setError(handleApiError(requestError, 'Заказдын маалыматы жүктөлгөн жок.')))
+      .catch((requestError) => active && setError(handleApiError(requestError, t('errors.generic'))))
       .finally(() => active && setDetailLoading(false))
     return () => { active = false }
-  }, [detailId, handleApiError])
+  }, [detailId, handleApiError, t])
 
   function closeDetail() {
     setDetailId(null)
@@ -45,5 +48,5 @@ export default function AdminOrdersPage() {
   }
 
   if (loadingRestaurant || loading) return <LoadingState />
-  return <><PageIntro eyebrow="ЗАКАЗДАР" title="Заказдар тарыхы" description="Ресторандагы бардык заказдар жана алардын учурдагы абалы." /><ErrorBanner message={layoutError || error} /><div className="admin-toolbar"><div className="admin-filter-tabs"><button className={!status ? 'is-active' : ''} type="button" onClick={() => setStatus('')}>Баары <b>{!status ? orders.length : ''}</b></button>{statuses.map((item) => <button className={status === item ? 'is-active' : ''} type="button" onClick={() => setStatus(item)} key={item}>{orderStatusLabels[item]}</button>)}</div><span>{orders.length} заказ</span></div>{orders.length ? <div className="admin-data-card"><div className="admin-table-wrap"><table className="admin-table admin-orders-table"><thead><tr><th>Заказ</th><th>Стол</th><th>Статус</th><th>Официант</th><th>Позиция</th><th>Убакыт</th><th>Сумма</th></tr></thead><tbody>{orders.map((order) => <tr role="button" tabIndex="0" onClick={() => setDetailId(order.id)} onKeyDown={(event) => (event.key === 'Enter' || event.key === ' ') && setDetailId(order.id)} key={order.id}><td><strong className="admin-order-number">{order.order_number}</strong></td><td>Стол №{order.table_number}</td><td><StatusBadge status={order.status} /></td><td>{order.responsible_waiter_username || 'Дайындалган эмес'}</td><td>{order.items_count}</td><td>{formatAdminDate(order.created_at)}</td><td><strong>{formatAdminMoney(order.total_amount)}</strong></td></tr>)}</tbody></table></div></div> : <EmptyState title="Бул чыпкада заказ жок" />}{detailId && <AdminModal title={detail?.order_number || 'Заказ маалыматы'} onClose={closeDetail} wide>{detailLoading || !detail ? <LoadingState /> : <div className="admin-order-detail"><div className="admin-order-detail-head"><div><small>СТОЛ</small><strong>№{detail.table_number}</strong></div><div><small>СТАТУС</small><StatusBadge status={detail.status} /></div><div><small>ОФИЦИАНТ</small><strong>{detail.responsible_waiter_username || '—'}</strong></div><div><small>ЖАЛПЫ</small><strong>{formatAdminMoney(detail.total_amount)}</strong></div></div><section><h3>Заказдын курамы</h3><div className="admin-order-items">{detail.items.map((item) => <div key={item.id}><span><b>{item.quantity}×</b><strong>{item.name_ky_at_order}</strong>{item.comment && <small>Эскертүү: {item.comment}</small>}</span><b>{formatAdminMoney(item.total_price)}</b></div>)}</div></section><section><h3>Статус тарыхы</h3>{detail.status_history.length ? <div className="admin-status-timeline">{detail.status_history.map((entry) => <div key={entry.id}><i /><span><strong>{orderStatusLabels[entry.to_status] || entry.to_status}</strong><small>{entry.changed_by_username || 'Система'} · {formatAdminDate(entry.created_at)}</small></span></div>)}</div> : <p className="admin-muted-copy">Статус тарыхы азырынча жок.</p>}</section></div>}</AdminModal>}</>
+  return <><PageIntro title={t('admin.orderHistory')} description={t('admin.restaurantPerformance')} /><ErrorBanner message={layoutError || error} /><div className="admin-toolbar"><div className="admin-filter-tabs"><button className={!status ? 'is-active' : ''} type="button" onClick={() => setStatus('')}>{t('common.all')} <b>{!status ? orders.length : ''}</b></button>{statuses.map((item) => <button className={status === item ? 'is-active' : ''} type="button" onClick={() => setStatus(item)} key={item}>{getStatusLabel(item, language)}</button>)}</div><span>{orders.length} {t('common.orders')}</span></div>{orders.length ? <div className="admin-data-card"><div className="admin-table-wrap"><table className="admin-table admin-orders-table"><thead><tr><th>{t('common.order')}</th><th>{t('common.table')}</th><th>{t('common.status')}</th><th>{t('common.waiter')}</th><th>{t('common.items')}</th><th>{t('common.time')}</th><th>{t('common.amount')}</th></tr></thead><tbody>{orders.map((order) => <tr role="button" tabIndex="0" onClick={() => setDetailId(order.id)} onKeyDown={(event) => (event.key === 'Enter' || event.key === ' ') && setDetailId(order.id)} key={order.id}><td><strong className="admin-order-number">{order.order_number}</strong></td><td>{t('customer.tableLabel', { number: order.table_number })}</td><td><StatusBadge status={order.status} /></td><td>{order.responsible_waiter_username || t('common.notAssigned')}</td><td>{order.items_count}</td><td>{formatAdminDate(order.created_at)}</td><td><strong>{formatAdminMoney(order.total_amount)}</strong></td></tr>)}</tbody></table></div></div> : <EmptyState title={t('admin.noOrders')} />}{detailId && <AdminModal title={detail?.order_number || t('admin.orderDetails')} onClose={closeDetail} wide>{detailLoading || !detail ? <LoadingState /> : <div className="admin-order-detail"><div className="admin-order-detail-head"><div><small>{t('common.table')}</small><strong>№{detail.table_number}</strong></div><div><small>{t('common.status')}</small><StatusBadge status={detail.status} /></div><div><small>{t('common.waiter')}</small><strong>{detail.responsible_waiter_username || '—'}</strong></div><div><small>{t('common.total')}</small><strong>{formatAdminMoney(detail.total_amount)}</strong></div></div><section><h3>{t('admin.orderComposition')}</h3><div className="admin-order-items">{detail.items.map((item) => <div key={item.id}><span><b>{item.quantity}×</b><strong>{getLocalizedField(item, 'name_at_order', language)}</strong>{item.comment && <small>{t('common.comments')}: {item.comment}</small>}</span><b>{formatAdminMoney(item.total_price)}</b></div>)}</div></section><section><h3>{t('admin.statusHistory')}</h3>{detail.status_history.length ? <div className="admin-status-timeline">{detail.status_history.map((entry) => <div key={entry.id}><i /><span><strong>{getStatusLabel(entry.to_status, language)}</strong><small>{entry.changed_by_username || t('common.system')} · {formatAdminDate(entry.created_at)}</small></span></div>)}</div> : <p className="admin-muted-copy">{t('admin.noStatusHistory')}</p>}</section></div>}</AdminModal>}</>
 }

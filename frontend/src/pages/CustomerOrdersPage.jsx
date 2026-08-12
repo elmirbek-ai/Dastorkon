@@ -2,24 +2,15 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import apiClient from '../api/client.js'
 import { CustomerHeader, OrderHistory } from './CustomerMenuPage.jsx'
+import { useLanguage } from '../i18n/LanguageContext.jsx'
+import { getBackendErrorMessage } from '../i18n/index.js'
 
-const CUSTOMER_LANGUAGE_KEY = 'dastorkon_customer_language'
 const emptyOrders = { orders: [], total_amount: '0.00' }
-
-function getStoredLanguage() {
-  return localStorage.getItem(CUSTOMER_LANGUAGE_KEY) === 'RU' ? 'RU' : 'KG'
-}
-
-function getErrorMessage(error) {
-  const detail = error.response?.data?.detail
-  if (typeof detail === 'string') return detail
-  return ''
-}
 
 function CustomerOrdersPage() {
   const { qrToken } = useParams()
   const navigate = useNavigate()
-  const [language, setLanguage] = useState(getStoredLanguage)
+  const { language, t } = useLanguage()
   const [orders, setOrders] = useState(emptyOrders)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -38,7 +29,7 @@ function CustomerOrdersPage() {
         const response = await apiClient.get(`${basePath}/orders/`)
         if (active) setOrders(response.data)
       } catch (requestError) {
-        if (active) setError(getErrorMessage(requestError) || 'LOAD_ERROR')
+        if (active) setError(getBackendErrorMessage(requestError, language))
       } finally {
         if (active) setLoading(false)
       }
@@ -48,40 +39,31 @@ function CustomerOrdersPage() {
     return () => {
       active = false
     }
-  }, [basePath])
-
-  function changeLanguage(nextLanguage) {
-    localStorage.setItem(CUSTOMER_LANGUAGE_KEY, nextLanguage)
-    setLanguage(nextLanguage)
-  }
+  }, [basePath, language])
 
   return (
     <main className="customer-orders-page">
-      <CustomerHeader language={language} onLanguageChange={changeLanguage} />
+      <CustomerHeader />
 
       <button
         className="customer-orders-back"
         type="button"
         onClick={() => navigate(`/menu/${encodeURIComponent(qrToken)}`)}
       >
-        ← {language === 'RU' ? 'Вернуться в меню' : 'Менюга кайтуу'}
+        ← {t('customer.backToMenu')}
       </button>
 
       {loading ? (
         <div className="customer-orders-state" role="status">
           <span className="loader" aria-hidden="true" />
-          <span>{language === 'RU' ? 'Заказы загружаются...' : 'Заказдар жүктөлүүдө...'}</span>
+          <span>{t('customer.ordersLoading')}</span>
         </div>
       ) : error ? (
         <div className="notice notice--error" role="alert">
-          {error === 'LOAD_ERROR'
-            ? (language === 'RU'
-              ? 'Не удалось загрузить заказы. Попробуйте еще раз.'
-              : 'Заказдар жүктөлгөн жок. Кайра аракет кылыңыз.')
-            : error}
+          {error}
         </div>
       ) : (
-        <OrderHistory orders={orders} language={language} />
+        <OrderHistory orders={orders} />
       )}
     </main>
   )

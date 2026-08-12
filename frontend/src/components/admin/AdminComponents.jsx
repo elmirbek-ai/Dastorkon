@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
-import { orderStatusLabels } from './adminUtils.js'
+import { useLanguage } from '../../i18n/LanguageContext.jsx'
+import { getStatusLabel } from '../../i18n/index.js'
 
 export function AdminIcon({ name }) {
   const icons = {
@@ -32,19 +33,23 @@ export function ErrorBanner({ message }) {
   return <div className="admin-error-banner" role="alert">{message}</div>
 }
 
-export function LoadingState({ label = 'Маалымат жүктөлүүдө...' }) {
-  return <div className="admin-loading-state"><span />{label}</div>
+export function LoadingState({ label }) {
+  const { t } = useLanguage()
+  return <div className="admin-loading-state"><span />{label || t('common.loading')}</div>
 }
 
-export function EmptyState({ title = 'Азырынча маалымат жок', description }) {
-  return <div className="admin-empty-state"><span>—</span><strong>{title}</strong>{description && <p>{description}</p>}</div>
+export function EmptyState({ title, description }) {
+  const { t } = useLanguage()
+  return <div className="admin-empty-state"><span>—</span><strong>{title || t('common.noData')}</strong>{description && <p>{description}</p>}</div>
 }
 
 export function StatusBadge({ status }) {
-  return <span className={`admin-status-badge admin-status-badge--${String(status).toLowerCase()}`}>{orderStatusLabels[status] || status}</span>
+  const { language } = useLanguage()
+  return <span className={`admin-status-badge admin-status-badge--${String(status).toLowerCase()}`}>{getStatusLabel(status, language)}</span>
 }
 
 export function AdminModal({ title, children, onClose, wide = false }) {
+  const { t } = useLanguage()
   useEffect(() => {
     function closeOnEscape(event) {
       if (event.key === 'Escape') onClose()
@@ -56,7 +61,7 @@ export function AdminModal({ title, children, onClose, wide = false }) {
   return (
     <div className="admin-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section className={`admin-modal ${wide ? 'is-wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby="admin-modal-title">
-        <header><h2 id="admin-modal-title">{title}</h2><button type="button" onClick={onClose} aria-label="Жабуу"><AdminIcon name="close" /></button></header>
+        <header><h2 id="admin-modal-title">{title}</h2><button type="button" onClick={onClose} aria-label={t('common.close')}><AdminIcon name="close" /></button></header>
         <div className="admin-modal-body">{children}</div>
       </section>
     </div>

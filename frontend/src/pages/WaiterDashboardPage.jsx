@@ -1,50 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { waiterApiClient, WAITER_TOKEN_KEY } from '../api/client.js'
-
-const callReasons = {
-  WAITER_NEEDED: 'Официант керек',
-  BILL_REQUEST: 'Эсеп сурайм',
-  EXTRA_ORDER: 'Кошумча заказ',
-  HELP_NEEDED: 'Жардам керек',
-}
-
-const callStatuses = {
-  NEW: 'Жаңы',
-  ACCEPTED: 'Кабыл алынды',
-  DONE: 'Бүттү',
-}
+import LanguageSwitch from '../components/LanguageSwitch.jsx'
+import { useLanguage } from '../i18n/LanguageContext.jsx'
+import { getBackendErrorMessage, getLocalizedField, getStatusLabel } from '../i18n/index.js'
 
 const unfinishedOrderStatuses = new Set(['NEW', 'PREPARING', 'READY'])
-
-const backendErrorTranslations = {
-  'table session has unfinished orders': 'Столду азыр жабууга болбойт. Адегенде бардык заказдарды жеткириңиз.',
-  'table session is not active': 'Бул столдун сессиясы активдүү эмес.',
-  'table session not found': 'Столдун сессиясы табылган жок.',
-  'an active waiter shift is required': 'Бул аракет үчүн активдүү смена керек.',
-  'waiter is not assigned to this order': 'Бул заказ сизге дайындалган эмес.',
-  'order not found': 'Заказ табылган жок.',
-  'waiter call not found': 'Чакыруу табылган жок.',
-  'authentication credentials were not provided': 'Сессияңыз аяктады. Кайра кириңиз.',
-  'invalid input': 'Берилген маалымат туура эмес.',
-}
-
-const navItems = [
-  { id: 'overview', label: 'Заказдар', icon: 'orders' },
-  { id: 'tables', label: 'Столдор', icon: 'tables' },
-  { id: 'calls', label: 'Чакыруулар', icon: 'bell' },
-  { id: 'ready', label: 'Даяр', icon: 'ready' },
-  { id: 'profile', label: 'Профиль', icon: 'profile' },
-]
 
 function formatMoney(value) {
   const amount = Number(value ?? 0)
   return `${Number.isInteger(amount) ? amount : amount.toFixed(2)} сом`
 }
 
-function formatDateTime(value) {
+function formatDateTime(value, language) {
   if (!value) return '—'
-  return new Intl.DateTimeFormat('ky-KG', {
+  return new Intl.DateTimeFormat(language === 'ru' ? 'ru-RU' : 'ky-KG', {
     day: '2-digit',
     month: 'short',
     hour: '2-digit',
@@ -52,42 +22,14 @@ function formatDateTime(value) {
   }).format(new Date(value))
 }
 
-function timeAgo(value) {
+function timeAgo(value, language, translate) {
   if (!value) return '—'
   const minutes = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 60000))
-  if (minutes < 1) return 'Азыр эле'
-  if (minutes < 60) return `${minutes} мүн мурун`
+  if (minutes < 1) return translate('waiter.justNow')
+  if (minutes < 60) return translate('waiter.minutesAgo', { count: minutes })
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours} саат мурун`
-  return formatDateTime(value)
-}
-
-function normalizeBackendError(message, fallback) {
-  if (typeof message !== 'string' || !message.trim()) return fallback
-  const trimmed = message.trim()
-  const key = trimmed.toLowerCase().replace(/[.!?]+$/, '')
-  if (backendErrorTranslations[key]) return backendErrorTranslations[key]
-  if (key.includes('not found')) return 'Суралган маалымат табылган жок.'
-  if (key.includes('permission') || key.includes('not allowed') || key.includes('forbidden')) {
-    return 'Бул аракетти аткарууга уруксат жок.'
-  }
-  if (key.includes('authentication') || key.includes('unauthorized') || key.includes('token')) {
-    return 'Сессияңыз аяктады. Кайра кириңиз.'
-  }
-  return trimmed
-}
-
-function collectApiMessages(value) {
-  if (typeof value === 'string') return [value]
-  if (Array.isArray(value)) return value.flatMap(collectApiMessages)
-  if (value && typeof value === 'object') return Object.values(value).flatMap(collectApiMessages)
-  return []
-}
-
-function extractApiError(error, fallback) {
-  const messages = collectApiMessages(error.response?.data)
-  if (!messages.length) return fallback
-  return [...new Set(messages.map((message) => normalizeBackendError(message, fallback)))].join(' ')
+  if (hours < 24) return translate('waiter.hoursAgo', { count: hours })
+  return formatDateTime(value, language)
 }
 
 function AppIcon({ name }) {
@@ -110,45 +52,47 @@ function AppIcon({ name }) {
 }
 
 function WaiterHeader({ notificationCount, onNotifications }) {
+  const { t } = useLanguage()
   return (
     <header className="waiter-app-header">
       <div className="waiter-app-brand">
         <span aria-hidden="true">D</span>
         <div>
           <strong>Dastorkon</strong>
-          <small>QR меню жана заказ системасы</small>
+          <small>{t('customer.systemSubtitle')}</small>
         </div>
       </div>
-      <button type="button" onClick={onNotifications} aria-label="Активдүү чакырууларды ачуу">
+      <div className="waiter-header-tools"><LanguageSwitch /><button type="button" onClick={onNotifications} aria-label={t('waiter.calls')}>
         <AppIcon name="bell" />
         {notificationCount > 0 && <b>{notificationCount > 99 ? '99+' : notificationCount}</b>}
-      </button>
+      </button></div>
     </header>
   )
 }
 
 function WaiterProfileCard({ shift, pending, error, onStart, onOpenProfile }) {
+  const { language, t } = useLanguage()
   return (
     <section className={`waiter-profile-card ${shift ? 'is-online' : ''}`}>
       <div className="waiter-profile-main">
         <span className="waiter-avatar" aria-hidden="true">О</span>
         <div>
-          <strong>Официант</strong>
-          <small>Официант</small>
-          <span><i aria-hidden="true" />{shift ? 'Онлайн' : 'Офлайн'}</span>
+          <strong>{t('common.waiter')}</strong>
+          <small>{t('common.waiter')}</small>
+          <span><i aria-hidden="true" />{shift ? t('waiter.online') : t('waiter.offline')}</span>
         </div>
       </div>
 
       {shift ? (
         <button className="waiter-profile-shift" type="button" onClick={onOpenProfile}>
-          <span>Смена абалы</span>
-          <strong>Активдүү</strong>
-          <small>{formatDateTime(shift.started_at)}</small>
+          <span>{t('waiter.shiftStatus')}</span>
+          <strong>{t('admin.active')}</strong>
+          <small>{formatDateTime(shift.started_at, language)}</small>
           <i><AppIcon name="chevron" /></i>
         </button>
       ) : (
         <button className="waiter-start-shift" type="button" onClick={onStart} disabled={pending}>
-          {pending ? <span className="waiter-action-spinner" /> : 'Сменаны баштоо'}
+          {pending ? <span className="waiter-action-spinner" /> : t('waiter.startShift')}
         </button>
       )}
       {error && <p className="waiter-card-error" role="alert">{error}</p>}
@@ -157,9 +101,17 @@ function WaiterProfileCard({ shift, pending, error, onStart, onOpenProfile }) {
 }
 
 function WaiterBottomNav({ activeView, counts, onChange }) {
+  const { t } = useLanguage()
+  const navItems = [
+    { id: 'overview', label: t('waiter.orders'), icon: 'orders' },
+    { id: 'tables', label: t('waiter.tables'), icon: 'tables' },
+    { id: 'calls', label: t('waiter.calls'), icon: 'bell' },
+    { id: 'ready', label: t('kitchen.ready'), icon: 'ready' },
+    { id: 'profile', label: t('waiter.profile'), icon: 'profile' },
+  ]
   const selectedNav = activeView === 'new' ? 'overview' : activeView
   return (
-    <nav className="waiter-bottom-nav" aria-label="Негизги навигация">
+    <nav className="waiter-bottom-nav" aria-label={t('waiter.dashboard')}>
       {navItems.map((item) => {
         const count = item.id === 'overview'
           ? counts.available
@@ -185,59 +137,62 @@ function WaiterBottomNav({ activeView, counts, onChange }) {
 }
 
 function OverviewSection({ icon, tone, title, count, onViewAll, children, emptyText }) {
+  const { t } = useLanguage()
   return (
     <section className={`waiter-overview-section waiter-overview-section--${tone}`}>
       <header>
         <span className="waiter-overview-icon" aria-hidden="true"><AppIcon name={icon} /></span>
         <div>
           <h2>{title}</h2>
-          <small>{count} активдүү</small>
+          <small>{t('waiter.activeCount', { count })}</small>
         </div>
         <b>{count}</b>
-        <button type="button" onClick={onViewAll} aria-label={`${title}: баарын көрүү`}>
+        <button type="button" onClick={onViewAll} aria-label={`${title}: ${t('waiter.viewAll')}`}>
           <AppIcon name="chevron" />
         </button>
       </header>
       <div className="waiter-overview-list">
         {count === 0 ? <p className="waiter-compact-empty">{emptyText}</p> : children}
       </div>
-      {count > 0 && <button className="waiter-view-all" type="button" onClick={onViewAll}>Баарын көрүү</button>}
+      {count > 0 && <button className="waiter-view-all" type="button" onClick={onViewAll}>{t('waiter.viewAll')}</button>}
     </section>
   )
 }
 
 function SessionFacts({ session }) {
+  const { language, t } = useLanguage()
   return (
     <div className="waiter-session-facts">
-      <span>Ачылган<strong>{timeAgo(session.created_at)}</strong></span>
-      <span>Заказ<strong>{session.orders_count}</strong></span>
-      <span>Жалпы<strong>{formatMoney(session.total_amount)}</strong></span>
+      <span>{t('waiter.opened')}<strong>{timeAgo(session.created_at, language, t)}</strong></span>
+      <span>{t('common.order')}<strong>{session.orders_count}</strong></span>
+      <span>{t('common.total')}<strong>{formatMoney(session.total_amount)}</strong></span>
     </div>
   )
 }
 
 function NewOrderCard({ session, compact = false, pending, error, onAccept, referenceTime }) {
+  const { language, t } = useLanguage()
   const ageMinutes = (referenceTime - new Date(session.created_at).getTime()) / 60000
   const highPriority = ageMinutes >= 5
   return (
     <article className={`waiter-new-card ${compact ? 'is-compact' : ''}`}>
       <div className="waiter-priority-row">
         <span className={highPriority ? 'is-high' : ''}>
-          {highPriority ? 'Жогорку приоритет' : 'Орточо приоритет'}
+          {highPriority ? t('waiter.highPriority') : t('waiter.mediumPriority')}
         </span>
-        <time>{timeAgo(session.created_at)}</time>
+        <time>{timeAgo(session.created_at, language, t)}</time>
       </div>
       <div className="waiter-new-card__main">
         <div>
-          <small>Жаңы заказ</small>
-          <h3>Стол №{session.table.number}</h3>
+          <small>{t('waiter.newOrder')}</small>
+          <h3>{t('customer.tableLabel', { number: session.table.number })}</h3>
         </div>
-        <strong>{session.orders_count} заказ</strong>
+        <strong>{session.orders_count} {t('common.order')}</strong>
       </div>
       {!compact && <SessionFacts session={session} />}
-      {compact && <p className="waiter-order-summary">Жалпы: {formatMoney(session.total_amount)}</p>}
+      {compact && <p className="waiter-order-summary">{t('common.total')}: {formatMoney(session.total_amount)}</p>}
       <button type="button" onClick={() => onAccept(session)} disabled={pending}>
-        {pending ? <span className="waiter-action-spinner" /> : 'Кабыл алуу'}
+        {pending ? <span className="waiter-action-spinner" /> : t('waiter.accept')}
       </button>
       {error && <p className="waiter-card-error" role="alert">{error}</p>}
     </article>
@@ -245,25 +200,26 @@ function NewOrderCard({ session, compact = false, pending, error, onAccept, refe
 }
 
 function MyTableCard({ session, unfinishedCounts, pending, error, onClose }) {
+  const { t } = useLanguage()
   const hasUnfinishedOrders = Object.values(unfinishedCounts).some((count) => count > 0)
 
   return (
     <article className="waiter-my-table-card">
       <div className="waiter-list-card-heading">
-        <div><small>Менин столум</small><h3>Стол №{session.table.number}</h3></div>
-        <span>ACTIVE</span>
+        <div><small>{t('waiter.myTable')}</small><h3>{t('customer.tableLabel', { number: session.table.number })}</h3></div>
+        <span>{t('admin.active')}</span>
       </div>
       <SessionFacts session={session} />
       {hasUnfinishedOrders && (
         <div className="waiter-table-warning" id={`table-warning-${session.id}`}>
-          <strong>Столду азыр жабууга болбойт.</strong>
-          <p>Бүтө элек заказдар бар:</p>
+          <strong>{t('waiter.cannotCloseTable')}</strong>
+          <p>{t('waiter.unfinishedOrdersExist')}</p>
           <ul>
-            {unfinishedCounts.NEW > 0 && <li className="is-new"><span aria-hidden="true">●</span> Жаңы: <b>{unfinishedCounts.NEW}</b></li>}
-            {unfinishedCounts.PREPARING > 0 && <li className="is-preparing"><span aria-hidden="true">◷</span> Даярдалууда: <b>{unfinishedCounts.PREPARING}</b></li>}
-            {unfinishedCounts.READY > 0 && <li className="is-ready"><span aria-hidden="true">✓</span> Даяр, жеткириле элек: <b>{unfinishedCounts.READY}</b></li>}
+            {unfinishedCounts.NEW > 0 && <li className="is-new">{t('waiter.newCount', { count: unfinishedCounts.NEW })}</li>}
+            {unfinishedCounts.PREPARING > 0 && <li className="is-preparing">{t('waiter.preparingCount', { count: unfinishedCounts.PREPARING })}</li>}
+            {unfinishedCounts.READY > 0 && <li className="is-ready">{t('waiter.readyCount', { count: unfinishedCounts.READY })}</li>}
           </ul>
-          <small>Адегенде даяр заказдарды жеткирип, калган заказдардын бүтүшүн күтүңүз.</small>
+          <small>{t('waiter.deliverReadyOrdersFirst')}</small>
         </div>
       )}
       <button
@@ -273,7 +229,7 @@ function MyTableCard({ session, unfinishedCounts, pending, error, onClose }) {
         disabled={pending}
         aria-describedby={hasUnfinishedOrders ? `table-warning-${session.id}` : undefined}
       >
-        {pending ? <span className="waiter-dark-spinner" /> : 'Столду жабуу'}
+        {pending ? <span className="waiter-dark-spinner" /> : t('waiter.closeTable')}
       </button>
       {error && <p className="waiter-card-error" role="alert">{error}</p>}
     </article>
@@ -281,22 +237,25 @@ function MyTableCard({ session, unfinishedCounts, pending, error, onClose }) {
 }
 
 function WaiterCallCard({ waiterCall, compact = false, pending, error, onAction }) {
+  const { language, t } = useLanguage()
+  const reasonKey = { WAITER_NEEDED: 'waiter.waiterNeeded', BILL_REQUEST: 'waiter.billRequest', EXTRA_ORDER: 'waiter.extraOrder', HELP_NEEDED: 'waiter.helpNeeded' }[waiterCall.reason]
+  const callStatus = waiterCall.status === 'NEW' ? getStatusLabel('NEW', language) : waiterCall.status === 'ACCEPTED' ? t('waiter.accepted') : t('waiter.completed')
   return (
     <article className={`waiter-call-row waiter-call-row--${waiterCall.status.toLowerCase()} ${compact ? 'is-compact' : ''}`}>
       <span className="waiter-call-row__icon" aria-hidden="true"><AppIcon name="bell" /></span>
       <div>
-        <strong>Стол №{waiterCall.table_number}</strong>
-        <p>{callReasons[waiterCall.reason] || waiterCall.reason}</p>
-        <small>{timeAgo(waiterCall.created_at)}</small>
+        <strong>{t('customer.tableLabel', { number: waiterCall.table_number })}</strong>
+        <p>{reasonKey ? t(reasonKey) : t('waiter.call')}</p>
+        <small>{timeAgo(waiterCall.created_at, language, t)}</small>
       </div>
       <span className={`waiter-call-status waiter-call-status--${waiterCall.status.toLowerCase()}`}>
-        {callStatuses[waiterCall.status] || waiterCall.status}
+        {callStatus}
       </span>
       {waiterCall.status !== 'DONE' && (
         <button type="button" onClick={() => onAction(waiterCall)} disabled={pending}>
           {pending
             ? <span className="waiter-orange-spinner" />
-            : waiterCall.status === 'NEW' ? 'Баруу' : 'Бүттү'}
+            : waiterCall.status === 'NEW' ? t('waiter.go') : t('waiter.done')}
         </button>
       )}
       {error && <p className="waiter-card-error" role="alert">{error}</p>}
@@ -304,20 +263,21 @@ function WaiterCallCard({ waiterCall, compact = false, pending, error, onAction 
   )
 }
 
-function itemSummary(order) {
-  return order.items.slice(0, 2).map((item) => `${item.quantity}× ${item.name_ky_at_order}`).join(', ')
+function itemSummary(order, language) {
+  return order.items.slice(0, 2).map((item) => `${item.quantity}× ${getLocalizedField(item, 'name_at_order', language)}`).join(', ')
 }
 
 function ReadyOrderCard({ order, compact = false, pending, error, onDeliver }) {
+  const { language, t } = useLanguage()
   return (
     <article className={`waiter-ready-row ${compact ? 'is-compact' : ''}`}>
       <span className="waiter-ready-row__icon" aria-hidden="true"><AppIcon name="ready" /></span>
       <div className="waiter-ready-row__copy">
-        <div><strong>Стол №{order.table_number}</strong><small>{order.order_number}</small></div>
-        <p>{itemSummary(order)}</p>
+        <div><strong>{t('customer.tableLabel', { number: order.table_number })}</strong><small>{order.order_number}</small></div>
+        <p>{itemSummary(order, language)}</p>
         <div className="waiter-ready-row__meta">
-          <time>{timeAgo(order.created_at)}</time>
-          <span>✓ Даяр</span>
+          <time>{timeAgo(order.created_at, language, t)}</time>
+          <span>{t('waiter.readyMarker')}</span>
           <strong>{formatMoney(order.total_amount)}</strong>
         </div>
       </div>
@@ -325,14 +285,14 @@ function ReadyOrderCard({ order, compact = false, pending, error, onDeliver }) {
         <ul>
           {order.items.map((item) => (
             <li key={item.id}>
-              <span><b>{item.quantity}×</b> {item.name_ky_at_order}</span>
-              {item.comment && <small>Эскертүү: {item.comment}</small>}
+              <span><b>{item.quantity}×</b> {getLocalizedField(item, 'name_at_order', language)}</span>
+              {item.comment && <small>{t('common.comments')}: {item.comment}</small>}
             </li>
           ))}
         </ul>
       )}
       <button type="button" onClick={() => onDeliver(order)} disabled={pending}>
-        {pending ? <span className="waiter-action-spinner" /> : 'Жеткирүү'}
+        {pending ? <span className="waiter-action-spinner" /> : t('waiter.deliverOrder')}
       </button>
       {error && <p className="waiter-card-error" role="alert">{error}</p>}
     </article>
@@ -340,9 +300,10 @@ function ReadyOrderCard({ order, compact = false, pending, error, onDeliver }) {
 }
 
 function FullListView({ title, count, emptyText, children }) {
+  const { t } = useLanguage()
   return (
     <section className="waiter-full-view">
-      <header><div><small>Официант панели</small><h1>{title}</h1></div><span>{count}</span></header>
+      <header><div><small>{t('waiter.dashboard')}</small><h1>{title}</h1></div><span>{count}</span></header>
       {count === 0
         ? <div className="waiter-full-empty"><span aria-hidden="true">✓</span><p>{emptyText}</p></div>
         : <div className="waiter-full-list">{children}</div>}
@@ -351,22 +312,23 @@ function FullListView({ title, count, emptyText, children }) {
 }
 
 function ProfilePanel({ shift, refreshing, pending, error, onRefresh, onStart, onEnd, onLogout }) {
+  const { language, t } = useLanguage()
   return (
     <section className="waiter-profile-panel">
-      <header><span className="waiter-profile-avatar">О</span><div><h1>Официант</h1><p>Официант панели</p></div></header>
+      <header><span className="waiter-profile-avatar">О</span><div><h1>{t('common.waiter')}</h1><p>{t('waiter.dashboard')}</p></div></header>
       <div className={`waiter-profile-status ${shift ? 'is-active' : ''}`}>
         <span aria-hidden="true">{shift ? '✓' : '!'}</span>
         <div>
-          <strong>{shift ? 'Смена активдүү' : 'Смена баштала элек'}</strong>
-          <small>{shift ? `Башталды: ${formatDateTime(shift.started_at)}` : 'Иштөө үчүн сменаны баштаңыз'}</small>
+          <strong>{shift ? t('waiter.activeShift') : t('waiter.shiftNotStarted')}</strong>
+          <small>{shift ? t('waiter.startedAt', { time: formatDateTime(shift.started_at, language) }) : t('waiter.startWorkHelp')}</small>
         </div>
       </div>
       <div className="waiter-profile-actions">
         <button className={shift ? 'is-end-shift' : 'is-primary'} type="button" onClick={shift ? onEnd : onStart} disabled={pending}>
-          {pending ? <span className="waiter-action-spinner" /> : shift ? 'Сменаны бүтүрүү' : 'Сменаны баштоо'}
+          {pending ? <span className="waiter-action-spinner" /> : shift ? t('waiter.endShift') : t('waiter.startShift')}
         </button>
-        <button type="button" onClick={onRefresh} disabled={refreshing}><AppIcon name="refresh" />Маалыматты жаңыртуу</button>
-        <button className="is-danger" type="button" onClick={onLogout}><AppIcon name="logout" />Системадан чыгуу</button>
+        <button type="button" onClick={onRefresh} disabled={refreshing}><AppIcon name="refresh" />{t('waiter.refreshData')}</button>
+        <button className="is-danger" type="button" onClick={onLogout}><AppIcon name="logout" />{t('waiter.systemLogout')}</button>
       </div>
       {error && <p className="waiter-card-error" role="alert">{error}</p>}
     </section>
@@ -375,6 +337,7 @@ function ProfilePanel({ shift, refreshing, pending, error, onRefresh, onStart, o
 
 function WaiterDashboardPage() {
   const navigate = useNavigate()
+  const { language, t } = useLanguage()
   const [shift, setShift] = useState(null)
   const [availableSessions, setAvailableSessions] = useState([])
   const [mySessions, setMySessions] = useState([])
@@ -427,12 +390,12 @@ function WaiterDashboardPage() {
       setError('')
     } catch (requestError) {
       if (handleUnauthorized(requestError)) return
-      setError(extractApiError(requestError, 'Маалымат жүктөлгөн жок. Кайра жаңыртыңыз.'))
+      setError(getBackendErrorMessage(requestError, language))
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [handleUnauthorized])
+  }, [handleUnauthorized, language])
 
   useEffect(() => {
     const initialLoadTimer = window.setTimeout(loadDashboard, 0)
@@ -472,35 +435,36 @@ function WaiterDashboardPage() {
       await loadDashboard()
     } catch (requestError) {
       if (handleUnauthorized(requestError)) return
-      setActionError({ key, message: extractApiError(requestError, fallbackError) })
+      const backendMessage = getBackendErrorMessage(requestError, language)
+      setActionError({ key, message: requestError.response?.data ? backendMessage : fallbackError })
     } finally {
       setPendingAction('')
     }
   }
 
   function startShift() {
-    return runAction('shift', () => waiterApiClient.post('/api/waiter/shifts/start/'), 'Сменаны баштоо мүмкүн болгон жок.')
+    return runAction('shift', () => waiterApiClient.post('/api/waiter/shifts/start/'), t('waiter.shiftActionError'))
   }
 
   function endShift() {
-    return runAction('shift', () => waiterApiClient.post('/api/waiter/shifts/end/'), 'Сменаны бүтүрүү мүмкүн болгон жок.')
+    return runAction('shift', () => waiterApiClient.post('/api/waiter/shifts/end/'), t('waiter.shiftActionError'))
   }
 
   function acceptSession(session) {
-    return runAction(`session-${session.id}`, () => waiterApiClient.post(`/api/waiter/table-sessions/${session.id}/accept/`), 'Столду кабыл алуу мүмкүн болгон жок.')
+    return runAction(`session-${session.id}`, () => waiterApiClient.post(`/api/waiter/table-sessions/${session.id}/accept/`), t('errors.generic'))
   }
 
   function closeSession(session) {
-    return runAction(`session-${session.id}`, () => waiterApiClient.post(`/api/waiter/table-sessions/${session.id}/close/`), 'Столду жабуу мүмкүн болгон жок.')
+    return runAction(`session-${session.id}`, () => waiterApiClient.post(`/api/waiter/table-sessions/${session.id}/close/`), t('errors.unfinishedOrders'))
   }
 
   function actOnCall(waiterCall) {
     const action = waiterCall.status === 'NEW' ? 'accept' : 'complete'
-    return runAction(`call-${waiterCall.id}`, () => waiterApiClient.post(`/api/waiter/calls/${waiterCall.id}/${action}/`), 'Чакыруунун статусу өзгөргөн жок.')
+    return runAction(`call-${waiterCall.id}`, () => waiterApiClient.post(`/api/waiter/calls/${waiterCall.id}/${action}/`), t('errors.generic'))
   }
 
   function deliverOrder(order) {
-    return runAction(`order-${order.id}`, () => waiterApiClient.post(`/api/waiter/orders/${order.id}/delivered/`), 'Заказды жеткирилди деп белгилөө мүмкүн болгон жок.')
+    return runAction(`order-${order.id}`, () => waiterApiClient.post(`/api/waiter/orders/${order.id}/delivered/`), t('errors.generic'))
   }
 
   function refreshManually() {
@@ -518,7 +482,7 @@ function WaiterDashboardPage() {
   }
 
   if (loading) {
-    return <main className="waiter-loading"><span className="waiter-screen-spinner" /><strong>Официант панели жүктөлүүдө...</strong></main>
+    return <main className="waiter-loading"><span className="waiter-screen-spinner" /><strong>{t('waiter.panelLoading')}</strong></main>
   }
 
   const newCards = (compact = false, limit) => availableSessions.slice(0, limit).map((session) => (
@@ -539,25 +503,25 @@ function WaiterDashboardPage() {
         {activeView !== 'profile' && (
           <WaiterProfileCard shift={shift} pending={pendingAction === 'shift'} error={cardError('shift')} onStart={startShift} onOpenProfile={() => navigateView('profile')} />
         )}
-        {!shift && activeView !== 'profile' && <p className="waiter-shift-warning">Заказдарды кабыл алуу үчүн сменаны баштаңыз.</p>}
+        {!shift && activeView !== 'profile' && <p className="waiter-shift-warning">{t('waiter.startToAccept')}</p>}
 
         {activeView === 'overview' && (
           <div className="waiter-overview-grid">
-            <OverviewSection icon="orders" tone="info" title="Жаңы заказдар" count={counts.available} onViewAll={() => navigateView('new')} emptyText="Азырынча маалымат жок">
+            <OverviewSection icon="orders" tone="info" title={t('waiter.newOrders')} count={counts.available} onViewAll={() => navigateView('new')} emptyText={t('waiter.noInformation')}>
               {newCards(true, 3)}
             </OverviewSection>
-            <OverviewSection icon="bell" tone="orange" title="Чакыруулар" count={counts.calls} onViewAll={() => navigateView('calls')} emptyText="Жаңы чакыруу жок">
+            <OverviewSection icon="bell" tone="orange" title={t('waiter.calls')} count={counts.calls} onViewAll={() => navigateView('calls')} emptyText={t('waiter.noNewCalls')}>
               {callCards(true, 2)}
             </OverviewSection>
-            <OverviewSection icon="ready" tone="success" title="Даяр заказдар" count={counts.ready} onViewAll={() => navigateView('ready')} emptyText="Даяр заказ жок">
+            <OverviewSection icon="ready" tone="success" title={t('waiter.readyOrders')} count={counts.ready} onViewAll={() => navigateView('ready')} emptyText={t('waiter.noReadyOrders')}>
               {readyCards(true, 2)}
             </OverviewSection>
           </div>
         )}
 
-        {activeView === 'new' && <FullListView title="Жаңы заказдар" count={counts.available} emptyText="Азырынча маалымат жок">{newCards()}</FullListView>}
+        {activeView === 'new' && <FullListView title={t('waiter.newOrders')} count={counts.available} emptyText={t('waiter.noInformation')}>{newCards()}</FullListView>}
         {activeView === 'tables' && (
-          <FullListView title="Менин столдорум" count={counts.tables} emptyText="Азырынча маалымат жок">
+          <FullListView title={t('waiter.myTables')} count={counts.tables} emptyText={t('waiter.noTables')}>
             {mySessions.map((session) => (
               <MyTableCard
                 session={session}
@@ -570,8 +534,8 @@ function WaiterDashboardPage() {
             ))}
           </FullListView>
         )}
-        {activeView === 'calls' && <FullListView title="Чакыруулар" count={counts.calls} emptyText="Жаңы чакыруу жок">{callCards()}</FullListView>}
-        {activeView === 'ready' && <FullListView title="Даяр заказдар" count={counts.ready} emptyText="Даяр заказ жок">{readyCards()}</FullListView>}
+        {activeView === 'calls' && <FullListView title={t('waiter.calls')} count={counts.calls} emptyText={t('waiter.noNewCalls')}>{callCards()}</FullListView>}
+        {activeView === 'ready' && <FullListView title={t('waiter.readyOrders')} count={counts.ready} emptyText={t('waiter.noReadyOrders')}>{readyCards()}</FullListView>}
         {activeView === 'profile' && <ProfilePanel shift={shift} refreshing={refreshing} pending={pendingAction === 'shift'} error={cardError('shift')} onRefresh={refreshManually} onStart={startShift} onEnd={endShift} onLogout={logout} />}
       </div>
       <WaiterBottomNav activeView={activeView} counts={counts} onChange={navigateView} />
