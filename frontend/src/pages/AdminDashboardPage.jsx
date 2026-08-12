@@ -13,7 +13,6 @@ const quickActions = [
   ['/admin/menu?create=1', 'menu', 'Тамак кошуу'],
   ['/admin/categories?create=1', 'category', 'Категория кошуу'],
   ['/admin/tables?create=1', 'tables', 'Стол кошуу'],
-  ['/admin/tables?view=qr', 'qr', 'QR коддор'],
   ['/admin/orders', 'orders', 'Заказдарды көрүү'],
   ['/admin/users?create=1', 'users', 'Кызматкер кошуу'],
 ]

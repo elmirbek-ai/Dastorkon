@@ -187,8 +187,7 @@ function QrPreviewModal({ table, onClose }) {
 
 export default function AdminTablesPage() {
   const { restaurantId, loadingRestaurant, layoutError, refreshKey, handleApiError } = useAdminContext()
-  const [searchParams] = useSearchParams()
-  const qrView = searchParams.get('view') === 'qr'
+  const [searchParams, setSearchParams] = useSearchParams()
   const [tables, setTables] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -197,6 +196,13 @@ export default function AdminTablesPage() {
   const [qrTable, setQrTable] = useState(null)
   const [saving, setSaving] = useState(false)
   const [revision, setRevision] = useState(0)
+
+  useEffect(() => {
+    if (searchParams.get('view') !== 'qr') return
+    const nextSearchParams = new URLSearchParams(searchParams)
+    nextSearchParams.delete('view')
+    setSearchParams(nextSearchParams, { replace: true })
+  }, [searchParams, setSearchParams])
 
   useEffect(() => {
     if (!restaurantId) return
@@ -241,14 +247,14 @@ export default function AdminTablesPage() {
 
   return (
     <>
-      <PageIntro eyebrow={qrView ? 'QR МЕНЮ' : 'ЗАЛ БАШКАРУУ'} title={qrView ? 'QR коддор' : 'Столдор'} description={qrView ? 'Ар бир стол үчүн сканерленүүчү QR меню.' : `${tables.length} активдүү стол`} action={<button className="admin-primary-action" type="button" onClick={() => setEditing({ ...emptyTable })}><AdminIcon name="plus" />Стол кошуу</button>} />
+      <PageIntro eyebrow="ЗАЛ БАШКАРУУ" title="Столдор жана QR коддор" description="Ар бир столдун өзүнүн QR коду бар. Кардар QR сканерлегенде ошол столдун менюсу ачылат." action={<button className="admin-primary-action" type="button" onClick={() => setEditing({ ...emptyTable })}><AdminIcon name="plus" />Стол кошуу</button>} />
       <ErrorBanner message={layoutError || error} />
       {tables.length ? (
-        <div className={`admin-table-grid ${qrView ? 'is-qr-view' : ''}`}>
+        <div className="admin-table-grid">
           {tables.map((table) => (
             <article className="admin-table-card admin-table-card--simple" key={table.id}>
               <header>
-                <span><AdminIcon name={qrView ? 'qr' : 'tables'} /></span>
+                <span><AdminIcon name="tables" /></span>
                 <div><h2>Стол №{table.number}</h2></div>
                 <b className={table.status === 'OCCUPIED' ? 'is-occupied' : ''}>{table.status === 'OCCUPIED' ? 'Бош эмес' : 'Бош'}</b>
               </header>
