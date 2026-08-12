@@ -92,3 +92,11 @@ Object.assign(translations.ru.kitchen, {
   kitchenLogin: 'Панель кухни',
   loginDescription: 'Войдите, чтобы обрабатывать заказы.',
 })
+
+Object.assign(translations.ky.customer, {
+  menuLoadError: 'Менюну жүктөө мүмкүн болгон жок. Баракты жаңыртып кайра аракет кылыңыз.',
+})
+
+Object.assign(translations.ru.customer, {
+  menuLoadError: 'Не удалось загрузить меню. Обновите страницу и попробуйте снова.',
+})

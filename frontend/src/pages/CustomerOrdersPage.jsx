@@ -3,17 +3,17 @@ import { useNavigate, useParams } from 'react-router-dom'
 import apiClient from '../api/client.js'
 import { CustomerHeader, OrderHistory } from './CustomerMenuPage.jsx'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
-import { getBackendErrorMessage } from '../i18n/index.js'
 
 const emptyOrders = { orders: [], total_amount: '0.00' }
+const CUSTOMER_REQUEST_CONFIG = { timeout: 15000 }
 
 function CustomerOrdersPage() {
   const { qrToken } = useParams()
   const navigate = useNavigate()
-  const { language, t } = useLanguage()
+  const { t } = useLanguage()
   const [orders, setOrders] = useState(emptyOrders)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [loadFailed, setLoadFailed] = useState(false)
 
   const basePath = `/api/public/qr/${encodeURIComponent(qrToken)}`
 
@@ -22,14 +22,14 @@ function CustomerOrdersPage() {
 
     async function loadOrders() {
       setLoading(true)
-      setError('')
+      setLoadFailed(false)
 
       try {
-        await apiClient.post(`${basePath}/session/`)
-        const response = await apiClient.get(`${basePath}/orders/`)
-        if (active) setOrders(response.data)
-      } catch (requestError) {
-        if (active) setError(getBackendErrorMessage(requestError, language))
+        await apiClient.post(`${basePath}/session/`, undefined, CUSTOMER_REQUEST_CONFIG)
+        const response = await apiClient.get(`${basePath}/orders/`, CUSTOMER_REQUEST_CONFIG)
+        if (active) setOrders({ ...response.data, orders: Array.isArray(response.data?.orders) ? response.data.orders : [] })
+      } catch {
+        if (active) setLoadFailed(true)
       } finally {
         if (active) setLoading(false)
       }
@@ -39,7 +39,7 @@ function CustomerOrdersPage() {
     return () => {
       active = false
     }
-  }, [basePath, language])
+  }, [basePath])
 
   return (
     <main className="customer-orders-page">
@@ -58,9 +58,9 @@ function CustomerOrdersPage() {
           <span className="loader" aria-hidden="true" />
           <span>{t('customer.ordersLoading')}</span>
         </div>
-      ) : error ? (
+      ) : loadFailed ? (
         <div className="notice notice--error" role="alert">
-          {error}
+          {t('customer.ordersLoadError')}
         </div>
       ) : (
         <OrderHistory orders={orders} />

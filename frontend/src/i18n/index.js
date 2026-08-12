@@ -32,17 +32,20 @@ export function setStoredLanguage(language) {
 }
 
 function lookup(language, key) {
+  if (typeof key !== 'string' || !key.trim()) return undefined
   return key.split('.').reduce((value, part) => value?.[part], translations[normalizeLanguage(language)])
 }
 
 export function t(language, key, params = {}) {
   const normalized = normalizeLanguage(language)
   const value = lookup(normalized, key) ?? lookup(DEFAULT_LANGUAGE, key) ?? key
-  if (typeof value !== 'string') return key
-  return value.replace(/\{(\w+)\}/g, (match, name) => params[name] ?? match)
+  if (typeof value !== 'string') return typeof key === 'string' ? key : ''
+  const safeParams = params && typeof params === 'object' ? params : {}
+  return value.replace(/\{(\w+)\}/g, (match, name) => safeParams[name] ?? match)
 }
 
 function localizedKeys(baseField, language) {
+  if (typeof baseField !== 'string' || !baseField) return []
   const suffix = normalizeLanguage(language)
   if (baseField.endsWith('_at_order')) {
     const stem = baseField.slice(0, -'_at_order'.length)
@@ -52,7 +55,7 @@ function localizedKeys(baseField, language) {
 }
 
 export function getLocalizedField(item, baseField, language) {
-  if (!item) return ''
+  if (!item || typeof item !== 'object' || typeof baseField !== 'string' || !baseField) return ''
   const normalized = normalizeLanguage(language)
   const fallbackLanguage = normalized === 'ky' ? 'ru' : 'ky'
   const keys = [

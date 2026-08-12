@@ -7,6 +7,31 @@ import { getBackendErrorMessage, getLocalizedField, getStatusLabel } from '../i1
 
 const emptyCart = { items: [], total: '0.00' }
 const emptyOrders = { orders: [], total_amount: '0.00' }
+const CUSTOMER_REQUEST_CONFIG = { timeout: 15000 }
+
+function normalizeMenu(data) {
+  if (!data || typeof data !== 'object' || !data.table) return null
+  return {
+    ...data,
+    categories: Array.isArray(data.categories)
+      ? data.categories.map((category) => ({
+          ...category,
+          items: Array.isArray(category?.items) ? category.items : [],
+        }))
+      : [],
+  }
+}
+
+function normalizeCart(data) {
+  if (!data || typeof data !== 'object') return emptyCart
+  return { ...data, items: Array.isArray(data.items) ? data.items : [] }
+}
+
+function normalizeOrders(data) {
+  if (!data || typeof data !== 'object') return emptyOrders
+  return { ...data, orders: Array.isArray(data.orders) ? data.orders : [] }
+}
+
 function money(value) {
   const amount = Number(value ?? 0)
   return `${Number.isInteger(amount) ? amount : amount.toFixed(2)} сом`
@@ -632,6 +657,7 @@ function CustomerMenuPage() {
   const [cart, setCart] = useState(emptyCart)
   const [orders, setOrders] = useState(emptyOrders)
   const [loading, setLoading] = useState(true)
+  const [loadFailed, setLoadFailed] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [pendingMenuItemId, setPendingMenuItemId] = useState(null)
@@ -683,6 +709,7 @@ function CustomerMenuPage() {
 
     async function loadPage() {
       setLoading(true)
+      setLoadFailed(false)
       setError('')
 
       try {
@@ -691,33 +718,30 @@ function CustomerMenuPage() {
         }
 
         if (!sessionRequestRef.current.promise) {
-          sessionRequestRef.current.promise = apiClient.post(`${basePath}/session/`)
+          sessionRequestRef.current.promise = apiClient.post(`${basePath}/session/`, undefined, CUSTOMER_REQUEST_CONFIG)
             .catch((requestError) => {
               sessionRequestRef.current.promise = null
               throw requestError
             })
         }
 
-        try {
-          await sessionRequestRef.current.promise
-        } catch {
-          if (active) setError(t('customer.sessionError'))
-          return
-        }
+        await sessionRequestRef.current.promise
 
         const [menuResponse, cartResponse, ordersResponse] = await Promise.all([
-          apiClient.get(`${basePath}/menu/`),
-          apiClient.get(`${basePath}/cart/`),
-          apiClient.get(`${basePath}/orders/`),
+          apiClient.get(`${basePath}/menu/`, CUSTOMER_REQUEST_CONFIG),
+          apiClient.get(`${basePath}/cart/`, CUSTOMER_REQUEST_CONFIG),
+          apiClient.get(`${basePath}/orders/`, CUSTOMER_REQUEST_CONFIG),
         ])
 
         if (active) {
-          setMenu(menuResponse.data)
-          setCart(cartResponse.data)
-          setOrders(ordersResponse.data)
+          const nextMenu = normalizeMenu(menuResponse.data)
+          if (!nextMenu) throw new Error('Invalid customer menu response')
+          setMenu(nextMenu)
+          setCart(normalizeCart(cartResponse.data))
+          setOrders(normalizeOrders(ordersResponse.data))
         }
-      } catch (requestError) {
-        if (active) setError(getBackendErrorMessage(requestError, language))
+      } catch {
+        if (active) setLoadFailed(true)
       } finally {
         if (active) setLoading(false)
       }
@@ -727,7 +751,7 @@ function CustomerMenuPage() {
     return () => {
       active = false
     }
-  }, [basePath, language, t])
+  }, [basePath])
 
   useEffect(() => {
     if (!waiterSheetOpen) return undefined
@@ -881,7 +905,7 @@ function CustomerMenuPage() {
     return (
       <main className="page-state page-state--error" role="alert">
         <span className="state-icon" aria-hidden="true">!</span>
-        {error || t('customer.menuEmpty')}
+        {loadFailed ? t('customer.menuLoadError') : t('customer.menuEmpty')}
       </main>
     )
   }
