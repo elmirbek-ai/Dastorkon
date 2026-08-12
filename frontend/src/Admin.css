@@ -1814,3 +1814,787 @@
   .login-hub-copy { margin-top: 34px; }
   .login-hub-grid a { min-height: 110px; padding: 14px; }
 }
+
+/* Restaurant design-system migration */
+.admin-app,
+.admin-login-page,
+.role-check-loading {
+  color: var(--text-primary);
+  background: var(--bg);
+}
+
+.admin-app button:focus-visible,
+.admin-app a:focus-visible,
+.admin-login-page button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.admin-sidebar,
+.admin-topbar,
+.admin-login-card {
+  border-color: var(--border);
+  background: var(--surface);
+}
+
+.admin-sidebar-brand > span,
+.admin-login-brand > span {
+  color: var(--on-primary);
+  background: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-sidebar-brand strong,
+.admin-login-brand strong,
+.admin-topbar h1,
+.admin-page-intro h1,
+.admin-panel > header h2,
+.admin-stat-card strong {
+  color: var(--text-heading);
+}
+
+.admin-sidebar-brand small,
+.admin-login-brand small,
+.admin-topbar > div:first-of-type small,
+.admin-profile small,
+.admin-page-intro p,
+.admin-panel > header p,
+.admin-stat-card small,
+.admin-stat-card p {
+  color: var(--text-secondary);
+}
+
+.admin-sidebar nav a {
+  color: var(--text-secondary);
+}
+
+.admin-sidebar nav a:hover {
+  color: var(--primary);
+  background: var(--surface-hover);
+}
+
+.admin-sidebar nav a.is-active {
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.admin-sidebar-bottom,
+.admin-topbar {
+  border-color: var(--border);
+}
+
+.admin-restaurant-mini {
+  border-color: var(--border);
+  background: var(--surface-secondary);
+}
+
+.admin-restaurant-mini > span,
+.admin-profile > b {
+  color: var(--secondary);
+  background: var(--secondary-light);
+}
+
+.admin-restaurant-mini small {
+  color: var(--text-secondary);
+}
+
+.admin-restaurant-mini i {
+  background: var(--success);
+}
+
+.admin-sidebar-bottom > button,
+.admin-logout-button {
+  color: var(--text-secondary) !important;
+}
+
+.admin-sidebar-bottom > button:hover,
+.admin-logout-button:hover {
+  color: var(--primary) !important;
+  background: var(--primary-light);
+}
+
+.admin-topbar {
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-topbar-actions > button,
+.admin-menu-toggle {
+  border-color: var(--border);
+  color: var(--text-secondary);
+  background: var(--surface);
+}
+
+.admin-menu-toggle span {
+  background: var(--text-secondary);
+}
+
+.admin-page-intro small,
+.admin-panel > header a,
+.admin-order-number {
+  color: var(--primary);
+}
+
+.admin-primary-action,
+.admin-form-actions button.is-primary,
+.admin-qr-actions button.is-primary,
+.admin-login-card form button {
+  border-color: var(--primary);
+  color: var(--on-primary);
+  background: var(--primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-primary-action:hover,
+.admin-form-actions button.is-primary:hover:not(:disabled),
+.admin-qr-actions button.is-primary:hover:not(:disabled),
+.admin-login-card form button:hover:not(:disabled) {
+  border-color: var(--primary-hover);
+  background: var(--primary-hover);
+}
+
+.admin-error-banner {
+  border-color: var(--error-border);
+  color: var(--error-dark);
+  background: var(--error-bg);
+}
+
+.admin-success-banner {
+  border-color: var(--success-border);
+  color: var(--success-dark);
+  background: var(--success-bg);
+}
+
+.admin-loading-state,
+.admin-empty-state {
+  color: var(--text-muted);
+}
+
+.admin-loading-state span {
+  border-color: var(--primary-light);
+  border-top-color: var(--primary);
+}
+
+.admin-empty-state {
+  border-color: var(--border-strong);
+  background: var(--surface);
+}
+
+.admin-empty-state > span {
+  color: var(--secondary);
+  background: var(--secondary-light);
+}
+
+.admin-empty-state strong {
+  color: var(--text-heading);
+}
+
+.admin-stat-card,
+.admin-panel,
+.admin-data-card,
+.admin-toolbar,
+.admin-date-filter,
+.admin-table-card,
+.admin-user-card,
+.admin-profile-panel {
+  border-color: var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-stat-card > span,
+.admin-quick-actions a > span,
+.admin-menu-preview > div > span,
+.admin-table-card > header > span,
+.admin-user-card header > span,
+.admin-user-name-cell span,
+.admin-table-stats span,
+.admin-restaurant-profile > header > span {
+  color: var(--secondary);
+  background: var(--secondary-light);
+}
+
+.admin-stat-card--blue > span {
+  color: var(--info-dark);
+  background: var(--info-bg);
+}
+
+.admin-stat-card--orange > span {
+  color: var(--warning-dark);
+  background: var(--warning-bg);
+}
+
+.admin-stat-card--purple > span {
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.admin-panel > header,
+.admin-compact-orders > a,
+.admin-menu-preview > div,
+.admin-user-card > header,
+.admin-user-card > footer,
+.admin-table-card--simple > header,
+.admin-profile-panel > header {
+  border-color: var(--border);
+}
+
+.admin-compact-orders > a,
+.admin-quick-actions a {
+  color: var(--text-primary);
+}
+
+.admin-compact-orders > a:hover,
+.admin-table tbody tr:hover,
+.admin-quick-actions a:hover {
+  background: var(--surface-hover);
+}
+
+.admin-compact-orders small,
+.admin-menu-preview div div small,
+.admin-team-summary small,
+.admin-toolbar > span,
+.admin-search-field span,
+.admin-table th,
+.admin-menu-cell small {
+  color: var(--text-secondary);
+}
+
+.admin-menu-preview > div > b,
+.admin-menu-table td:nth-child(3) strong {
+  color: var(--primary);
+}
+
+.admin-team-summary {
+  background: var(--border);
+}
+
+.admin-team-summary strong {
+  background: var(--surface);
+}
+
+.admin-quick-actions a,
+.admin-search-field,
+.admin-toolbar select,
+.admin-date-filter input,
+.admin-form input,
+.admin-form select,
+.admin-form textarea,
+.admin-settings-form input,
+.admin-settings-form select,
+.admin-menu-form input:not([type='file']),
+.admin-menu-form select,
+.admin-menu-form textarea {
+  border-color: var(--border);
+  color: var(--text-primary);
+  background: var(--surface);
+}
+
+.admin-search-field {
+  background: var(--surface-secondary);
+}
+
+.admin-search-field input::placeholder,
+.admin-form input::placeholder,
+.admin-form textarea::placeholder,
+.admin-menu-form input::placeholder,
+.admin-menu-form textarea::placeholder {
+  color: var(--text-placeholder);
+}
+
+.admin-form input:focus,
+.admin-form select:focus,
+.admin-form textarea:focus,
+.admin-settings-form input:focus,
+.admin-settings-form select:focus,
+.admin-menu-form input:focus,
+.admin-menu-form select:focus,
+.admin-menu-form textarea:focus,
+.admin-login-card form input:focus {
+  border-color: var(--focus);
+  outline: 3px solid var(--info-border);
+}
+
+.admin-table th {
+  background: var(--surface-secondary);
+}
+
+.admin-table td {
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+.admin-menu-cell strong,
+.admin-user-name-cell strong {
+  color: var(--text-heading);
+}
+
+.admin-menu-cell > span {
+  color: var(--secondary);
+  background: var(--secondary-light);
+}
+
+.admin-row-actions button,
+.admin-table-card footer button,
+.admin-table-card footer a,
+.admin-qr-actions button,
+.admin-form-actions button {
+  border-color: var(--border);
+  color: var(--text-secondary);
+  background: var(--surface);
+}
+
+.admin-row-actions button:hover:not(:disabled),
+.admin-table-card footer button:hover:not(:disabled),
+.admin-table-card footer a:hover,
+.admin-qr-actions button:hover:not(:disabled),
+.admin-form-actions button:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+}
+
+.admin-row-actions button.is-danger,
+.admin-table-card footer .is-danger {
+  border-color: var(--error-border);
+  color: var(--error-dark);
+  background: var(--error-bg);
+}
+
+.admin-row-actions button.is-danger:hover:not(:disabled),
+.admin-table-card footer .is-danger:hover:not(:disabled) {
+  border-color: var(--error);
+  background: var(--error-border);
+}
+
+.admin-status-badge,
+.admin-soft-badge,
+.admin-role-badge {
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  background: var(--surface-secondary);
+}
+
+.admin-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.admin-status-badge::before {
+  font-size: 0.72em;
+}
+
+.admin-status-badge--new {
+  border-color: var(--info-border);
+  color: var(--info-dark);
+  background: var(--info-bg);
+}
+
+.admin-status-badge--new::before { content: "●"; }
+
+.admin-status-badge--preparing {
+  border-color: var(--warning-border);
+  color: var(--warning-dark);
+  background: var(--warning-bg);
+}
+
+.admin-status-badge--preparing::before { content: "◷"; font-size: 1em; }
+
+.admin-status-badge--ready {
+  border-color: var(--success-border);
+  color: var(--success-dark);
+  background: var(--success-bg);
+}
+
+.admin-status-badge--ready::before { content: "✓"; font-size: 1em; }
+
+.admin-status-badge--delivered,
+.admin-status-badge--completed {
+  border-color: var(--border);
+  color: var(--text-muted);
+  background: var(--surface-secondary);
+}
+
+.admin-status-badge--delivered::before,
+.admin-status-badge--completed::before { content: "✓"; font-size: 1em; }
+
+.admin-status-badge--cancelled {
+  border-color: var(--error-border);
+  color: var(--error-dark);
+  background: var(--error-bg);
+}
+
+.admin-status-badge--cancelled::before { content: "×"; font-size: 1em; }
+
+.admin-role-badge--waiter {
+  border-color: var(--secondary-light);
+  color: var(--secondary);
+  background: var(--secondary-light);
+}
+
+.admin-role-badge--kitchen {
+  border-color: var(--warning-border);
+  color: var(--warning-dark);
+  background: var(--warning-bg);
+}
+
+.admin-role-badge--admin {
+  border-color: var(--primary-light);
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.admin-soft-badge.is-success,
+.admin-user-card footer > span.is-active {
+  color: var(--success-dark);
+  background: var(--success-bg);
+}
+
+.admin-user-card footer > span {
+  color: var(--text-muted);
+}
+
+.admin-user-card footer > span i {
+  background: var(--text-placeholder);
+}
+
+.admin-user-card footer > span.is-active i {
+  background: var(--success);
+}
+
+.admin-toggle > span {
+  background: var(--disabled-bg);
+}
+
+.admin-toggle > span::after {
+  background: var(--surface);
+}
+
+.admin-toggle input:checked + span {
+  background: var(--success);
+}
+
+.admin-toggle b {
+  color: var(--text-secondary);
+}
+
+.admin-toggle input:disabled + span {
+  background: var(--disabled-bg);
+}
+
+.admin-index-badge {
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.admin-table-card > header > b {
+  border: 1px solid var(--success-border);
+  color: var(--success-dark);
+  background: var(--success-bg);
+}
+
+.admin-table-card header > b.is-occupied {
+  border-color: var(--warning-border);
+  color: var(--warning-dark);
+  background: var(--warning-bg);
+}
+
+.admin-table-card-meta {
+  border-color: var(--border);
+  background: var(--border);
+}
+
+.admin-table-card-meta span,
+.admin-qr-link {
+  color: var(--text-secondary);
+  background: var(--surface-secondary);
+}
+
+.admin-table-card-meta strong {
+  color: var(--text-primary);
+}
+
+.admin-table-card footer button:first-child,
+.admin-table-card--simple footer .admin-qr-view-button {
+  border-color: var(--secondary-light);
+  color: var(--secondary);
+  background: var(--secondary-light);
+}
+
+.admin-qr-preview-brand > span {
+  color: var(--on-primary);
+  background: var(--secondary);
+}
+
+.admin-qr-preview-brand strong {
+  color: var(--text-heading);
+}
+
+.admin-qr-preview-brand small,
+.admin-qr-preview > p {
+  color: var(--text-secondary);
+}
+
+.admin-qr-frame {
+  border-color: var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-filter-tabs button {
+  color: var(--text-secondary);
+}
+
+.admin-filter-tabs button:hover:not(.is-active) {
+  background: var(--surface-hover);
+}
+
+.admin-filter-tabs button.is-active {
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.admin-date-filter label,
+.admin-user-card header p,
+.admin-user-card dt,
+.admin-user-card footer > span,
+.admin-bar-list header small,
+.admin-order-detail-head small,
+.admin-muted-copy,
+.admin-status-timeline small,
+.admin-restaurant-profile dt,
+.admin-settings-form > label:not(.admin-toggle),
+.admin-form label:not(.admin-toggle),
+.admin-menu-form label:not(.admin-toggle) {
+  color: var(--text-secondary);
+}
+
+.admin-user-card dd,
+.admin-order-detail-head strong,
+.admin-restaurant-profile dd {
+  color: var(--text-primary);
+}
+
+.admin-date-filter button {
+  color: var(--text-secondary);
+  background: var(--surface-secondary);
+}
+
+.admin-bar-list header span b {
+  color: var(--secondary);
+  background: var(--secondary-light);
+}
+
+.admin-bar-list > div > i {
+  background: var(--surface-secondary);
+}
+
+.admin-bar-list > div > i span {
+  background: var(--primary);
+}
+
+.admin-status-summary b {
+  color: var(--text-secondary);
+  background: var(--surface-secondary);
+}
+
+.admin-status-dot { background: var(--text-placeholder); }
+.admin-status-dot.is-new { background: var(--info); }
+.admin-status-dot.is-preparing { background: var(--warning); }
+.admin-status-dot.is-ready { background: var(--success); }
+.admin-status-dot.is-delivered { background: var(--text-muted); }
+.admin-status-dot.is-cancelled { background: var(--error); }
+
+.admin-order-detail-head {
+  border-color: var(--border);
+  background: var(--border);
+}
+
+.admin-order-detail-head > div {
+  background: var(--surface-secondary);
+}
+
+.admin-order-items {
+  border-color: var(--border);
+}
+
+.admin-order-items > div {
+  border-color: var(--border);
+}
+
+.admin-order-items span > b {
+  color: var(--primary);
+}
+
+.admin-order-items span small {
+  color: var(--warning-dark);
+}
+
+.admin-status-timeline i {
+  border-color: var(--surface);
+  background: var(--secondary);
+  box-shadow: 0 0 0 2px var(--secondary-light);
+}
+
+.admin-restaurant-profile dl {
+  background: var(--border);
+}
+
+.admin-restaurant-profile dl div {
+  background: var(--surface);
+}
+
+.admin-restaurant-profile dd b {
+  color: var(--success-dark);
+}
+
+.admin-modal-backdrop {
+  background: rgba(31, 28, 24, 0.52);
+}
+
+.admin-modal {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.admin-modal > header {
+  border-color: var(--border);
+}
+
+.admin-modal > header h2 {
+  color: var(--text-heading);
+}
+
+.admin-modal > header button {
+  color: var(--text-muted);
+  background: var(--surface-secondary);
+}
+
+.admin-modal > header button:hover {
+  background: var(--surface-hover);
+}
+
+.admin-role-helper {
+  border-color: var(--secondary-light);
+  color: var(--secondary);
+  background: var(--secondary-light);
+}
+
+.admin-role-helper.is-kitchen {
+  border-color: var(--warning-border);
+  color: var(--warning-dark);
+  background: var(--warning-bg);
+}
+
+.admin-role-helper.is-admin {
+  border-color: var(--primary-light);
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.admin-user-active-field,
+.admin-category-form-options,
+.admin-menu-no-image {
+  border-color: var(--border);
+  background: var(--surface-secondary);
+}
+
+.admin-menu-form-section {
+  border-color: var(--border);
+  background: var(--surface);
+}
+
+.admin-menu-form-section > header {
+  border-color: var(--border);
+  background: var(--surface-secondary);
+}
+
+.admin-menu-form-section > header small,
+.admin-language-heading span {
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.admin-menu-form-section > header h3,
+.admin-language-heading strong {
+  color: var(--text-heading);
+}
+
+.admin-menu-form-section > header p,
+.admin-menu-image-preview small,
+.admin-menu-no-image {
+  color: var(--text-secondary);
+}
+
+.admin-file-input {
+  border-color: var(--border-strong);
+  color: var(--secondary);
+  background: var(--secondary-light);
+}
+
+.admin-file-input:hover {
+  border-color: var(--secondary);
+  background: var(--surface-hover);
+}
+
+.admin-menu-image-preview img,
+.admin-menu-image-preview button,
+.admin-language-column + .admin-language-column {
+  border-color: var(--border);
+}
+
+.admin-menu-image-preview button {
+  color: var(--text-secondary);
+  background: var(--surface);
+}
+
+.admin-login-page {
+  background: var(--bg);
+}
+
+.admin-login-card {
+  border-color: var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.admin-login-copy > small {
+  color: var(--primary);
+}
+
+.admin-login-copy h1 {
+  color: var(--text-heading);
+}
+
+.admin-login-copy p,
+.admin-login-card form label {
+  color: var(--text-secondary);
+}
+
+.admin-login-card form input {
+  border-color: var(--border);
+  color: var(--text-primary);
+  background: var(--surface);
+}
+
+.admin-login-card form input::placeholder {
+  color: var(--text-placeholder);
+}
+
+.admin-login-demo {
+  color: var(--text-placeholder);
+}
+
+.admin-button-spinner {
+  border-color: rgba(255, 255, 255, 0.45);
+  border-top-color: var(--on-primary);
+}
+
+.admin-app button:disabled,
+.admin-login-page button:disabled,
+.admin-app input:disabled,
+.admin-app select:disabled,
+.admin-app textarea:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
