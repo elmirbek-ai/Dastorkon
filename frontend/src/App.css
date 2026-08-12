@@ -1478,7 +1478,7 @@ button:disabled {
 
 .delete-confirmation {
   width: min(360px, 100%);
-  padding: 22px 20px 18px;
+  padding: 20px 20px 18px;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   color: var(--text-primary);
@@ -1488,34 +1488,14 @@ button:disabled {
   animation: confirmation-in 0.16s ease-out;
 }
 
-.delete-confirmation__icon {
-  width: 42px;
-  height: 42px;
-  display: grid;
-  place-items: center;
-  margin: 0 auto 12px;
-  border-radius: 50%;
-  color: var(--error-dark);
-  background: var(--error-bg);
-  font-size: 1.35rem;
-  font-weight: 800;
-}
-
-.delete-confirmation h2,
 .delete-confirmation p {
   margin: 0;
 }
 
-.delete-confirmation h2 {
-  color: var(--text-heading);
-  font-size: 1.1rem;
-  letter-spacing: -0.02em;
-}
-
 .delete-confirmation p {
-  margin-top: 8px;
   color: var(--text-secondary);
-  font-size: 0.82rem;
+  font-size: 0.88rem;
+  font-weight: 700;
   line-height: 1.45;
 }
 
@@ -1523,7 +1503,7 @@ button:disabled {
   display: grid;
   grid-template-columns: 1fr 1.35fr;
   gap: 9px;
-  margin-top: 20px;
+  margin-top: 16px;
 }
 
 .delete-confirmation__actions button {

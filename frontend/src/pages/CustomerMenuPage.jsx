@@ -578,12 +578,9 @@ function DeleteConfirmation({ itemName, deleting, onCancel, onConfirm }) {
         className="delete-confirmation"
         role="alertdialog"
         aria-modal="true"
-        aria-labelledby="delete-confirmation-title"
         aria-describedby="delete-confirmation-message"
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <span className="delete-confirmation__icon" aria-hidden="true">×</span>
-        <h2 id="delete-confirmation-title">Себеттен өчүрүү</h2>
         <p id="delete-confirmation-message">{message}</p>
         <div className="delete-confirmation__actions">
           <button type="button" onClick={onCancel} disabled={deleting}>Жок</button>
