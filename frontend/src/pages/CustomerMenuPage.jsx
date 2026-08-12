@@ -1,9 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import apiClient from '../api/client.js'
 
 const emptyCart = { items: [], total: '0.00' }
 const emptyOrders = { orders: [], total_amount: '0.00' }
+const CUSTOMER_LANGUAGE_KEY = 'dastorkon_customer_language'
+
+function getStoredLanguage() {
+  const storedLanguage = localStorage.getItem(CUSTOMER_LANGUAGE_KEY)
+  return storedLanguage === 'RU' ? 'RU' : 'KG'
+}
 
 const orderStatuses = {
   NEW: 'Жаңы',
@@ -110,7 +116,7 @@ function OrdersIcon() {
   )
 }
 
-function CustomerHeader({ language, onLanguageChange }) {
+export function CustomerHeader({ language, onLanguageChange }) {
   return (
     <header className="app-header">
       <div className="brand">
@@ -137,39 +143,34 @@ function CustomerHeader({ language, onLanguageChange }) {
   )
 }
 
-function TableCard({ tableNumber }) {
+function CustomerContextBar({ tableNumber, language, orderCount, onOrdersClick }) {
+  const ordersLabel = language === 'RU' ? 'Мои заказы' : 'Менин заказдарым'
+
   return (
-    <section className="table-card" aria-label={`Стол №${tableNumber}`}>
-      <span className="table-card__icon" aria-hidden="true">
+    <section className="customer-context-bar" aria-label={`Стол №${tableNumber}`}>
+      <div className="customer-context-bar__table">
+        <span className="customer-context-bar__icon" aria-hidden="true">
         <svg viewBox="0 0 24 24">
           <path d="M5 9h14M7 9v10m10-10v10M4 19h16M8 5h8v4H8z" />
         </svg>
-      </span>
-      <div className="table-card__copy">
-        <h2>Стол №{tableNumber}</h2>
-        <p>Заказды ушул столго бересиз</p>
+        </span>
+        <div>
+          <small>{language === 'RU' ? 'Ваш стол' : 'Сиздин стол'}</small>
+          <strong>Стол №{tableNumber}</strong>
+        </div>
       </div>
-      <span className="table-card__check" aria-hidden="true">✓</span>
+      <button
+        className="customer-context-bar__orders"
+        type="button"
+        onClick={onOrdersClick}
+        aria-label={`${ordersLabel}${orderCount > 0 ? `: ${orderCount}` : ''}`}
+      >
+        <span className="customer-context-bar__icon" aria-hidden="true"><OrdersIcon /></span>
+        <span>{ordersLabel}</span>
+        {orderCount > 0 && <b aria-label={`${orderCount} заказ`}>{orderCount}</b>}
+        <i aria-hidden="true">›</i>
+      </button>
     </section>
-  )
-}
-
-function OrdersShortcut({ language, orderCount, onClick }) {
-  const label = language === 'RU' ? 'Мои заказы' : 'Менин заказдарым'
-
-  return (
-    <button
-      className="orders-shortcut"
-      type="button"
-      onClick={onClick}
-      aria-controls="orders"
-      aria-label={`${label}${orderCount > 0 ? `: ${orderCount}` : ''}`}
-    >
-      <span className="orders-shortcut__icon" aria-hidden="true"><OrdersIcon /></span>
-      <span>{label}</span>
-      {orderCount > 0 && <b aria-label={`${orderCount} заказ`}>{orderCount}</b>}
-      <i aria-hidden="true">↓</i>
-    </button>
   )
 }
 
@@ -351,7 +352,11 @@ function CartPanel({ cart, itemCount, submitting, onSubmit }) {
   )
 }
 
-function OrderHistory({ orders }) {
+export function OrderHistory({ orders, language = 'KG' }) {
+  const copy = language === 'RU'
+    ? { eyebrow: 'История заказов', title: 'Мои заказы', empty: 'Заказов пока нет.', order: 'Заказ', total: 'Итого', comment: 'Комментарий' }
+    : { eyebrow: 'Заказ тарыхы', title: 'Менин заказдарым', empty: 'Азырынча заказдар жок.', order: 'Заказ', total: 'Жалпы', comment: 'Комментарий' }
+
   return (
     <section
       className="orders-section"
@@ -361,20 +366,20 @@ function OrderHistory({ orders }) {
     >
       <div className="orders-heading">
         <div>
-          <p>Заказ тарыхы</p>
-          <h2 id="orders-title">Менин заказдарым</h2>
+          <p>{copy.eyebrow}</p>
+          <h2 id="orders-title">{copy.title}</h2>
         </div>
         {orders.orders.length > 0 && <span>{orders.orders.length}</span>}
       </div>
       {orders.orders.length === 0 ? (
-        <p className="empty-message">Азырынча заказдар жок.</p>
+        <p className="empty-message">{copy.empty}</p>
       ) : (
         <div className="orders-list">
           {orders.orders.map((order) => (
             <article className="order-card" key={order.id}>
               <div className="order-card__heading">
                 <div>
-                  <p>Заказ</p>
+                  <p>{copy.order}</p>
                   <h3>№{order.order_number}</h3>
                 </div>
                 <span className={`status-badge status-badge--${order.status.toLowerCase()}`}>
@@ -386,12 +391,12 @@ function OrderHistory({ orders }) {
                   <li key={item.id}>
                     <span>{item.name_ky_at_order} × {item.quantity}</span>
                     <strong>{money(item.total_price)}</strong>
-                    {item.comment && <small>Комментарий: {item.comment}</small>}
+                    {item.comment && <small>{copy.comment}: {item.comment}</small>}
                   </li>
                 ))}
               </ul>
               <div className="order-card__total">
-                <span>Жалпы</span>
+                <span>{copy.total}</span>
                 <strong>{money(order.total_amount)}</strong>
               </div>
             </article>
@@ -402,9 +407,209 @@ function OrderHistory({ orders }) {
   )
 }
 
-function StickyCartBar({ itemCount, total, submitting, onSubmit }) {
+function CartReviewItem({ cartItem, menuItem, pending, onIncrease, onDecrease, onRemove }) {
+  const [imageFailed, setImageFailed] = useState(false)
+  const imageUrl = resolveImageUrl(menuItem?.image)
+  const itemName = menuItem?.name_ky || cartItem.menu_item_name_ky
+  const unitPrice = menuItem?.price ?? Number(cartItem.line_total) / cartItem.quantity
+
   return (
-    <div className="mobile-cart-bar">
+    <article className="cart-sheet-item">
+      <div className="cart-sheet-item__media">
+        {imageUrl && !imageFailed ? (
+          <img
+            src={imageUrl}
+            alt=""
+            loading="lazy"
+            onError={() => setImageFailed(true)}
+          />
+        ) : (
+          <span aria-hidden="true">🍽</span>
+        )}
+      </div>
+      <div className="cart-sheet-item__content">
+        <div className="cart-sheet-item__heading">
+          <div>
+            <h3>{itemName}</h3>
+            <p>{money(unitPrice)}</p>
+          </div>
+          <button
+            className="cart-sheet-item__remove"
+            type="button"
+            onClick={onRemove}
+            disabled={pending}
+            aria-label={`${itemName}: себеттен өчүрүү`}
+          >
+            <span aria-hidden="true">×</span>
+            <small>Өчүрүү</small>
+          </button>
+        </div>
+        <div className="cart-sheet-item__footer">
+          <div className="cart-sheet-stepper" aria-label={`${itemName}: ${cartItem.quantity}`}>
+            <button
+              type="button"
+              onClick={onDecrease}
+              disabled={pending}
+              aria-label="Санын азайтуу"
+            >
+              −
+            </button>
+            <strong aria-live="polite">
+              {pending ? <span className="stepper-loader" /> : cartItem.quantity}
+            </strong>
+            <button
+              type="button"
+              onClick={onIncrease}
+              disabled={pending}
+              aria-label="Санын көбөйтүү"
+            >
+              +
+            </button>
+          </div>
+          <strong>{money(cartItem.line_total)}</strong>
+        </div>
+      </div>
+    </article>
+  )
+}
+
+function CartReviewSheet({
+  open,
+  cart,
+  itemCount,
+  menuItemsById,
+  pendingItemId,
+  submitting,
+  error,
+  onClose,
+  onIncrease,
+  onDecrease,
+  onRequestRemoval,
+  onSubmit,
+}) {
+  if (!open) return null
+
+  return (
+    <div className="sheet-backdrop cart-sheet-backdrop" role="presentation" onMouseDown={onClose}>
+      <section
+        className="cart-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cart-sheet-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="sheet-handle" aria-hidden="true" />
+        <header className="cart-sheet__heading">
+          <div>
+            <h2 id="cart-sheet-title">Себет</h2>
+            <p>{itemCount} тамак</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Себетти жабуу">×</button>
+        </header>
+
+        {error && <div className="notice notice--error" role="alert">{error}</div>}
+
+        {cart.items.length === 0 ? (
+          <div className="cart-sheet-empty">
+            <span aria-hidden="true"><CartIcon /></span>
+            <strong>Себетиңиз бош</strong>
+            <button type="button" onClick={onClose}>Менюга кайтуу</button>
+          </div>
+        ) : (
+          <>
+            <div className="cart-sheet__list">
+              {cart.items.map((cartItem) => {
+                const menuItem = menuItemsById.get(cartItem.menu_item)
+                const item = menuItem || { id: cartItem.menu_item }
+                const itemName = menuItem?.name_ky || cartItem.menu_item_name_ky
+                const pending = pendingItemId === item.id
+
+                return (
+                  <CartReviewItem
+                    key={cartItem.id}
+                    cartItem={cartItem}
+                    menuItem={menuItem}
+                    pending={pending}
+                    onIncrease={() => onIncrease(item, cartItem)}
+                    onDecrease={() => (
+                      cartItem.quantity === 1
+                        ? onRequestRemoval(item, cartItem, itemName)
+                        : onDecrease(item, cartItem)
+                    )}
+                    onRemove={() => onRequestRemoval(item, cartItem, itemName)}
+                  />
+                )
+              })}
+            </div>
+            <footer className="cart-sheet__footer">
+              <div className="cart-sheet__total">
+                <span>Жалпы · {itemCount} тамак</span>
+                <strong>{money(cart.total)}</strong>
+              </div>
+              <button
+                className="order-button"
+                type="button"
+                onClick={onSubmit}
+                disabled={submitting || pendingItemId !== null}
+              >
+                {submitting ? 'Заказ берилүүдө...' : 'Заказ берүү'}
+                {!submitting && <span aria-hidden="true">→</span>}
+              </button>
+            </footer>
+          </>
+        )}
+      </section>
+    </div>
+  )
+}
+
+function DeleteConfirmation({ itemName, deleting, onCancel, onConfirm }) {
+  const message = itemName
+    ? `«${itemName}» себеттен өчүрүлсүнбү?`
+    : 'Бул тамакты себеттен өчүрөсүзбү?'
+
+  return (
+    <div
+      className="delete-confirmation-backdrop"
+      role="presentation"
+      onMouseDown={deleting ? undefined : onCancel}
+    >
+      <section
+        className="delete-confirmation"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="delete-confirmation-title"
+        aria-describedby="delete-confirmation-message"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <span className="delete-confirmation__icon" aria-hidden="true">×</span>
+        <h2 id="delete-confirmation-title">Себеттен өчүрүү</h2>
+        <p id="delete-confirmation-message">{message}</p>
+        <div className="delete-confirmation__actions">
+          <button type="button" onClick={onCancel} disabled={deleting}>Жок</button>
+          <button
+            className="delete-confirmation__confirm"
+            type="button"
+            onClick={onConfirm}
+            disabled={deleting}
+          >
+            {deleting ? 'Өчүрүлүүдө...' : 'Ооба, өчүрүү'}
+          </button>
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function StickyCartBar({ itemCount, total, onOpen }) {
+  return (
+    <button
+      className="mobile-cart-bar"
+      type="button"
+      onClick={onOpen}
+      aria-haspopup="dialog"
+      aria-controls="cart-sheet-title"
+    >
       <span className="mobile-cart-bar__icon" aria-hidden="true">
         <CartIcon />
         <b>{itemCount}</b>
@@ -412,10 +617,10 @@ function StickyCartBar({ itemCount, total, submitting, onSubmit }) {
       <strong className="mobile-cart-bar__summary">
         {itemCount} тамак <i>•</i> {money(total)}
       </strong>
-      <button type="button" onClick={onSubmit} disabled={submitting}>
-        {submitting ? 'Күтүңүз...' : 'Заказ берүү'}
-      </button>
-    </div>
+      <span className="mobile-cart-bar__review">
+        Себетти көрүү <i aria-hidden="true">›</i>
+      </span>
+    </button>
   )
 }
 
@@ -477,6 +682,7 @@ function WaiterCallSheet({ open, sending, onClose, onCall }) {
 
 function CustomerMenuPage() {
   const { qrToken } = useParams()
+  const navigate = useNavigate()
   const sessionRequestRef = useRef({ basePath: '', promise: null })
   const [menu, setMenu] = useState(null)
   const [cart, setCart] = useState(emptyCart)
@@ -488,7 +694,9 @@ function CustomerMenuPage() {
   const [submittingOrder, setSubmittingOrder] = useState(false)
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState('all')
-  const [language, setLanguage] = useState('KG')
+  const [language, setLanguage] = useState(getStoredLanguage)
+  const [cartSheetOpen, setCartSheetOpen] = useState(false)
+  const [deleteConfirmation, setDeleteConfirmation] = useState(null)
   const [waiterSheetOpen, setWaiterSheetOpen] = useState(false)
   const [sendingWaiterCall, setSendingWaiterCall] = useState(false)
 
@@ -497,6 +705,13 @@ function CustomerMenuPage() {
   const cartItemsByMenuItem = useMemo(
     () => new Map(cart.items.map((cartItem) => [cartItem.menu_item, cartItem])),
     [cart.items],
+  )
+  const menuItemsById = useMemo(
+    () => new Map(
+      (menu?.categories || []).flatMap((category) => category.items)
+        .map((item) => [item.id, item]),
+    ),
+    [menu],
   )
 
   const visibleCategories = useMemo(() => {
@@ -582,6 +797,27 @@ function CustomerMenuPage() {
     return () => document.removeEventListener('keydown', closeOnEscape)
   }, [waiterSheetOpen])
 
+  useEffect(() => {
+    if (!cartSheetOpen) return undefined
+
+    function closeOnEscape(event) {
+      if (event.key !== 'Escape') return
+      if (deleteConfirmation) {
+        if (pendingMenuItemId === null) setDeleteConfirmation(null)
+      } else {
+        setCartSheetOpen(false)
+      }
+    }
+
+    document.addEventListener('keydown', closeOnEscape)
+    return () => document.removeEventListener('keydown', closeOnEscape)
+  }, [cartSheetOpen, deleteConfirmation, pendingMenuItemId])
+
+  function changeLanguage(nextLanguage) {
+    localStorage.setItem(CUSTOMER_LANGUAGE_KEY, nextLanguage)
+    setLanguage(nextLanguage)
+  }
+
   async function refreshCart() {
     const response = await apiClient.get(`${basePath}/cart/`)
     setCart(response.data)
@@ -624,8 +860,10 @@ function CustomerMenuPage() {
         await apiClient.delete(itemPath)
       }
       await refreshCart()
+      return true
     } catch (requestError) {
       setError(getErrorMessage(requestError))
+      return false
     } finally {
       setPendingMenuItemId(null)
     }
@@ -639,6 +877,24 @@ function CustomerMenuPage() {
     return changeCartItemQuantity(item, cartItem, cartItem.quantity - 1)
   }
 
+  function removeCartItem(item, cartItem) {
+    return changeCartItemQuantity(item, cartItem, 0)
+  }
+
+  function requestCartItemRemoval(item, cartItem, itemName) {
+    setDeleteConfirmation({ item, cartItem, itemName })
+  }
+
+  async function confirmCartItemRemoval() {
+    if (!deleteConfirmation) return
+
+    const removed = await removeCartItem(
+      deleteConfirmation.item,
+      deleteConfirmation.cartItem,
+    )
+    if (removed) setDeleteConfirmation(null)
+  }
+
   async function submitOrder() {
     setSubmittingOrder(true)
     setError('')
@@ -647,6 +903,7 @@ function CustomerMenuPage() {
     try {
       await apiClient.post(`${basePath}/orders/`)
       await Promise.all([refreshCart(), refreshOrders()])
+      setCartSheetOpen(false)
       setSuccess('Заказ ийгиликтүү берилди.')
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (requestError) {
@@ -671,11 +928,6 @@ function CustomerMenuPage() {
     } finally {
       setSendingWaiterCall(false)
     }
-  }
-
-  function scrollToOrders() {
-    const ordersSection = document.getElementById('orders')
-    ordersSection?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   if (loading) {
@@ -703,21 +955,14 @@ function CustomerMenuPage() {
 
   return (
     <main className={`customer-menu ${cartItemCount > 0 ? 'has-mobile-cart' : ''}`}>
-      <CustomerHeader language={language} onLanguageChange={setLanguage} />
+      <CustomerHeader language={language} onLanguageChange={changeLanguage} />
 
-      <section className="restaurant-intro">
-        <p>Кош келиңиз</p>
-        <h1>{menu.restaurant.name}</h1>
-      </section>
-
-      <div className="table-context">
-        <TableCard tableNumber={menu.table.number} />
-        <OrdersShortcut
-          language={language}
-          orderCount={orders.orders.length}
-          onClick={scrollToOrders}
-        />
-      </div>
+      <CustomerContextBar
+        tableNumber={menu.table.number}
+        language={language}
+        orderCount={orders.orders.length}
+        onOrdersClick={() => navigate(`/menu/${encodeURIComponent(qrToken)}/orders`)}
+      />
 
       {error && <div className="notice notice--error" role="alert">{error}</div>}
       {success && <div className="notice notice--success" role="status">{success}</div>}
@@ -735,7 +980,6 @@ function CustomerMenuPage() {
         <section className="menu-section" aria-labelledby="menu-title">
           <div className="section-heading">
             <div>
-              <p>Даамдуу тандоо</p>
               <h2 id="menu-title">Меню</h2>
             </div>
             <span>{visibleItemCount} тамак</span>
@@ -782,14 +1026,38 @@ function CustomerMenuPage() {
         />
       </div>
 
-      <OrderHistory orders={orders} />
-
       {cartItemCount > 0 && (
         <StickyCartBar
           itemCount={cartItemCount}
           total={cart.total}
-          submitting={submittingOrder}
-          onSubmit={submitOrder}
+          onOpen={() => setCartSheetOpen(true)}
+        />
+      )}
+
+      <CartReviewSheet
+        open={cartSheetOpen}
+        cart={cart}
+        itemCount={cartItemCount}
+        menuItemsById={menuItemsById}
+        pendingItemId={pendingMenuItemId}
+        submitting={submittingOrder}
+        error={error}
+        onClose={() => {
+          setDeleteConfirmation(null)
+          setCartSheetOpen(false)
+        }}
+        onIncrease={increaseCartItem}
+        onDecrease={decreaseCartItem}
+        onRequestRemoval={requestCartItemRemoval}
+        onSubmit={submitOrder}
+      />
+
+      {deleteConfirmation && (
+        <DeleteConfirmation
+          itemName={deleteConfirmation.itemName}
+          deleting={pendingMenuItemId === deleteConfirmation.item.id}
+          onCancel={() => setDeleteConfirmation(null)}
+          onConfirm={confirmCartItemRemoval}
         />
       )}
 
