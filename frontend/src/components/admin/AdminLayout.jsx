@@ -60,18 +60,22 @@ export default function AdminLayout() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
 
-  const logout = useCallback(() => {
+  const logout = useCallback((authError = '') => {
+    const message = typeof authError === 'string' ? authError : ''
     localStorage.removeItem(ADMIN_TOKEN_KEY)
-    navigate('/admin/login', { replace: true })
+    navigate('/admin/login', {
+      replace: true,
+      ...(message ? { state: { authError: message } } : {}),
+    })
   }, [navigate])
 
   const handleApiError = useCallback((error, fallback) => {
     if (error.response?.status === 401) {
-      logout()
+      logout(t('auth.sessionExpired'))
       return ''
     }
     return extractAdminError(error, fallback, language)
-  }, [language, logout])
+  }, [language, logout, t])
 
   useEffect(() => {
     let active = true

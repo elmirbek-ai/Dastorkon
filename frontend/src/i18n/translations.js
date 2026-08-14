@@ -52,6 +52,8 @@ Object.assign(translations.ky.auth, {
   restaurantOS: 'Ресторан системасы',
   staffLogin: 'Кызматкерлер үчүн кирүү',
   demoCredentials: 'Демо маалымат: {username} / {password}',
+  showPassword: 'Көрсөтүү',
+  hidePassword: 'Жашыруу',
 })
 
 Object.assign(translations.ru.auth, {
@@ -59,6 +61,8 @@ Object.assign(translations.ru.auth, {
   restaurantOS: 'Ресторанная система',
   staffLogin: 'Вход для сотрудников',
   demoCredentials: 'Демо-данные: {username} / {password}',
+  showPassword: 'Показать',
+  hidePassword: 'Скрыть',
 })
 
 Object.assign(translations.ky.admin, {

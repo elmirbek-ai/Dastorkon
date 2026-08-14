@@ -3814,6 +3814,35 @@ button:disabled {
   box-shadow: 0 0 0 3px var(--info-border);
 }
 
+.staff-login-password-field {
+  position: relative;
+  display: block;
+}
+
+.staff-login-password-field input {
+  padding-right: 92px;
+}
+
+.staff-login-password-field button {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  padding: 6px;
+  border: 0;
+  color: var(--primary);
+  background: transparent;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 850;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.staff-login-password-field button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
 .staff-login-card form > button {
   min-height: 56px;
   display: flex;

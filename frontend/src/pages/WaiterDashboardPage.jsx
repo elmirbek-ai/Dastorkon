@@ -351,16 +351,20 @@ function WaiterDashboardPage() {
   const [error, setError] = useState('')
   const [actionError, setActionError] = useState(null)
 
-  const logout = useCallback(() => {
+  const logout = useCallback((authError = '') => {
+    const message = typeof authError === 'string' ? authError : ''
     localStorage.removeItem(WAITER_TOKEN_KEY)
-    navigate('/waiter/login', { replace: true })
+    navigate('/waiter/login', {
+      replace: true,
+      ...(message ? { state: { authError: message } } : {}),
+    })
   }, [navigate])
 
   const handleUnauthorized = useCallback((requestError) => {
     if (requestError.response?.status !== 401) return false
-    logout()
+    logout(t('auth.sessionExpired'))
     return true
-  }, [logout])
+  }, [logout, t])
 
   const loadDashboard = useCallback(async () => {
     try {

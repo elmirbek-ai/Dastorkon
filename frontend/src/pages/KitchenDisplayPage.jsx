@@ -168,9 +168,13 @@ function KitchenDisplayPage() {
   const [lastUpdated, setLastUpdated] = useState(null)
   const [pendingOrderId, setPendingOrderId] = useState(null)
 
-  const logout = useCallback(() => {
+  const logout = useCallback((authError = '') => {
+    const message = typeof authError === 'string' ? authError : ''
     localStorage.removeItem(KITCHEN_TOKEN_KEY)
-    navigate('/kitchen/login', { replace: true })
+    navigate('/kitchen/login', {
+      replace: true,
+      ...(message ? { state: { authError: message } } : {}),
+    })
   }, [navigate])
 
   const loadOrders = useCallback(async () => {
@@ -193,7 +197,7 @@ function KitchenDisplayPage() {
       setError('')
     } catch (requestError) {
       if (requestError.response?.status === 401) {
-        logout()
+        logout(t('auth.sessionExpired'))
         return
       }
       setError(getBackendErrorMessage(requestError, language))
@@ -201,7 +205,7 @@ function KitchenDisplayPage() {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [language, logout])
+  }, [language, logout, t])
 
   useEffect(() => {
     const initialLoadTimer = window.setTimeout(loadOrders, 0)
@@ -241,7 +245,7 @@ function KitchenDisplayPage() {
       await loadOrders()
     } catch (requestError) {
       if (requestError.response?.status === 401) {
-        logout()
+        logout(t('auth.sessionExpired'))
         return
       }
       setError(t('kitchen.statusChangeError'))

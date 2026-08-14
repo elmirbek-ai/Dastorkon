@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import LanguageSwitch from './LanguageSwitch.jsx'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 
@@ -16,6 +17,7 @@ export default function StaffLoginCard({
   demoPassword,
 }) {
   const { t } = useLanguage()
+  const [passwordVisible, setPasswordVisible] = useState(false)
   const titleId = `${pageClass}-title`
 
   return (
@@ -53,13 +55,22 @@ export default function StaffLoginCard({
           </label>
           <label>
             <span>{t('auth.password')}</span>
-            <input
-              type="password"
-              value={password}
-              onChange={onPasswordChange}
-              autoComplete="current-password"
-              required
-            />
+            <span className="staff-login-password-field">
+              <input
+                type={passwordVisible ? 'text' : 'password'}
+                value={password}
+                onChange={onPasswordChange}
+                autoComplete="current-password"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setPasswordVisible((visible) => !visible)}
+                aria-pressed={passwordVisible}
+              >
+                {passwordVisible ? t('auth.hidePassword') : t('auth.showPassword')}
+              </button>
+            </span>
           </label>
           <button type="submit" disabled={submitting}>
             {submitting && <span className="staff-login-spinner" aria-hidden="true" />}
