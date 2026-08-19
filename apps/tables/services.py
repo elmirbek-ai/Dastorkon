@@ -2,6 +2,12 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
+from apps.notifications.services import (
+    build_table_session_notification_payload,
+    notify_kitchen,
+    notify_waiters,
+)
+
 from .models import ActiveTableSession, CustomerSession, RestaurantTable
 
 
@@ -53,4 +59,11 @@ def close_active_table_session(active_table_session, closed_by_user=None):
     table = active_table_session.table
     table.status = RestaurantTable.Status.FREE
     table.save(update_fields=("status", "updated_at"))
+    payload = build_table_session_notification_payload(active_table_session)
+    transaction.on_commit(
+        lambda: notify_waiters("table_session_closed", payload)
+    )
+    transaction.on_commit(
+        lambda: notify_kitchen("table_session_closed", payload)
+    )
     return active_table_session

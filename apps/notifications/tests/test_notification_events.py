@@ -12,8 +12,11 @@ from apps.orders.services import (
     assign_waiter_to_table_session,
     change_order_status,
     complete_waiter_call,
+    complete_table_session,
     create_order,
     create_waiter_call,
+    mark_order_delivered,
+    mark_order_preparing,
     mark_order_ready,
 )
 from apps.restaurants.models import Restaurant
@@ -67,6 +70,18 @@ class NotificationEventTests(TestCase):
 
         return async_to_sync(receive_with_timeout)()
 
+    def assert_no_event(self, channel):
+        async def receive_if_available():
+            try:
+                return await asyncio.wait_for(
+                    self.channel_layer.receive(channel),
+                    timeout=0.05,
+                )
+            except TimeoutError:
+                return None
+
+        self.assertIsNone(async_to_sync(receive_if_available)())
+
     def create_test_order(self):
         return create_order(
             self.customer_session,
@@ -84,9 +99,19 @@ class NotificationEventTests(TestCase):
         channel = self.subscribe("kitchen")
         with self.captureOnCommitCallbacks(execute=True):
             order = self.create_test_order()
+            self.assert_no_event(channel)
 
         payload = self.assert_event(channel, "order_created")
         self.assertEqual(payload["id"], order.pk)
+
+    def test_mark_order_preparing_notifies_kitchen(self):
+        order = self.create_test_order()
+        channel = self.subscribe("kitchen")
+
+        with self.captureOnCommitCallbacks(execute=True):
+            mark_order_preparing(order)
+
+        self.assert_event(channel, "order_preparing")
 
     def test_create_order_notifies_waiters_when_unassigned(self):
         channel = self.subscribe("waiters")
@@ -124,6 +149,39 @@ class NotificationEventTests(TestCase):
 
         self.assert_event(channel, "order_ready")
 
+    def test_mark_order_delivered_notifies_kitchen_and_assigned_waiter(self):
+        assign_waiter_to_table_session(self.table_session, self.waiter)
+        order = self.create_test_order()
+        order = change_order_status(order, Order.Status.PREPARING)
+        order = change_order_status(order, Order.Status.READY)
+        kitchen_channel = self.subscribe("kitchen")
+        waiter_channel = self.subscribe(f"user_{self.waiter.pk}")
+
+        with self.captureOnCommitCallbacks(execute=True):
+            mark_order_delivered(order, self.waiter)
+
+        self.assert_event(kitchen_channel, "order_delivered")
+        self.assert_event(waiter_channel, "order_delivered")
+
+    def test_assign_table_session_notifies_waiters(self):
+        channel = self.subscribe("waiters")
+
+        with self.captureOnCommitCallbacks(execute=True):
+            assign_waiter_to_table_session(self.table_session, self.waiter)
+
+        self.assert_event(channel, "table_session_assigned")
+
+    def test_close_table_session_notifies_waiters_and_kitchen(self):
+        assign_waiter_to_table_session(self.table_session, self.waiter)
+        waiter_channel = self.subscribe("waiters")
+        kitchen_channel = self.subscribe("kitchen")
+
+        with self.captureOnCommitCallbacks(execute=True):
+            complete_table_session(self.table_session, self.waiter)
+
+        self.assert_event(waiter_channel, "table_session_closed")
+        self.assert_event(kitchen_channel, "table_session_closed")
+
     def test_create_waiter_call_notifies_waiters_when_unassigned(self):
         channel = self.subscribe("waiters")
         with self.captureOnCommitCallbacks(execute=True):
@@ -154,6 +212,7 @@ class NotificationEventTests(TestCase):
         with self.captureOnCommitCallbacks(execute=True):
             accept_waiter_call(waiter_call, self.waiter)
 
+        self.assert_event(channel, "table_session_assigned")
         self.assert_event(channel, "waiter_call_accepted")
 
     def test_complete_waiter_call_notifies_admins(self):
@@ -163,6 +222,18 @@ class NotificationEventTests(TestCase):
         )
         waiter_call = accept_waiter_call(waiter_call, self.waiter)
         channel = self.subscribe("admins")
+        with self.captureOnCommitCallbacks(execute=True):
+            complete_waiter_call(waiter_call, self.waiter)
+
+        self.assert_event(channel, "waiter_call_completed")
+
+    def test_complete_waiter_call_notifies_assigned_waiter(self):
+        waiter_call = create_waiter_call(
+            self.customer_session,
+            WaiterCall.Reason.EXTRA_ORDER,
+        )
+        waiter_call = accept_waiter_call(waiter_call, self.waiter)
+        channel = self.subscribe(f"user_{self.waiter.pk}")
         with self.captureOnCommitCallbacks(execute=True):
             complete_waiter_call(waiter_call, self.waiter)
 

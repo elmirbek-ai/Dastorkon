@@ -2746,6 +2746,51 @@ body:has(.customer-orders-page) {
   color: var(--text-heading);
 }
 
+.notifications-connection-status {
+  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: var(--surface-secondary);
+  font-size: 0.65rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.notifications-connection-status::before {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  content: "";
+}
+
+.notifications-connection-status.is-connected {
+  border-color: var(--success-border);
+  color: var(--success-dark);
+  background: var(--success-bg);
+}
+
+.notifications-connection-status.is-connected::before {
+  background: var(--success);
+}
+
+.notifications-connection-status.is-reconnecting {
+  border-color: var(--warning-border);
+  color: var(--warning-dark);
+  background: var(--warning-bg);
+}
+
+.notifications-connection-status.is-reconnecting::before {
+  background: var(--warning);
+}
+
 .kitchen-header__actions button {
   min-height: 46px;
   display: flex;

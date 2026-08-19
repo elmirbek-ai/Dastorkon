@@ -55,3 +55,19 @@ def build_waiter_call_notification_payload(waiter_call):
         "assigned_waiter": waiter_call.assigned_waiter_id,
         "created_at": waiter_call.created_at.isoformat(),
     }
+
+
+def build_table_session_notification_payload(table_session):
+    return {
+        "id": table_session.pk,
+        "table": table_session.table_id,
+        "table_number": table_session.table.number,
+        "assigned_waiter": table_session.assigned_waiter_id,
+        "status": table_session.status,
+        "opened_at": table_session.opened_at.isoformat(),
+        "closed_at": (
+            table_session.closed_at.isoformat()
+            if table_session.closed_at
+            else None
+        ),
+    }

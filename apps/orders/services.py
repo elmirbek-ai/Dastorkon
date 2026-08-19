@@ -7,6 +7,7 @@ from django.utils import timezone
 from apps.menu.models import MenuItem
 from apps.notifications.services import (
     build_order_notification_payload,
+    build_table_session_notification_payload,
     build_waiter_call_notification_payload,
     notify_admins,
     notify_kitchen,
@@ -240,6 +241,13 @@ def complete_waiter_call(waiter_call, waiter):
     transaction.on_commit(
         lambda: notify_admins("waiter_call_completed", payload)
     )
+    transaction.on_commit(
+        lambda: send_notification_to_user(
+            waiter_call.assigned_waiter_id,
+            "waiter_call_completed",
+            payload,
+        )
+    )
     return waiter_call
 
 
@@ -395,6 +403,10 @@ def assign_waiter_to_table_session(active_table_session, waiter):
         status=Order.Status.NEW,
         responsible_waiter__isnull=True,
     ).update(responsible_waiter=waiter)
+    payload = build_table_session_notification_payload(active_table_session)
+    transaction.on_commit(
+        lambda: notify_waiters("table_session_assigned", payload)
+    )
     return active_table_session
 
 
@@ -422,13 +434,21 @@ def change_order_status(order, new_status, changed_by=None):
     return order
 
 
+@transaction.atomic
 def mark_order_preparing(order, user=None):
-    return change_order_status(order, Order.Status.PREPARING, user)
+    order = change_order_status(order, Order.Status.PREPARING, user)
+    payload = build_order_notification_payload(order)
+    transaction.on_commit(
+        lambda: notify_kitchen("order_preparing", payload)
+    )
+    return order
 
 
+@transaction.atomic
 def mark_order_ready(order, user=None):
     order = change_order_status(order, Order.Status.READY, user)
     payload = build_order_notification_payload(order)
+    transaction.on_commit(lambda: notify_kitchen("order_ready", payload))
     waiter_id = order.table_session.assigned_waiter_id
     if waiter_id:
         transaction.on_commit(
@@ -458,7 +478,23 @@ def mark_order_delivered(order, waiter):
     if order.responsible_waiter_id is None:
         order.responsible_waiter = waiter
         order.save(update_fields=("responsible_waiter", "updated_at"))
-    return change_order_status(order, Order.Status.DELIVERED, waiter)
+    order = change_order_status(order, Order.Status.DELIVERED, waiter)
+    payload = build_order_notification_payload(order)
+    transaction.on_commit(lambda: notify_kitchen("order_delivered", payload))
+    waiter_id = order.responsible_waiter_id or order.table_session.assigned_waiter_id
+    if waiter_id:
+        transaction.on_commit(
+            lambda: send_notification_to_user(
+                waiter_id,
+                "order_delivered",
+                payload,
+            )
+        )
+    else:
+        transaction.on_commit(
+            lambda: notify_waiters("order_delivered", payload)
+        )
+    return order
 
 
 @transaction.atomic

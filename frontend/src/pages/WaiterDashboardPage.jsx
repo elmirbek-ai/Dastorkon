@@ -3,9 +3,24 @@ import { useNavigate } from 'react-router-dom'
 import { waiterApiClient, WAITER_TOKEN_KEY } from '../api/client.js'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getBackendErrorMessage, getLocalizedField, getStatusLabel } from '../i18n/index.js'
+import useNotificationsSocket from '../realtime/useNotificationsSocket.js'
 import { getAvatarInitial } from '../utils/avatar.js'
 
 const unfinishedOrderStatuses = new Set(['NEW', 'PREPARING', 'READY'])
+const WAITER_POLL_INTERVAL_MS = 8000
+const CONNECTED_POLL_INTERVAL_MS = 30000
+const WAITER_NOTIFICATION_EVENTS = new Set([
+  'order_created',
+  'order_available',
+  'order_ready',
+  'order_delivered',
+  'waiter_call_created',
+  'waiter_call_available',
+  'waiter_call_accepted',
+  'waiter_call_completed',
+  'table_session_assigned',
+  'table_session_closed',
+])
 
 function formatMoney(value) {
   const amount = Number(value ?? 0)
@@ -51,8 +66,17 @@ function AppIcon({ name }) {
   )
 }
 
-function WaiterHeader({ notificationCount, onNotifications }) {
+function connectionStatusDisplay(status) {
+  if (status === 'connected') return { label: 'Realtime', tone: 'connected' }
+  if (status === 'connecting' || status === 'reconnecting') {
+    return { label: 'Reconnecting', tone: 'reconnecting' }
+  }
+  return { label: 'Polling', tone: 'disconnected' }
+}
+
+function WaiterHeader({ connectionStatus, notificationCount, onNotifications }) {
   const { t } = useLanguage()
+  const connection = connectionStatusDisplay(connectionStatus)
   return (
     <header className="waiter-app-header">
       <div className="waiter-app-brand">
@@ -62,10 +86,18 @@ function WaiterHeader({ notificationCount, onNotifications }) {
           <small>{t('customer.systemSubtitle')}</small>
         </div>
       </div>
-      <div className="waiter-header-tools"><button type="button" onClick={onNotifications} aria-label={t('waiter.calls')}>
-        <AppIcon name="bell" />
-        {notificationCount > 0 && <b>{notificationCount > 99 ? '99+' : notificationCount}</b>}
-      </button></div>
+      <div className="waiter-header-tools">
+        <span
+          className={`notifications-connection-status is-${connection.tone}`}
+          role="status"
+        >
+          {connection.label}
+        </span>
+        <button type="button" onClick={onNotifications} aria-label={t('waiter.calls')}>
+          <AppIcon name="bell" />
+          {notificationCount > 0 && <b>{notificationCount > 99 ? '99+' : notificationCount}</b>}
+        </button>
+      </div>
     </header>
   )
 }
@@ -352,6 +384,7 @@ function WaiterDashboardPage() {
   const [error, setError] = useState('')
   const [actionError, setActionError] = useState(null)
   const [waiterProfile, setWaiterProfile] = useState(null)
+  const socketToken = localStorage.getItem(WAITER_TOKEN_KEY)
 
   const logout = useCallback((authError = '') => {
     const message = typeof authError === 'string' ? authError : ''
@@ -403,14 +436,28 @@ function WaiterDashboardPage() {
     }
   }, [handleUnauthorized, language])
 
+  const handleNotification = useCallback((message) => {
+    if (WAITER_NOTIFICATION_EVENTS.has(message?.event)) loadDashboard()
+  }, [loadDashboard])
+
+  const connectionStatus = useNotificationsSocket({
+    token: socketToken,
+    enabled: Boolean(socketToken),
+    onMessage: handleNotification,
+  })
+
   useEffect(() => {
     const initialLoadTimer = window.setTimeout(loadDashboard, 0)
-    const pollTimer = window.setInterval(loadDashboard, 8000)
-    return () => {
-      window.clearTimeout(initialLoadTimer)
-      window.clearInterval(pollTimer)
-    }
+    return () => window.clearTimeout(initialLoadTimer)
   }, [loadDashboard])
+
+  useEffect(() => {
+    const pollInterval = connectionStatus === 'connected'
+      ? CONNECTED_POLL_INTERVAL_MS
+      : WAITER_POLL_INTERVAL_MS
+    const pollTimer = window.setInterval(loadDashboard, pollInterval)
+    return () => window.clearInterval(pollTimer)
+  }, [connectionStatus, loadDashboard])
 
   useEffect(() => {
     let active = true
@@ -514,7 +561,7 @@ function WaiterDashboardPage() {
 
   return (
     <main className="waiter-mobile-app">
-      <WaiterHeader notificationCount={counts.calls + counts.ready} onNotifications={() => navigateView('calls')} />
+      <WaiterHeader connectionStatus={connectionStatus} notificationCount={counts.calls + counts.ready} onNotifications={() => navigateView('calls')} />
       <div className="waiter-app-content">
         {error && <div className="waiter-error-banner" role="alert">{error}</div>}
         {waiterProfile && !waiterProfile.profile_completed && (

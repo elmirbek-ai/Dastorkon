@@ -4,9 +4,19 @@ import { kitchenApiClient, KITCHEN_TOKEN_KEY } from '../api/client.js'
 import LanguageSwitch from '../components/LanguageSwitch.jsx'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getBackendErrorMessage, getLocalizedField, getStatusLabel } from '../i18n/index.js'
+import useNotificationsSocket from '../realtime/useNotificationsSocket.js'
 
 const ACTIVE_STATUSES = ['NEW', 'PREPARING', 'READY']
 const READY_RETENTION_MS = 15 * 60 * 1000
+const KITCHEN_POLL_INTERVAL_MS = 7000
+const CONNECTED_POLL_INTERVAL_MS = 30000
+const KITCHEN_NOTIFICATION_EVENTS = new Set([
+  'order_created',
+  'order_preparing',
+  'order_ready',
+  'order_delivered',
+  'table_session_closed',
+])
 
 function formatMoney(value) {
   const amount = Number(value ?? 0)
@@ -38,8 +48,17 @@ function LogoutIcon() {
   )
 }
 
-function KitchenHeader({ lastUpdated, refreshing, onRefresh, onLogout }) {
+function connectionStatusDisplay(status) {
+  if (status === 'connected') return { label: 'Realtime', tone: 'connected' }
+  if (status === 'connecting' || status === 'reconnecting') {
+    return { label: 'Reconnecting', tone: 'reconnecting' }
+  }
+  return { label: 'Polling', tone: 'disconnected' }
+}
+
+function KitchenHeader({ connectionStatus, lastUpdated, refreshing, onRefresh, onLogout }) {
   const { t } = useLanguage()
+  const connection = connectionStatusDisplay(connectionStatus)
   return (
     <header className="kitchen-header">
       <div className="kitchen-brand">
@@ -55,6 +74,12 @@ function KitchenHeader({ lastUpdated, refreshing, onRefresh, onLogout }) {
           <span>{t('common.updated')}</span>
           <strong>{lastUpdated ? formatTime(lastUpdated) : '—'}</strong>
         </p>
+        <span
+          className={`notifications-connection-status is-${connection.tone}`}
+          role="status"
+        >
+          {connection.label}
+        </span>
         <button type="button" onClick={onRefresh} disabled={refreshing} aria-label={t('common.refresh')}>
           <RefreshIcon />
           <span>{refreshing ? t('common.working') : t('common.refresh')}</span>
@@ -167,6 +192,7 @@ function KitchenDisplayPage() {
   const [error, setError] = useState('')
   const [lastUpdated, setLastUpdated] = useState(null)
   const [pendingOrderId, setPendingOrderId] = useState(null)
+  const socketToken = localStorage.getItem(KITCHEN_TOKEN_KEY)
 
   const logout = useCallback((authError = '') => {
     const message = typeof authError === 'string' ? authError : ''
@@ -207,14 +233,28 @@ function KitchenDisplayPage() {
     }
   }, [language, logout, t])
 
+  const handleNotification = useCallback((message) => {
+    if (KITCHEN_NOTIFICATION_EVENTS.has(message?.event)) loadOrders()
+  }, [loadOrders])
+
+  const connectionStatus = useNotificationsSocket({
+    token: socketToken,
+    enabled: Boolean(socketToken),
+    onMessage: handleNotification,
+  })
+
   useEffect(() => {
     const initialLoadTimer = window.setTimeout(loadOrders, 0)
-    const pollTimer = window.setInterval(loadOrders, 7000)
-    return () => {
-      window.clearTimeout(initialLoadTimer)
-      window.clearInterval(pollTimer)
-    }
+    return () => window.clearTimeout(initialLoadTimer)
   }, [loadOrders])
+
+  useEffect(() => {
+    const pollInterval = connectionStatus === 'connected'
+      ? CONNECTED_POLL_INTERVAL_MS
+      : KITCHEN_POLL_INTERVAL_MS
+    const pollTimer = window.setInterval(loadOrders, pollInterval)
+    return () => window.clearInterval(pollTimer)
+  }, [connectionStatus, loadOrders])
 
   const groupedOrders = useMemo(
     () => Object.fromEntries(
@@ -271,6 +311,7 @@ function KitchenDisplayPage() {
   return (
     <main className="kitchen-display">
       <KitchenHeader
+        connectionStatus={connectionStatus}
         lastUpdated={lastUpdated}
         refreshing={refreshing}
         onRefresh={refreshManually}
