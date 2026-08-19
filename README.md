@@ -1,115 +1,140 @@
 # Dastorkon
 
-Dastorkon is a QR menu and restaurant order-management MVP. It provides a
-Django REST API for restaurant setup, customer ordering, kitchen processing,
-waiter operations, reporting, and real-time notifications.
-
-## Roles
-
-- **Admin** manages restaurants, settings, staff, menus, tables, order history,
-  and statistics.
-- **Waiter** manages shifts, accepts table sessions, delivers orders, and
-  handles waiter calls.
-- **Kitchen** views incoming orders and moves them through preparation.
-- **Customer** starts a table session from a QR code, browses the menu, manages
-  a cart, creates orders, and calls a waiter without creating an account.
+Dastorkon is a restaurant-service MVP built around a table QR menu. Customers
+can browse a bilingual menu, place orders, track progress, and call a waiter
+without creating an account. Staff use role-specific Admin, Waiter, and Kitchen
+interfaces to manage the same order lifecycle.
 
 ## Tech stack
 
-- Python
-- Django
-- Django REST Framework
-- SimpleJWT
-- Django Channels
-- SQLite for local development
+- **Backend:** Python, Django 6.1, Django REST Framework, SimpleJWT, Django
+  Channels, Daphne, drf-spectacular
+- **Frontend:** React 19, Vite 8, React Router, Axios
+- **Local data and media:** SQLite and Pillow-generated demo menu images
+- **Realtime:** authenticated WebSockets with polling fallback
+- **Testing:** Django test runner and ESLint
 
-## Main features
+## Roles
 
-- Admin restaurant, menu, table, and staff management
-- Public QR and customer-session flow
-- Public restaurant menu
-- Customer cart and order creation
-- Kitchen display workflow
-- Waiter shifts, table orders, and waiter calls
-- Admin order history and statistics
-- Role-based WebSocket notifications
-
-See [docs/API.md](docs/API.md) for the main HTTP and WebSocket routes.
+- **Admin** manages restaurants, settings, staff, menu categories and items,
+  tables and QR codes, order history, and statistics.
+- **Waiter** starts a shift, accepts table sessions and waiter calls, delivers
+  ready orders, and closes completed tables.
+- **Kitchen** receives new orders and moves them from `NEW` to `PREPARING` and
+  then `READY`.
+- **Customer** scans a table QR code, browses the menu in Kyrgyz or Russian,
+  manages a cart, submits orders, tracks status, and calls a waiter.
 
 ## Local setup
 
-Commands below use PowerShell on Windows. On macOS or Linux, activate the
-virtual environment with `source .venv/bin/activate` instead.
+The examples below use PowerShell from the repository root. On macOS or Linux,
+activate the environment with `source .venv/bin/activate` instead.
 
-1. Create and activate a virtual environment:
+1. Create the Python environment and install backend dependencies:
 
    ```powershell
    python -m venv .venv
    .\.venv\Scripts\Activate.ps1
-   ```
-
-2. Install dependencies:
-
-   ```powershell
    python -m pip install -r requirements.txt
    ```
 
-3. Create the local environment file:
-
-   ```powershell
-   Copy-Item .env.example .env
-   ```
-
-   The MVP currently uses the SQLite development defaults in
-   `config/settings.py`. Do not use the example secret key in production.
-
-4. Apply migrations:
+2. Apply migrations and seed the idempotent demo dataset:
 
    ```powershell
    python manage.py migrate
+   python manage.py seed_demo
    ```
 
-5. Create a superuser:
+   The seed command creates the demo restaurant, menu images, ten tables, staff
+   users, and prints the Table 1 QR token.
+
+3. Install frontend dependencies:
 
    ```powershell
-   python manage.py createsuperuser
+   Set-Location frontend
+   npm ci
+   Set-Location ..
    ```
 
-   Django admin-site access uses the normal superuser flags. Access to the
-   `/api/admin/` REST endpoints additionally requires the user's Dastorkon
-   role to be `ADMIN`.
+## Run locally
 
-6. Run the tests:
+Keep the backend and frontend running in separate terminals.
 
-   ```powershell
-   python manage.py test
-   ```
+### Backend with Daphne
 
-   Test runs automatically use Django's fast MD5 password hasher. Normal and
-   production runs keep Django's default secure password hashers.
+From the repository root with the virtual environment activated:
 
-7. Start the development server:
+```powershell
+daphne -b 127.0.0.1 -p 8000 config.asgi:application
+```
 
-   ```powershell
-   python manage.py runserver
-   ```
+Daphne serves the Django API and `/ws/notifications/` WebSocket endpoint at
+`http://127.0.0.1:8000`.
 
-   To serve the ASGI application explicitly, including WebSockets, run:
+### Frontend with Vite
 
-   ```powershell
-   daphne config.asgi:application
-   ```
+From a second terminal:
 
-The default local API address is `http://127.0.0.1:8000/`.
+```powershell
+Set-Location frontend
+npm run dev
+```
 
-## Authentication overview
+Vite serves the application at `http://127.0.0.1:5173` and proxies local API,
+media, and WebSocket requests to Daphne.
 
-Staff obtain JWT access and refresh tokens from the authentication endpoints
-and send the access token as `Authorization: Bearer <token>`. Public customer
-endpoints do not use customer accounts; the QR session endpoint sets an
-HTTP-only `customer_session_key` cookie that must be retained for cart, order,
-and waiter-call requests.
+## Demo credentials
 
-The current WebSocket foundation uses Django session authentication through
-Channels' `AuthMiddlewareStack`. Redis is not required for the MVP; local and
-test environments use the in-memory channel layer.
+These development-only accounts are created or reset by `seed_demo`:
+
+| Role | Username | Password |
+| --- | --- | --- |
+| Admin | `admin` | `admin12345` |
+| Waiter | `waiter` | `waiter12345` |
+| Kitchen | `kitchen` | `kitchen12345` |
+
+Do not reuse these credentials outside the local MVP demo.
+
+## Demo URLs
+
+| Screen | URL |
+| --- | --- |
+| Staff login hub | `http://127.0.0.1:5173/login` |
+| Admin login | `http://127.0.0.1:5173/admin/login` |
+| Waiter login | `http://127.0.0.1:5173/waiter/login` |
+| Kitchen login | `http://127.0.0.1:5173/kitchen/login` |
+| Customer menu | `http://127.0.0.1:5173/menu/<table-qr-token>` |
+| Swagger API documentation | `http://127.0.0.1:8000/api/docs/` |
+| Django admin site | `http://127.0.0.1:8000/admin/` |
+
+For the Customer menu, copy the Table 1 token printed by `python manage.py
+seed_demo`, or open **Admin → Tables** and scan/open a generated QR code.
+
+## Realtime behavior
+
+Kitchen and Waiter pages authenticate to `/ws/notifications/` with their JWT
+access token. Relevant events immediately call the pages' existing data-load
+functions. Polling remains enabled as a fallback: Kitchen uses 7 seconds and
+Waiter uses 8 seconds when the socket is unavailable, and both slow to 30
+seconds while connected.
+
+The MVP uses `InMemoryChannelLayer`, so realtime delivery is reliable only when
+Django runs as one process. A production deployment should use Redis with
+`channels_redis` and expose the socket over `wss://`. See
+[Realtime notes](docs/REALTIME_NOTES.md) for details.
+
+## Documentation and validation
+
+- [Demo checklist](docs/DEMO_CHECKLIST.md)
+- [Realtime notes](docs/REALTIME_NOTES.md)
+- [API overview](docs/API.md)
+
+Run the project checks with:
+
+```powershell
+python manage.py check
+python manage.py test
+Set-Location frontend
+npm run lint
+npm run build
+```
