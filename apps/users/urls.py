@@ -5,6 +5,7 @@ from .views import (
     AdminUserViewSet,
     CurrentUserView,
     CurrentWaiterShiftView,
+    WaiterProfileView,
     WaiterShiftEndView,
     WaiterShiftStartView,
 )
@@ -20,6 +21,7 @@ auth_urlpatterns = [
 
 
 waiter_urlpatterns = [
+    path("profile/", WaiterProfileView.as_view(), name="waiter-profile"),
     path(
         "shifts/start/",
         WaiterShiftStartView.as_view(),

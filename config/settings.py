@@ -28,7 +28,6 @@ SECRET_KEY = 'django-insecure-3uk#107+yqzoj&!8rlaf=#a*ts#8i+&mjar0284p$7tsdks!6!
 DEBUG = True
 
 ALLOWED_HOSTS = [
-    '192.168.88.239',
     'localhost',
     '127.0.0.1',
 ]
@@ -47,6 +46,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'drf_spectacular',
     'corsheaders',
+    'phonenumber_field',
     'apps.common.apps.CommonConfig',
     'apps.users.apps.UsersConfig',
     'apps.restaurants.apps.RestaurantsConfig',
@@ -102,6 +102,10 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
 }
+
+PHONENUMBER_DEFAULT_REGION = 'KG'
+PHONENUMBER_DB_FORMAT = 'E164'
+PHONENUMBER_DEFAULT_FORMAT = 'E164'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -173,7 +177,6 @@ AUTH_PASSWORD_VALIDATORS = [
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
-    'http://192.168.88.239:5173',
 ]
 CORS_ALLOW_CREDENTIALS = True
 

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import apiClient from '../api/client.js'
-import { CustomerHeader, OrderHistory } from './CustomerMenuPage.jsx'
+import { CustomerHeader, OrderHistory, WaiterCallSheet } from './CustomerMenuPage.jsx'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
+import { getBackendErrorMessage } from '../i18n/index.js'
 
 const emptyOrders = { orders: [], total_amount: '0.00' }
 const CUSTOMER_REQUEST_CONFIG = { timeout: 15000 }
@@ -10,10 +11,14 @@ const CUSTOMER_REQUEST_CONFIG = { timeout: 15000 }
 function CustomerOrdersPage() {
   const { qrToken } = useParams()
   const navigate = useNavigate()
-  const { t } = useLanguage()
+  const { language, t } = useLanguage()
   const [orders, setOrders] = useState(emptyOrders)
+  const [tableNumber, setTableNumber] = useState(null)
   const [loading, setLoading] = useState(true)
   const [loadFailed, setLoadFailed] = useState(false)
+  const [message, setMessage] = useState({ type: '', text: '' })
+  const [waiterSheetOpen, setWaiterSheetOpen] = useState(false)
+  const [sendingWaiterCall, setSendingWaiterCall] = useState(false)
 
   const basePath = `/api/public/qr/${encodeURIComponent(qrToken)}`
 
@@ -25,9 +30,19 @@ function CustomerOrdersPage() {
       setLoadFailed(false)
 
       try {
-        await apiClient.post(`${basePath}/session/`, undefined, CUSTOMER_REQUEST_CONFIG)
+        const sessionResponse = await apiClient.post(
+          `${basePath}/session/`,
+          undefined,
+          CUSTOMER_REQUEST_CONFIG,
+        )
         const response = await apiClient.get(`${basePath}/orders/`, CUSTOMER_REQUEST_CONFIG)
-        if (active) setOrders({ ...response.data, orders: Array.isArray(response.data?.orders) ? response.data.orders : [] })
+        if (active) {
+          setTableNumber(sessionResponse.data?.table?.number ?? null)
+          setOrders({
+            ...response.data,
+            orders: Array.isArray(response.data?.orders) ? response.data.orders : [],
+          })
+        }
       } catch {
         if (active) setLoadFailed(true)
       } finally {
@@ -41,17 +56,71 @@ function CustomerOrdersPage() {
     }
   }, [basePath])
 
+  useEffect(() => {
+    if (!waiterSheetOpen) return undefined
+
+    function closeOnEscape(event) {
+      if (event.key === 'Escape' && !sendingWaiterCall) setWaiterSheetOpen(false)
+    }
+
+    document.addEventListener('keydown', closeOnEscape)
+    return () => document.removeEventListener('keydown', closeOnEscape)
+  }, [sendingWaiterCall, waiterSheetOpen])
+
+  async function callWaiter(reason) {
+    setSendingWaiterCall(true)
+    setMessage({ type: '', text: '' })
+
+    try {
+      await apiClient.post(`${basePath}/waiter-calls/`, { reason })
+      setWaiterSheetOpen(false)
+      setMessage({ type: 'success', text: t('customer.waiterCalled') })
+    } catch (requestError) {
+      setWaiterSheetOpen(false)
+      setMessage({ type: 'error', text: getBackendErrorMessage(requestError, language) })
+    } finally {
+      setSendingWaiterCall(false)
+    }
+  }
+
+  const goToMenu = () => navigate(`/menu/${encodeURIComponent(qrToken)}`)
+
   return (
     <main className="customer-orders-page">
       <CustomerHeader />
 
-      <button
-        className="customer-orders-back"
-        type="button"
-        onClick={() => navigate(`/menu/${encodeURIComponent(qrToken)}`)}
-      >
-        ← {t('customer.backToMenu')}
-      </button>
+      <section className="customer-orders-intro">
+        <div>
+          <p>{t('customer.orderTracking')}</p>
+          <h1>{t('customer.myOrders')}</h1>
+          <span>{t('customer.orderTrackingHelp')}</span>
+        </div>
+        {tableNumber !== null && (
+          <div className="customer-orders-table">
+            <small>{t('customer.yourTable')}</small>
+            <strong>{t('customer.tableLabel', { number: tableNumber })}</strong>
+          </div>
+        )}
+      </section>
+
+      <div className="customer-orders-actions">
+        <button className="customer-orders-back" type="button" onClick={goToMenu}>
+          <span aria-hidden="true">←</span> {t('customer.backToMenu')}
+        </button>
+        <button
+          className="customer-orders-waiter"
+          type="button"
+          onClick={() => setWaiterSheetOpen(true)}
+        >
+          <span aria-hidden="true">♧</span> {t('customer.callWaiter')}
+        </button>
+      </div>
+
+      {message.text && (
+        <div className={`notice notice--${message.type}`} role={message.type === 'error' ? 'alert' : 'status'}>
+          {message.text}
+        </div>
+      )}
 
       {loading ? (
         <div className="customer-orders-state" role="status">
@@ -63,8 +132,15 @@ function CustomerOrdersPage() {
           {t('customer.ordersLoadError')}
         </div>
       ) : (
-        <OrderHistory orders={orders} />
+        <OrderHistory orders={orders} tableNumber={tableNumber} onBackToMenu={goToMenu} />
       )}
+
+      <WaiterCallSheet
+        open={waiterSheetOpen}
+        sending={sendingWaiterCall}
+        onClose={() => setWaiterSheetOpen(false)}
+        onCall={callWaiter}
+      />
     </main>
   )
 }

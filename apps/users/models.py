@@ -2,6 +2,7 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.db.models import Q
+from phonenumber_field.modelfields import PhoneNumberField
 
 
 class User(AbstractUser):
@@ -15,12 +16,22 @@ class User(AbstractUser):
         choices=Role.choices,
         default=Role.WAITER,
     )
-    phone = models.CharField(max_length=20, blank=True)
+    primary_phone = PhoneNumberField(blank=True, region="KG")
+    secondary_phone = PhoneNumberField(blank=True, region="KG")
     avatar = models.ImageField(
         upload_to="users/avatars/",
         blank=True,
         null=True,
     )
+
+    @property
+    def phone(self):
+        """Compatibility alias for existing admin and current-user clients."""
+        return self.primary_phone
+
+    @phone.setter
+    def phone(self, value):
+        self.primary_phone = value
 
 
 class WaiterShift(models.Model):

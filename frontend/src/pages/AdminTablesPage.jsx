@@ -11,7 +11,8 @@ const CANVAS_FONT_STACK = '"Segoe UI", Arial, Tahoma, sans-serif'
 let hasWarnedAboutLocalhost = false
 
 function publicMenuUrl(table) {
-  const publicOrigin = (import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin).replace(/\/+$/, '')
+  const configuredPublicOrigin = (import.meta.env.VITE_PUBLIC_APP_URL || '').trim()
+  const publicOrigin = (configuredPublicOrigin || window.location.origin).replace(/\/+$/, '')
   const menuUrl = `${publicOrigin}/menu/${table.qr_token}`
 
   if (
@@ -21,7 +22,7 @@ function publicMenuUrl(table) {
     && window.location.hostname !== 'localhost'
   ) {
     hasWarnedAboutLocalhost = true
-    console.warn('[Dastorkon] Customer menu URL contains localhost. Set VITE_PUBLIC_APP_URL to the LAN/public frontend origin.')
+    console.warn('[Dastorkon] Customer menu URL contains localhost. Set VITE_PUBLIC_APP_URL to the public frontend origin.')
   }
 
   return menuUrl

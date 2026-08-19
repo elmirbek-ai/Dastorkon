@@ -1,5 +1,8 @@
+from datetime import datetime, time, timedelta
+
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from .models import User, WaiterShift
@@ -42,3 +45,192 @@ def end_waiter_shift(waiter):
     active_shift.ended_at = timezone.now()
     active_shift.save(update_fields=("is_active", "ended_at"))
     return active_shift
+
+
+def _local_day_start(day, current_timezone):
+    return timezone.make_aware(datetime.combine(day, time.min), current_timezone)
+
+
+def _overlap_seconds(started_at, ended_at, window_start, window_end):
+    interval_start = max(started_at, window_start)
+    interval_end = min(ended_at, window_end)
+    if interval_end <= interval_start:
+        return 0
+    return int((interval_end - interval_start).total_seconds())
+
+
+def format_duration(seconds, language="ky"):
+    total_minutes = max(0, int(seconds or 0)) // 60
+    days, remaining_minutes = divmod(total_minutes, 24 * 60)
+    hours, minutes = divmod(remaining_minutes, 60)
+    parts = []
+    if days:
+        if language == "ru":
+            suffix = (
+                "день"
+                if days == 1
+                else "дня"
+                if 2 <= days % 10 <= 4 and not 12 <= days % 100 <= 14
+                else "дней"
+            )
+            parts.append(f"{days} {suffix}")
+        else:
+            parts.append(f"{days} күн")
+    if hours:
+        parts.append(f"{hours} ч" if language == "ru" else f"{hours} саат")
+    if minutes or not parts:
+        parts.append(f"{minutes} мин" if language == "ru" else f"{minutes} мүнөт")
+    return " ".join(parts)
+
+
+def _request_language(request):
+    requested = request.query_params.get("lang", "").lower()
+    if requested in ("ky", "ru"):
+        return requested
+    accept_language = request.headers.get("Accept-Language", "").lower()
+    return "ru" if accept_language.startswith("ru") else "ky"
+
+
+def build_waiter_shift_summary(waiter, request, now=None):
+    now = now or timezone.now()
+    current_timezone = timezone.get_current_timezone()
+    local_today = timezone.localtime(now, current_timezone).date()
+    tomorrow_start = _local_day_start(local_today + timedelta(days=1), current_timezone)
+    today_start = _local_day_start(local_today, current_timezone)
+    seven_day_start = _local_day_start(local_today - timedelta(days=6), current_timezone)
+    thirty_day_start = _local_day_start(local_today - timedelta(days=29), current_timezone)
+    language = _request_language(request)
+
+    window_shifts = list(
+        WaiterShift.objects.filter(waiter=waiter, started_at__lt=tomorrow_start)
+        .filter(Q(ended_at__gte=thirty_day_start) | Q(ended_at__isnull=True))
+        .order_by("-started_at")
+    )
+    current_shift = next(
+        (shift for shift in window_shifts if shift.ended_at is None),
+        None,
+    )
+
+    def worked_seconds(window_start):
+        return sum(
+            _overlap_seconds(
+                shift.started_at,
+                shift.ended_at or now,
+                window_start,
+                min(now, tomorrow_start),
+            )
+            for shift in window_shifts
+        )
+
+    today_shifts = [
+        shift
+        for shift in window_shifts
+        if shift.started_at < tomorrow_start and (shift.ended_at or now) > today_start
+    ]
+    today_seconds = worked_seconds(today_start)
+    seven_day_seconds = worked_seconds(seven_day_start)
+    thirty_day_seconds = worked_seconds(thirty_day_start)
+    recent_shifts = list(WaiterShift.objects.filter(waiter=waiter).order_by("-started_at")[:30])
+
+    return {
+        "shift_summary": {
+            "is_on_shift": current_shift is not None,
+            "current_shift_id": current_shift.pk if current_shift else None,
+            "today_shift_started_at": min(
+                (shift.started_at for shift in today_shifts),
+                default=None,
+            ),
+            "today_shift_ended_at": (
+                None
+                if any(shift.ended_at is None for shift in today_shifts)
+                else max((shift.ended_at for shift in today_shifts), default=None)
+            ),
+            "today_worked_seconds": today_seconds,
+            "today_worked_display": format_duration(today_seconds, language),
+            "last_7_days_worked_seconds": seven_day_seconds,
+            "last_7_days_worked_display": format_duration(seven_day_seconds, language),
+            "last_30_days_worked_seconds": thirty_day_seconds,
+            "last_30_days_worked_display": format_duration(thirty_day_seconds, language),
+            "total_shifts_count": WaiterShift.objects.filter(waiter=waiter).count(),
+        },
+        "recent_shifts": [
+            {
+                "id": shift.pk,
+                "date": timezone.localtime(shift.started_at, current_timezone).date(),
+                "started_at": shift.started_at,
+                "ended_at": shift.ended_at,
+                "is_active": shift.ended_at is None,
+                "duration_seconds": max(
+                    0,
+                    int(((shift.ended_at or now) - shift.started_at).total_seconds()),
+                ),
+                "duration_display": format_duration(
+                    max(
+                        0,
+                        int(((shift.ended_at or now) - shift.started_at).total_seconds()),
+                    ),
+                    language,
+                ),
+            }
+            for shift in recent_shifts
+        ],
+    }
+
+
+def build_waiter_work_stats(waiter, request):
+    from apps.orders.models import Order, OrderStatusHistory, WaiterCall
+    from apps.tables.models import ActiveTableSession
+
+    language = _request_language(request)
+    assigned_sessions = ActiveTableSession.objects.filter(assigned_waiter=waiter)
+    waiter_orders = Order.objects.filter(responsible_waiter=waiter)
+    histories = (
+        OrderStatusHistory.objects.filter(
+            order__responsible_waiter=waiter,
+            order__status__in=(Order.Status.DELIVERED, Order.Status.COMPLETED),
+            to_status__in=(Order.Status.READY, Order.Status.DELIVERED),
+        )
+        .values("order_id", "to_status", "created_at")
+        .order_by("order_id", "created_at")
+    )
+    delivery_times = {}
+    delivery_durations = []
+    for history in histories:
+        order_times = delivery_times.setdefault(history["order_id"], {})
+        if history["to_status"] == Order.Status.READY:
+            order_times.setdefault("ready", history["created_at"])
+        elif "ready" in order_times and "delivered" not in order_times:
+            order_times["delivered"] = history["created_at"]
+            duration = int((order_times["delivered"] - order_times["ready"]).total_seconds())
+            if duration >= 0:
+                delivery_durations.append(duration)
+
+    average_seconds = (
+        round(sum(delivery_durations) / len(delivery_durations))
+        if delivery_durations
+        else None
+    )
+    no_data = "Пока нет данных" if language == "ru" else "Азырынча маалымат жок"
+    return {
+        "accepted_tables_count": assigned_sessions.count(),
+        "delivered_orders_count": waiter_orders.filter(
+            status__in=(Order.Status.DELIVERED, Order.Status.COMPLETED)
+        ).count(),
+        "resolved_waiter_calls_count": WaiterCall.objects.filter(
+            assigned_waiter=waiter,
+            status=WaiterCall.Status.DONE,
+        ).count(),
+        "today_active_tables_count": assigned_sessions.filter(
+            status=ActiveTableSession.Status.ACTIVE
+        ).count(),
+        "today_ready_not_delivered_orders_count": Order.objects.filter(
+            table_session__assigned_waiter=waiter,
+            status=Order.Status.READY
+        ).count(),
+        "average_order_delivery_time_seconds": average_seconds,
+        "average_order_delivery_time_display": (
+            format_duration(average_seconds, language)
+            if average_seconds is not None
+            else no_data
+        ),
+    }

@@ -2668,6 +2668,143 @@
   opacity: 0.62;
 }
 
+/* Responsive safety: desktop rules above 1040px stay unchanged. */
+@media (max-width: 1040px) {
+  .admin-app {
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  .admin-sidebar {
+    width: min(var(--admin-sidebar), calc(100vw - 48px));
+    max-width: 100%;
+  }
+
+  .admin-main,
+  .admin-content,
+  .admin-topbar > div:first-of-type,
+  .admin-page-intro > div,
+  .admin-panel,
+  .admin-data-card {
+    min-width: 0;
+  }
+
+  .admin-topbar > div:first-of-type {
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+
+  .admin-topbar-actions {
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 900px) {
+  .admin-table-wrap {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-gutter: stable;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-menu-table {
+    min-width: 700px;
+  }
+
+  .admin-categories-table {
+    min-width: 600px;
+  }
+
+  .admin-orders-table {
+    min-width: 800px;
+  }
+
+  .admin-users-table {
+    min-width: 760px;
+  }
+
+  .admin-table th,
+  .admin-table td,
+  .admin-row-actions,
+  .admin-row-actions button {
+    white-space: nowrap;
+  }
+
+  .admin-modal-backdrop {
+    padding: 16px;
+  }
+
+  .admin-modal,
+  .admin-modal.is-wide {
+    max-width: 100%;
+    max-height: calc(100dvh - 32px);
+  }
+
+  .admin-modal-body {
+    overscroll-behavior-y: contain;
+  }
+}
+
+@media (max-width: 780px) {
+  .admin-toolbar,
+  .admin-filter-tabs {
+    min-width: 0;
+  }
+
+  .admin-filter-tabs {
+    display: flex;
+    width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+  }
+
+  .admin-filter-tabs button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .admin-toolbar > span {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 540px) {
+  .admin-form-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-form-actions button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .admin-modal-backdrop {
+    padding: 0;
+  }
+
+  .admin-modal,
+  .admin-modal.is-wide {
+    max-height: calc(100dvh - env(safe-area-inset-top));
+  }
+
+  .admin-order-detail,
+  .admin-order-items,
+  .admin-status-timeline,
+  .admin-restaurant-profile dl {
+    min-width: 0;
+  }
+
+  .admin-order-items > div,
+  .admin-table-stats > div {
+    gap: 10px;
+  }
+}
+
 /* Employee login hub */
 .login-hub-page {
   background: var(--bg);

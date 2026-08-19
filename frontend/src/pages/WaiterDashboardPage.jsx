@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { waiterApiClient, WAITER_TOKEN_KEY } from '../api/client.js'
-import LanguageSwitch from '../components/LanguageSwitch.jsx'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getBackendErrorMessage, getLocalizedField, getStatusLabel } from '../i18n/index.js'
+import { getAvatarInitial } from '../utils/avatar.js'
 
 const unfinishedOrderStatuses = new Set(['NEW', 'PREPARING', 'READY'])
 
@@ -62,7 +62,7 @@ function WaiterHeader({ notificationCount, onNotifications }) {
           <small>{t('customer.systemSubtitle')}</small>
         </div>
       </div>
-      <div className="waiter-header-tools"><LanguageSwitch /><button type="button" onClick={onNotifications} aria-label={t('waiter.calls')}>
+      <div className="waiter-header-tools"><button type="button" onClick={onNotifications} aria-label={t('waiter.calls')}>
         <AppIcon name="bell" />
         {notificationCount > 0 && <b>{notificationCount > 99 ? '99+' : notificationCount}</b>}
       </button></div>
@@ -70,12 +70,12 @@ function WaiterHeader({ notificationCount, onNotifications }) {
   )
 }
 
-function WaiterProfileCard({ shift, pending, error, onStart, onOpenProfile }) {
+function WaiterProfileCard({ avatarInitial, shift, pending, error, onStart, onOpenProfile }) {
   const { language, t } = useLanguage()
   return (
     <section className={`waiter-profile-card ${shift ? 'is-online' : ''}`}>
       <div className="waiter-profile-main">
-        <span className="waiter-avatar" aria-hidden="true">О</span>
+        <span className="waiter-avatar" aria-hidden="true">{avatarInitial}</span>
         <div>
           <strong>{t('common.waiter')}</strong>
           <small>{t('common.waiter')}</small>
@@ -311,11 +311,11 @@ function FullListView({ title, count, emptyText, children }) {
   )
 }
 
-function ProfilePanel({ shift, refreshing, pending, error, onRefresh, onStart, onEnd, onLogout }) {
+function ProfilePanel({ avatarInitial, shift, refreshing, pending, error, onRefresh, onStart, onEnd, onViewProfile, onLogout }) {
   const { language, t } = useLanguage()
   return (
     <section className="waiter-profile-panel">
-      <header><span className="waiter-profile-avatar">О</span><div><h1>{t('common.waiter')}</h1><p>{t('waiter.dashboard')}</p></div></header>
+      <header><span className="waiter-profile-avatar" aria-hidden="true">{avatarInitial}</span><div><h1>{t('common.waiter')}</h1><p>{t('waiter.dashboard')}</p></div></header>
       <div className={`waiter-profile-status ${shift ? 'is-active' : ''}`}>
         <span aria-hidden="true">{shift ? '✓' : '!'}</span>
         <div>
@@ -324,6 +324,7 @@ function ProfilePanel({ shift, refreshing, pending, error, onRefresh, onStart, o
         </div>
       </div>
       <div className="waiter-profile-actions">
+        <button type="button" onClick={onViewProfile}>{t('waiterProfile.myProfile')}</button>
         <button className={shift ? 'is-end-shift' : 'is-primary'} type="button" onClick={shift ? onEnd : onStart} disabled={pending}>
           {pending ? <span className="waiter-action-spinner" /> : shift ? t('waiter.endShift') : t('waiter.startShift')}
         </button>
@@ -350,6 +351,7 @@ function WaiterDashboardPage() {
   const [pendingAction, setPendingAction] = useState('')
   const [error, setError] = useState('')
   const [actionError, setActionError] = useState(null)
+  const [waiterProfile, setWaiterProfile] = useState(null)
 
   const logout = useCallback((authError = '') => {
     const message = typeof authError === 'string' ? authError : ''
@@ -410,6 +412,16 @@ function WaiterDashboardPage() {
     }
   }, [loadDashboard])
 
+  useEffect(() => {
+    let active = true
+    waiterApiClient.get('/api/waiter/profile/', { params: { lang: language } })
+      .then((response) => active && setWaiterProfile(response.data.profile))
+      .catch((requestError) => {
+        if (active && requestError.response?.status === 401) handleUnauthorized(requestError)
+      })
+    return () => { active = false }
+  }, [handleUnauthorized, language])
+
   const readyOrders = useMemo(() => orders.filter((order) => order.status === 'READY'), [orders])
   const unfinishedCountsBySession = useMemo(() => {
     const countsBySession = new Map()
@@ -430,6 +442,7 @@ function WaiterDashboardPage() {
     calls: waiterCalls.length,
     ready: readyOrders.length,
   }
+  const avatarInitial = getAvatarInitial(waiterProfile?.first_name, waiterProfile?.username)
 
   async function runAction(key, request, fallbackError) {
     setPendingAction(key)
@@ -504,8 +517,14 @@ function WaiterDashboardPage() {
       <WaiterHeader notificationCount={counts.calls + counts.ready} onNotifications={() => navigateView('calls')} />
       <div className="waiter-app-content">
         {error && <div className="waiter-error-banner" role="alert">{error}</div>}
+        {waiterProfile && !waiterProfile.profile_completed && (
+          <div className="waiter-profile-incomplete-banner" role="status">
+            <p>{t('waiterProfile.incompleteBanner')}</p>
+            <button type="button" onClick={() => navigate('/waiter/profile')}>{t('waiterProfile.fillProfile')}</button>
+          </div>
+        )}
         {activeView !== 'profile' && (
-          <WaiterProfileCard shift={shift} pending={pendingAction === 'shift'} error={cardError('shift')} onStart={startShift} onOpenProfile={() => navigateView('profile')} />
+          <WaiterProfileCard avatarInitial={avatarInitial} shift={shift} pending={pendingAction === 'shift'} error={cardError('shift')} onStart={startShift} onOpenProfile={() => navigateView('profile')} />
         )}
         {!shift && activeView !== 'profile' && <p className="waiter-shift-warning">{t('waiter.startToAccept')}</p>}
 
@@ -540,7 +559,7 @@ function WaiterDashboardPage() {
         )}
         {activeView === 'calls' && <FullListView title={t('waiter.calls')} count={counts.calls} emptyText={t('waiter.noNewCalls')}>{callCards()}</FullListView>}
         {activeView === 'ready' && <FullListView title={t('waiter.readyOrders')} count={counts.ready} emptyText={t('waiter.noReadyOrders')}>{readyCards()}</FullListView>}
-        {activeView === 'profile' && <ProfilePanel shift={shift} refreshing={refreshing} pending={pendingAction === 'shift'} error={cardError('shift')} onRefresh={refreshManually} onStart={startShift} onEnd={endShift} onLogout={logout} />}
+        {activeView === 'profile' && <ProfilePanel avatarInitial={avatarInitial} shift={shift} refreshing={refreshing} pending={pendingAction === 'shift'} error={cardError('shift')} onRefresh={refreshManually} onStart={startShift} onEnd={endShift} onViewProfile={() => navigate('/waiter/profile')} onLogout={logout} />}
       </div>
       <WaiterBottomNav activeView={activeView} counts={counts} onChange={navigateView} />
     </main>

@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
 from rest_framework.exceptions import ValidationError
@@ -7,8 +8,16 @@ from rest_framework.views import APIView
 
 from .models import User
 from .permissions import IsAdminRole, IsWaiterRole
-from .serializers import AdminUserSerializer, CurrentUserSerializer, WaiterShiftSerializer
+from .serializers import (
+    AdminUserSerializer,
+    CurrentUserSerializer,
+    WaiterProfileSerializer,
+    WaiterProfileUpdateSerializer,
+    WaiterShiftSerializer,
+)
 from .services import (
+    build_waiter_shift_summary,
+    build_waiter_work_stats,
     end_waiter_shift,
     get_active_waiter_shift,
     start_waiter_shift,
@@ -24,6 +33,23 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         queryset = super().get_queryset()
         if self.action == "list" and self.request.query_params.get("include_inactive") != "true":
             queryset = queryset.filter(is_active=True)
+        if self.action == "list":
+            role = self.request.query_params.get("role", "").strip()
+            roles_value = self.request.query_params.get("roles", "").strip()
+            if role and roles_value:
+                raise ValidationError(
+                    {"role": "Use either role or roles, not both."}
+                )
+            valid_roles = {choice for choice, _ in User.Role.choices}
+            if role:
+                if role not in valid_roles:
+                    raise ValidationError({"role": "Invalid user role."})
+                queryset = queryset.filter(role=role)
+            elif roles_value:
+                roles = {value.strip() for value in roles_value.split(",") if value.strip()}
+                if not roles or not roles.issubset(valid_roles):
+                    raise ValidationError({"roles": "Invalid user roles."})
+                queryset = queryset.filter(role__in=roles)
         return queryset
 
     def perform_update(self, serializer):
@@ -42,6 +68,39 @@ class CurrentUserView(APIView):
     @extend_schema(responses=CurrentUserSerializer)
     def get(self, request):
         return Response(CurrentUserSerializer(request.user).data)
+
+
+class WaiterProfileView(APIView):
+    permission_classes = (IsWaiterRole,)
+
+    def _response_data(self, request):
+        shift_data = build_waiter_shift_summary(request.user, request)
+        return {
+            "profile": WaiterProfileSerializer(
+                request.user,
+                context={"request": request},
+            ).data,
+            **shift_data,
+            "work_stats": build_waiter_work_stats(request.user, request),
+        }
+
+    @extend_schema(responses=OpenApiTypes.OBJECT)
+    def get(self, request):
+        return Response(self._response_data(request))
+
+    @extend_schema(
+        request=WaiterProfileUpdateSerializer,
+        responses=OpenApiTypes.OBJECT,
+    )
+    def patch(self, request):
+        serializer = WaiterProfileUpdateSerializer(
+            request.user,
+            data=request.data,
+            partial=True,
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(self._response_data(request))
 
 
 class WaiterShiftStartView(APIView):

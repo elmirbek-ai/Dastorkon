@@ -80,6 +80,44 @@ class AdminUserApiTests(APITestCase):
         response = self.client.get(self.url, {"include_inactive": "true"})
         self.assertIn(self.inactive.username, {item["username"] for item in response.data})
 
+    def test_admin_can_filter_users_by_single_role(self):
+        self.authenticate_admin()
+
+        response = self.client.get(self.url, {"role": User.Role.WAITER})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual({item["role"] for item in response.data}, {User.Role.WAITER})
+        self.assertIn(self.waiter.username, {item["username"] for item in response.data})
+
+    def test_admin_can_filter_users_by_multiple_roles(self):
+        self.authenticate_admin()
+
+        response = self.client.get(
+            self.url,
+            {"roles": f"{User.Role.ADMIN},{User.Role.KITCHEN}"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            {item["role"] for item in response.data},
+            {User.Role.ADMIN, User.Role.KITCHEN},
+        )
+        self.assertNotIn(self.waiter.username, {item["username"] for item in response.data})
+
+    def test_invalid_role_filters_are_rejected(self):
+        self.authenticate_admin()
+
+        invalid_role = self.client.get(self.url, {"role": "INVALID"})
+        invalid_roles = self.client.get(self.url, {"roles": "ADMIN,INVALID"})
+        conflicting_filters = self.client.get(
+            self.url,
+            {"role": User.Role.WAITER, "roles": User.Role.ADMIN},
+        )
+
+        self.assertEqual(invalid_role.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(invalid_roles.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(conflicting_filters.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_admin_can_retrieve_user_detail(self):
         self.authenticate_admin()
         response = self.client.get(f"{self.url}{self.waiter.pk}/")

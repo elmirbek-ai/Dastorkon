@@ -7,10 +7,16 @@ from .models import User, WaiterShift
 @admin.register(User)
 class DastorkonUserAdmin(UserAdmin):
     fieldsets = UserAdmin.fieldsets + (
-        ("Dastorkon", {"fields": ("role", "phone", "avatar")}),
+        (
+            "Dastorkon",
+            {"fields": ("role", "primary_phone", "secondary_phone", "avatar")},
+        ),
     )
     add_fieldsets = UserAdmin.add_fieldsets + (
-        ("Dastorkon", {"fields": ("role", "phone", "avatar")}),
+        (
+            "Dastorkon",
+            {"fields": ("role", "primary_phone", "secondary_phone", "avatar")},
+        ),
     )
 
 

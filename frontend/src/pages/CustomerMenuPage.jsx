@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import apiClient from '../api/client.js'
+import apiClient, { resolveApiAssetUrl } from '../api/client.js'
 import LanguageSwitch from '../components/LanguageSwitch.jsx'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getBackendErrorMessage, getLocalizedField, getStatusLabel } from '../i18n/index.js'
@@ -38,15 +38,7 @@ function money(value) {
 }
 
 function resolveImageUrl(image) {
-  if (!image) return ''
-  if (/^(https?:)?\/\//i.test(image) || image.startsWith('data:')) return image
-
-  const configuredBase = apiClient.defaults.baseURL || window.location.origin
-  try {
-    return new URL(image, new URL(configuredBase, window.location.origin)).href
-  } catch {
-    return image
-  }
+  return resolveApiAssetUrl(image)
 }
 
 function SearchIcon() {
@@ -153,6 +145,14 @@ function SearchBar({ search, onSearchChange, onClear }) {
   )
 }
 
+function getCategoryLabel(category, language) {
+  return getLocalizedField(category, 'name', language)
+    || category?.name_ky
+    || category?.name_ru
+    || category?.name
+    || 'Категория'
+}
+
 function CategoryChips({ categories, activeCategory, onCategoryChange }) {
   const { language, t } = useLanguage()
   return (
@@ -171,7 +171,7 @@ function CategoryChips({ categories, activeCategory, onCategoryChange }) {
           key={category.id}
           onClick={() => onCategoryChange(category.id)}
         >
-          {getLocalizedField(category, 'name', language)}
+          {getCategoryLabel(category, language)}
         </button>
       ))}
     </div>
@@ -187,16 +187,23 @@ function FoodPlaceholder({ itemName }) {
   )
 }
 
-function MenuItemCard({ item, cartItem, pendingItemId, onAdd, onIncrease, onDecrease }) {
+function MenuItemCard({ item, cartItem, pendingItemId, onAdd, onIncrease, onDecrease, onOpenDetail }) {
   const { language, t } = useLanguage()
   const [imageFailed, setImageFailed] = useState(false)
   const itemName = getLocalizedField(item, 'name', language)
   const imageUrl = resolveImageUrl(item.image)
   const showImage = imageUrl && !imageFailed
   const actionPending = pendingItemId === item.id
+  const unavailable = item.is_available === false
 
   return (
-    <article className="menu-card">
+    <article className={`menu-card ${unavailable ? 'menu-card--unavailable' : ''}`}>
+      <button
+        className="menu-card__details-trigger"
+        type="button"
+        onClick={() => onOpenDetail(item)}
+        aria-label={t('customer.viewDishDetails', { name: itemName })}
+      />
       <div className="menu-card__media">
         {showImage ? (
           <img
@@ -209,7 +216,11 @@ function MenuItemCard({ item, cartItem, pendingItemId, onAdd, onIncrease, onDecr
         ) : (
           <FoodPlaceholder itemName={itemName} />
         )}
-        <span className="availability-badge">{t('common.available')}</span>
+        {unavailable && (
+          <span className="availability-badge availability-badge--unavailable">
+            {t('common.unavailable')}
+          </span>
+        )}
       </div>
       <div className="menu-card__body">
         <h4>{itemName}</h4>
@@ -231,7 +242,7 @@ function MenuItemCard({ item, cartItem, pendingItemId, onAdd, onIncrease, onDecr
                 className="quantity-stepper__minus"
                 type="button"
                 onClick={() => onDecrease(item, cartItem)}
-                disabled={actionPending}
+                disabled={actionPending || unavailable}
                 aria-label={t('customer.decreaseQuantity')}
               >
                 −
@@ -243,7 +254,7 @@ function MenuItemCard({ item, cartItem, pendingItemId, onAdd, onIncrease, onDecr
                 className="quantity-stepper__plus"
                 type="button"
                 onClick={() => onIncrease(item, cartItem)}
-                disabled={actionPending}
+                disabled={actionPending || unavailable}
                 aria-label={t('customer.increaseQuantity')}
               >
                 +
@@ -254,7 +265,7 @@ function MenuItemCard({ item, cartItem, pendingItemId, onAdd, onIncrease, onDecr
               className="add-button"
               type="button"
               onClick={() => onAdd(item)}
-              disabled={actionPending}
+              disabled={actionPending || unavailable}
               aria-label={t('customer.addToCart')}
             >
               {actionPending ? <span className="button-loader" /> : <CartAddIcon />}
@@ -266,7 +277,154 @@ function MenuItemCard({ item, cartItem, pendingItemId, onAdd, onIncrease, onDecr
   )
 }
 
-function CartPanel({ cart, itemCount, submitting, onSubmit }) {
+function DishDetailDialog({ item, pending, onClose, onAdd }) {
+  const { language, t } = useLanguage()
+  const [quantity, setQuantity] = useState(1)
+  const [comment, setComment] = useState('')
+  const [imageFailed, setImageFailed] = useState(false)
+  const itemName = getLocalizedField(item, 'name', language)
+  const description = getLocalizedField(item, 'description', language)
+  const ingredients = getLocalizedField(item, 'ingredients', language)
+  const allergens = getLocalizedField(item, 'allergens', language)
+  const imageUrl = resolveImageUrl(item.image)
+  const unavailable = item.is_available === false
+
+  async function handleAdd() {
+    const added = await onAdd(item, { quantity, comment: comment.trim() })
+    if (added) onClose()
+  }
+
+  return (
+    <div
+      className="dish-detail-backdrop"
+      role="presentation"
+      onMouseDown={pending ? undefined : onClose}
+    >
+      <section
+        className="dish-detail"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="dish-detail-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <button
+          className="dish-detail__close"
+          type="button"
+          onClick={onClose}
+          disabled={pending}
+          aria-label={t('common.close')}
+        >
+          <span aria-hidden="true">×</span>
+        </button>
+
+        <div className="dish-detail__media">
+          {imageUrl && !imageFailed ? (
+            <img
+              src={imageUrl}
+              alt={itemName}
+              decoding="async"
+              onError={() => setImageFailed(true)}
+            />
+          ) : (
+            <FoodPlaceholder itemName={itemName} />
+          )}
+          {unavailable && (
+            <span className="dish-detail__availability">{t('common.unavailable')}</span>
+          )}
+        </div>
+
+        <div className="dish-detail__content">
+          <header className="dish-detail__heading">
+            <p>{t('customer.dishDetails')}</p>
+            <h2 id="dish-detail-title">{itemName}</h2>
+            <div className="dish-detail__summary">
+              <strong>{money(item.price)}</strong>
+              {item.cooking_time_min > 0 && (
+                <span>◷ {item.cooking_time_min} {t('common.minutes')}</span>
+              )}
+            </div>
+          </header>
+
+          {description && <p className="dish-detail__description">{description}</p>}
+
+          {(ingredients || allergens) && (
+            <div className="dish-detail__facts">
+              {ingredients && (
+                <section>
+                  <h3>{t('customer.ingredients')}</h3>
+                  <p>{ingredients}</p>
+                </section>
+              )}
+              {allergens && (
+                <section className="dish-detail__allergens">
+                  <h3>{t('customer.allergens')}</h3>
+                  <p>{allergens}</p>
+                </section>
+              )}
+            </div>
+          )}
+
+          <label className="dish-detail__comment">
+            <span>
+              <strong>{t('customer.specialInstructions')}</strong>
+              <small>{t('common.optional')}</small>
+            </span>
+            <textarea
+              value={comment}
+              onChange={(event) => setComment(event.target.value)}
+              placeholder={t('customer.specialInstructionsPlaceholder')}
+              maxLength={300}
+              rows={3}
+              disabled={pending || unavailable}
+            />
+          </label>
+
+          <footer className="dish-detail__action">
+            <div className="dish-detail__quantity" aria-label={t('common.quantity')}>
+              <button
+                type="button"
+                onClick={() => setQuantity((value) => Math.max(1, value - 1))}
+                disabled={pending || unavailable || quantity === 1}
+                aria-label={t('customer.decreaseQuantity')}
+              >
+                −
+              </button>
+              <span>
+                <small>{t('common.quantity')}</small>
+                <strong aria-live="polite">{quantity}</strong>
+              </span>
+              <button
+                type="button"
+                onClick={() => setQuantity((value) => Math.min(99, value + 1))}
+                disabled={pending || unavailable || quantity === 99}
+                aria-label={t('customer.increaseQuantity')}
+              >
+                +
+              </button>
+            </div>
+            <button
+              className="dish-detail__add"
+              type="button"
+              onClick={handleAdd}
+              disabled={pending || unavailable}
+            >
+              {pending ? (
+                <span className="button-loader" aria-hidden="true" />
+              ) : (
+                <>
+                  <span>{unavailable ? t('common.unavailable') : t('customer.addToCart')}</span>
+                  {!unavailable && <strong>{money(Number(item.price) * quantity)}</strong>}
+                </>
+              )}
+            </button>
+          </footer>
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function CartPanel({ cart, itemCount, onOpenCart, onCheckout }) {
   const { language, t } = useLanguage()
   return (
     <aside className="cart-section" id="cart" aria-labelledby="cart-title">
@@ -301,23 +459,81 @@ function CartPanel({ cart, itemCount, submitting, onSubmit }) {
             <span>{t('common.total')}</span>
             <strong>{money(cart.total)}</strong>
           </div>
-          <button
-            className="order-button"
-            type="button"
-            onClick={onSubmit}
-            disabled={submitting}
-          >
-            {submitting ? t('customer.placingOrder') : t('customer.placeOrder')}
-            {!submitting && <span aria-hidden="true">→</span>}
-          </button>
+          <div className="cart-section__actions">
+            <button type="button" onClick={onOpenCart}>{t('customer.reviewCart')}</button>
+            <button className="order-button" type="button" onClick={onCheckout}>
+              {t('customer.proceedToCheckout')}
+              <span aria-hidden="true">→</span>
+            </button>
+          </div>
         </>
       )}
     </aside>
   )
 }
 
-export function OrderHistory({ orders }) {
+const ORDER_PROGRESS_STAGES = ['NEW', 'PREPARING', 'READY', 'DELIVERED']
+
+function OrderProgress({ status }) {
+  const { t } = useLanguage()
+  const normalizedStatus = String(status || '').toUpperCase()
+  const completed = normalizedStatus === 'COMPLETED'
+  const cancelled = normalizedStatus === 'CANCELLED'
+  const currentIndex = completed
+    ? ORDER_PROGRESS_STAGES.length
+    : ORDER_PROGRESS_STAGES.indexOf(normalizedStatus)
+  const progressPercent = !cancelled && currentIndex >= 0
+    ? (Math.min(currentIndex, ORDER_PROGRESS_STAGES.length - 1)
+      / (ORDER_PROGRESS_STAGES.length - 1)) * 100
+    : 0
+  const labels = {
+    NEW: t('customer.orderStageNew'),
+    PREPARING: t('customer.orderStagePreparing'),
+    READY: t('customer.orderStageReady'),
+    DELIVERED: t('customer.orderStageDelivered'),
+  }
+
+  return (
+    <div className={`customer-status-progress ${cancelled ? 'is-cancelled' : ''}`}>
+      <div className="customer-status-visual">
+        <div className="customer-status-track" aria-hidden="true">
+          <span
+            className="customer-status-track-fill"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+        <ol className="customer-status-steps" aria-label={t('customer.orderProgress')}>
+          {ORDER_PROGRESS_STAGES.map((stage, index) => {
+            const isDone = !cancelled && index < currentIndex
+            const isCurrent = !cancelled && index === currentIndex
+            return (
+              <li
+                className={`customer-status-step ${isDone ? 'is-done' : ''} ${isCurrent ? 'is-current' : ''}`.trim()}
+                aria-current={isCurrent ? 'step' : undefined}
+                key={stage}
+              >
+                <span className="customer-status-marker" aria-hidden="true" />
+                <small className="customer-status-label">{labels[stage]}</small>
+              </li>
+            )
+          })}
+        </ol>
+      </div>
+      {cancelled && <p>{t('customer.cancelledOrderHelp')}</p>}
+    </div>
+  )
+}
+
+export function OrderHistory({ orders, tableNumber, onBackToMenu }) {
   const { language, t } = useLanguage()
+  const customerStatusLabels = {
+    NEW: t('customer.orderStageNew'),
+    PREPARING: t('customer.orderStagePreparing'),
+    READY: t('customer.orderStageReady'),
+    DELIVERED: t('customer.orderStageDelivered'),
+    COMPLETED: t('customer.orderStageCompleted'),
+    CANCELLED: t('customer.orderStageCancelled'),
+  }
   return (
     <section
       className="orders-section"
@@ -333,32 +549,55 @@ export function OrderHistory({ orders }) {
         {orders.orders.length > 0 && <span>{orders.orders.length}</span>}
       </div>
       {orders.orders.length === 0 ? (
-        <p className="empty-message">{t('customer.emptyOrders')}</p>
+        <div className="orders-empty-state">
+          <span aria-hidden="true"><OrdersIcon /></span>
+          <strong>{t('customer.emptyOrders')}</strong>
+          <p>{t('customer.emptyOrdersHelp')}</p>
+          {onBackToMenu && (
+            <button type="button" onClick={onBackToMenu}>{t('customer.backToMenu')}</button>
+          )}
+        </div>
       ) : (
         <div className="orders-list">
           {orders.orders.map((order) => (
             <article className="order-card" key={order.id}>
               <div className="order-card__heading">
                 <div>
-                  <p>{t('common.order')}</p>
+                  <p>{t('customer.orderNumber')}</p>
                   <h3>№{order.order_number}</h3>
+                  {tableNumber !== null && tableNumber !== undefined && (
+                    <small>{t('customer.tableLabel', { number: tableNumber })}</small>
+                  )}
                 </div>
                 <span className={`status-badge status-badge--${order.status.toLowerCase()}`}>
-                  {getStatusLabel(order.status, language)}
+                  {customerStatusLabels[order.status] || getStatusLabel(order.status, language)}
                 </span>
               </div>
-              <ul>
-                {order.items.map((item) => (
-                  <li key={item.id}>
-                    <span>{getLocalizedField(item, 'name_at_order', language)} × {item.quantity}</span>
-                    <strong>{money(item.total_price)}</strong>
-                    {item.comment && <small>{t('common.comments')}: {item.comment}</small>}
-                  </li>
-                ))}
-              </ul>
-              <div className="order-card__total">
-                <span>{t('common.total')}</span>
-                <strong>{money(order.total_amount)}</strong>
+
+              <OrderProgress status={order.status} />
+
+              <div className="order-card__content">
+                <section className="order-card__items">
+                  <h4>{t('customer.orderComposition')}</h4>
+                  <ul>
+                    {order.items.map((item) => (
+                      <li key={item.id}>
+                        <span>
+                          <b>{item.quantity}×</b>
+                          {getLocalizedField(item, 'name_at_order', language)}
+                        </span>
+                        <strong>{money(item.total_price)}</strong>
+                        {item.comment && (
+                          <small>{t('customer.kitchenNote')}: {item.comment}</small>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+                <div className="order-card__total">
+                  <span>{t('common.total')}</span>
+                  <strong>{money(order.total_amount)}</strong>
+                </div>
               </div>
             </article>
           ))}
@@ -394,6 +633,11 @@ function CartReviewItem({ cartItem, menuItem, pending, onIncrease, onDecrease, o
           <div>
             <h3>{itemName}</h3>
             <p>{money(unitPrice)}</p>
+            {cartItem.comment && (
+              <small className="cart-sheet-item__comment">
+                {t('customer.kitchenNote')}: {cartItem.comment}
+              </small>
+            )}
           </div>
           <button
             className="cart-sheet-item__remove"
@@ -435,10 +679,40 @@ function CartReviewItem({ cartItem, menuItem, pending, onIncrease, onDecrease, o
   )
 }
 
+function CheckoutReviewItem({ cartItem, menuItem }) {
+  const { language, t } = useLanguage()
+  const [imageFailed, setImageFailed] = useState(false)
+  const imageUrl = resolveImageUrl(menuItem?.image)
+  const itemName = getLocalizedField(menuItem, 'name', language)
+    || getLocalizedField(cartItem, 'menu_item_name', language)
+
+  return (
+    <article className="checkout-item">
+      <div className="checkout-item__media">
+        {imageUrl && !imageFailed ? (
+          <img src={imageUrl} alt="" onError={() => setImageFailed(true)} />
+        ) : (
+          <span aria-hidden="true">🍽</span>
+        )}
+      </div>
+      <div className="checkout-item__copy">
+        <h3>{itemName}</h3>
+        <p>{cartItem.quantity} × {money(Number(cartItem.line_total) / cartItem.quantity)}</p>
+        {cartItem.comment && (
+          <small>{t('customer.kitchenNote')}: {cartItem.comment}</small>
+        )}
+      </div>
+      <strong>{money(cartItem.line_total)}</strong>
+    </article>
+  )
+}
+
 function CartReviewSheet({
   open,
+  stage,
   cart,
   itemCount,
+  tableNumber,
   menuItemsById,
   pendingItemId,
   submitting,
@@ -447,15 +721,23 @@ function CartReviewSheet({
   onIncrease,
   onDecrease,
   onRequestRemoval,
+  onContinueOrdering,
+  onCheckout,
+  onBackToCart,
   onSubmit,
 }) {
   const { language, t } = useLanguage()
   if (!open) return null
+  const checkout = stage === 'checkout'
 
   return (
-    <div className="sheet-backdrop cart-sheet-backdrop" role="presentation" onMouseDown={onClose}>
+    <div
+      className="sheet-backdrop cart-sheet-backdrop"
+      role="presentation"
+      onMouseDown={submitting || pendingItemId !== null ? undefined : onClose}
+    >
       <section
-        className="cart-sheet"
+        className={`cart-sheet ${checkout ? 'cart-sheet--checkout' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="cart-sheet-title"
@@ -463,11 +745,36 @@ function CartReviewSheet({
       >
         <div className="sheet-handle" aria-hidden="true" />
         <header className="cart-sheet__heading">
+          {checkout && (
+            <button
+              className="cart-sheet__back"
+              type="button"
+              onClick={onBackToCart}
+              disabled={submitting}
+              aria-label={t('customer.backToCart')}
+            >
+              <span aria-hidden="true">←</span>
+            </button>
+          )}
           <div>
-            <h2 id="cart-sheet-title">{t('customer.cart')}</h2>
-            <p>{t('customer.itemCount', { count: itemCount })}</p>
+            <h2 id="cart-sheet-title">
+              {checkout ? t('customer.checkoutTitle') : t('customer.cart')}
+            </h2>
+            <p>
+              {checkout
+                ? t('customer.tableLabel', { number: tableNumber })
+                : t('customer.itemCount', { count: itemCount })}
+            </p>
           </div>
-          <button type="button" onClick={onClose} aria-label={t('customer.closeCart')}>×</button>
+          <button
+            className="cart-sheet__close"
+            type="button"
+            onClick={onClose}
+            disabled={submitting || pendingItemId !== null}
+            aria-label={t('customer.closeCart')}
+          >
+            ×
+          </button>
         </header>
 
         {error && <div className="notice notice--error" role="alert">{error}</div>}
@@ -478,8 +785,70 @@ function CartReviewSheet({
             <strong>{t('customer.cartEmpty')}</strong>
             <button type="button" onClick={onClose}>{t('customer.goToMenu')}</button>
           </div>
+        ) : checkout ? (
+          <div className="checkout-review">
+            <div className="checkout-review__order">
+              <section className="checkout-table-card">
+                <span aria-hidden="true">⌑</span>
+                <div>
+                  <small>{t('customer.yourTable')}</small>
+                  <strong>{t('customer.tableLabel', { number: tableNumber })}</strong>
+                </div>
+              </section>
+
+              <div className="checkout-kitchen-message">
+                <span aria-hidden="true">✓</span>
+                <p>{t('customer.sentToKitchenMessage')}</p>
+              </div>
+
+              <section className="checkout-review__items" aria-labelledby="checkout-items-title">
+                <div className="checkout-review__section-heading">
+                  <h3 id="checkout-items-title">{t('customer.orderComposition')}</h3>
+                  <span>{t('customer.itemCount', { count: itemCount })}</span>
+                </div>
+                {cart.items.map((cartItem) => (
+                  <CheckoutReviewItem
+                    key={cartItem.id}
+                    cartItem={cartItem}
+                    menuItem={menuItemsById.get(cartItem.menu_item)}
+                  />
+                ))}
+              </section>
+            </div>
+
+            <aside className="checkout-summary" aria-label={t('customer.orderSummary')}>
+              <div>
+                <p>{t('customer.yourOrder')}</p>
+                <h3>{t('customer.orderSummary')}</h3>
+              </div>
+              <dl>
+                <div>
+                  <dt>{t('customer.dishes')}</dt>
+                  <dd>{t('customer.itemCount', { count: itemCount })}</dd>
+                </div>
+                <div>
+                  <dt>{t('customer.subtotal')}</dt>
+                  <dd>{money(cart.total)}</dd>
+                </div>
+                <div className="checkout-summary__total">
+                  <dt>{t('common.total')}</dt>
+                  <dd>{money(cart.total)}</dd>
+                </div>
+              </dl>
+              <button
+                className="order-button"
+                type="button"
+                onClick={onSubmit}
+                disabled={submitting || pendingItemId !== null}
+              >
+                {submitting ? t('customer.placingOrder') : t('customer.sendOrderToKitchen')}
+                {!submitting && <span aria-hidden="true">→</span>}
+              </button>
+              <small>{t('customer.submitOrderHelp')}</small>
+            </aside>
+          </div>
         ) : (
-          <>
+          <div className="cart-sheet__body">
             <div className="cart-sheet__list">
               {cart.items.map((cartItem) => {
                 const menuItem = menuItemsById.get(cartItem.menu_item)
@@ -505,21 +874,32 @@ function CartReviewSheet({
               })}
             </div>
             <footer className="cart-sheet__footer">
-              <div className="cart-sheet__total">
-                <span>{t('common.total')} · {t('customer.itemCount', { count: itemCount })}</span>
-                <strong>{money(cart.total)}</strong>
+              <div className="cart-sheet__total-breakdown">
+                <div>
+                  <span>{t('customer.subtotal')}</span>
+                  <strong>{money(cart.total)}</strong>
+                </div>
+                <div>
+                  <span>{t('common.total')}</span>
+                  <strong>{money(cart.total)}</strong>
+                </div>
               </div>
-              <button
-                className="order-button"
-                type="button"
-                onClick={onSubmit}
-                disabled={submitting || pendingItemId !== null}
-              >
-                {submitting ? t('customer.placingOrder') : t('customer.placeOrder')}
-                {!submitting && <span aria-hidden="true">→</span>}
-              </button>
+              <div className="cart-sheet__actions">
+                <button type="button" onClick={onContinueOrdering}>
+                  {t('customer.continueOrdering')}
+                </button>
+                <button
+                  className="order-button"
+                  type="button"
+                  onClick={onCheckout}
+                  disabled={pendingItemId !== null}
+                >
+                  {t('customer.proceedToCheckout')}
+                  <span aria-hidden="true">→</span>
+                </button>
+              </div>
             </footer>
-          </>
+          </div>
         )}
       </section>
     </div>
@@ -599,7 +979,7 @@ function WaiterCallButton({ raised, onOpen }) {
   )
 }
 
-function WaiterCallSheet({ open, sending, onClose, onCall }) {
+export function WaiterCallSheet({ open, sending, onClose, onCall }) {
   const { t } = useLanguage()
   const waiterReasons = [
     { value: 'WAITER_NEEDED', label: t('customer.waiterNeeded'), subtitle: t('customer.waiterNeededHelp'), icon: '🙋' },
@@ -664,7 +1044,9 @@ function CustomerMenuPage() {
   const [submittingOrder, setSubmittingOrder] = useState(false)
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState('all')
+  const [selectedDish, setSelectedDish] = useState(null)
   const [cartSheetOpen, setCartSheetOpen] = useState(false)
+  const [cartStage, setCartStage] = useState('cart')
   const [deleteConfirmation, setDeleteConfirmation] = useState(null)
   const [waiterSheetOpen, setWaiterSheetOpen] = useState(false)
   const [sendingWaiterCall, setSendingWaiterCall] = useState(false)
@@ -767,18 +1149,42 @@ function CustomerMenuPage() {
   useEffect(() => {
     if (!cartSheetOpen) return undefined
 
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
     function closeOnEscape(event) {
       if (event.key !== 'Escape') return
       if (deleteConfirmation) {
         if (pendingMenuItemId === null) setDeleteConfirmation(null)
       } else {
         setCartSheetOpen(false)
+        setCartStage('cart')
       }
     }
 
     document.addEventListener('keydown', closeOnEscape)
-    return () => document.removeEventListener('keydown', closeOnEscape)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.removeEventListener('keydown', closeOnEscape)
+    }
   }, [cartSheetOpen, deleteConfirmation, pendingMenuItemId])
+
+  useEffect(() => {
+    if (!selectedDish) return undefined
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    function closeOnEscape(event) {
+      if (event.key === 'Escape' && pendingMenuItemId === null) setSelectedDish(null)
+    }
+
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [pendingMenuItemId, selectedDish])
 
   async function refreshCart() {
     const response = await apiClient.get(`${basePath}/cart/`)
@@ -790,7 +1196,20 @@ function CustomerMenuPage() {
     setOrders(response.data)
   }
 
-  async function addToCart(item) {
+  function openCartSheet(stage = 'cart') {
+    setCartStage(stage)
+    setCartSheetOpen(true)
+  }
+
+  function closeCartSheet() {
+    setDeleteConfirmation(null)
+    setCartSheetOpen(false)
+    setCartStage('cart')
+  }
+
+  async function addToCart(item, options = {}) {
+    const quantity = options.quantity ?? 1
+    const comment = options.comment ?? ''
     setPendingMenuItemId(item.id)
     setError('')
     setSuccess('')
@@ -798,12 +1217,14 @@ function CustomerMenuPage() {
     try {
       await apiClient.post(`${basePath}/cart/items/`, {
         menu_item: item.id,
-        quantity: 1,
-        comment: '',
+        quantity,
+        comment,
       })
       await refreshCart()
+      return true
     } catch (requestError) {
       setError(getBackendErrorMessage(requestError, language))
+      return false
     } finally {
       setPendingMenuItemId(null)
     }
@@ -866,6 +1287,7 @@ function CustomerMenuPage() {
       await apiClient.post(`${basePath}/orders/`)
       await Promise.all([refreshCart(), refreshOrders()])
       setCartSheetOpen(false)
+      setCartStage('cart')
       setSuccess(t('customer.orderAccepted'))
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (requestError) {
@@ -894,7 +1316,7 @@ function CustomerMenuPage() {
 
   if (loading) {
     return (
-      <main className="page-state">
+      <main className="page-state customer-page-state">
         <span className="loader" aria-hidden="true" />
         <span>{t('customer.menuLoading')}</span>
       </main>
@@ -903,7 +1325,7 @@ function CustomerMenuPage() {
 
   if (!menu) {
     return (
-      <main className="page-state page-state--error" role="alert">
+      <main className="page-state page-state--error customer-page-state" role="alert">
         <span className="state-icon" aria-hidden="true">!</span>
         {loadFailed ? t('customer.menuLoadError') : t('customer.menuEmpty')}
       </main>
@@ -955,7 +1377,7 @@ function CustomerMenuPage() {
             visibleCategories.map((category) => (
               <section className="category" key={category.id}>
                 <div className="category__heading">
-                  <h3>{getLocalizedField(category, 'name', language)}</h3>
+                  <h3>{getCategoryLabel(category, language)}</h3>
                 </div>
                 <div className="menu-items">
                   {category.items.map((item) => (
@@ -966,6 +1388,7 @@ function CustomerMenuPage() {
                       onAdd={addToCart}
                       onIncrease={increaseCartItem}
                       onDecrease={decreaseCartItem}
+                      onOpenDetail={setSelectedDish}
                       key={item.id}
                     />
                   ))}
@@ -978,34 +1401,46 @@ function CustomerMenuPage() {
         <CartPanel
           cart={cart}
           itemCount={cartItemCount}
-          submitting={submittingOrder}
-          onSubmit={submitOrder}
+          onOpenCart={() => openCartSheet('cart')}
+          onCheckout={() => openCartSheet('checkout')}
         />
       </div>
+
+      {selectedDish && (
+        <DishDetailDialog
+          item={selectedDish}
+          pending={pendingMenuItemId === selectedDish.id}
+          onClose={() => setSelectedDish(null)}
+          onAdd={addToCart}
+          key={selectedDish.id}
+        />
+      )}
 
       {cartItemCount > 0 && (
         <StickyCartBar
           itemCount={cartItemCount}
           total={cart.total}
-          onOpen={() => setCartSheetOpen(true)}
+          onOpen={() => openCartSheet('cart')}
         />
       )}
 
       <CartReviewSheet
         open={cartSheetOpen}
+        stage={cartStage}
         cart={cart}
         itemCount={cartItemCount}
+        tableNumber={menu.table.number}
         menuItemsById={menuItemsById}
         pendingItemId={pendingMenuItemId}
         submitting={submittingOrder}
         error={error}
-        onClose={() => {
-          setDeleteConfirmation(null)
-          setCartSheetOpen(false)
-        }}
+        onClose={closeCartSheet}
         onIncrease={increaseCartItem}
         onDecrease={decreaseCartItem}
         onRequestRemoval={requestCartItemRemoval}
+        onContinueOrdering={closeCartSheet}
+        onCheckout={() => setCartStage('checkout')}
+        onBackToCart={() => setCartStage('cart')}
         onSubmit={submitOrder}
       />
 

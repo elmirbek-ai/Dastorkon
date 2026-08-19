@@ -15,7 +15,8 @@ function AdminSidebar({ restaurant, open, onClose, onLogout }) {
     { to: '/admin/categories', label: t('admin.categories'), icon: 'category' },
     { to: '/admin/tables', label: t('admin.tables'), icon: 'tables' },
     { to: '/admin/orders', label: t('admin.orders'), icon: 'orders' },
-    { to: '/admin/users', label: t('admin.users'), icon: 'users' },
+    { to: '/admin/waiters', label: t('admin.waiters'), icon: 'users' },
+    { to: '/admin/profiles', label: t('admin.profiles'), icon: 'profile' },
     { to: '/admin/statistics', label: t('admin.statistics'), icon: 'stats' },
     { to: '/admin/settings', label: t('admin.settings'), icon: 'settings' },
   ]
@@ -50,7 +51,7 @@ export default function AdminLayout() {
   const location = useLocation()
   const { language, t } = useLanguage()
   const pageTitles = {
-    '/admin/dashboard': t('admin.dashboard'), '/admin/menu': t('admin.menuManagement'), '/admin/categories': t('admin.categories'), '/admin/tables': t('admin.tablesAndQr'), '/admin/orders': t('admin.orders'), '/admin/users': t('admin.users'), '/admin/statistics': t('admin.statistics'), '/admin/settings': t('admin.settings'),
+    '/admin/dashboard': t('admin.dashboard'), '/admin/menu': t('admin.menuManagement'), '/admin/categories': t('admin.categories'), '/admin/tables': t('admin.tablesAndQr'), '/admin/orders': t('admin.orders'), '/admin/waiters': t('admin.waiters'), '/admin/profiles': t('admin.profiles'), '/admin/users': t('admin.waiters'), '/admin/statistics': t('admin.statistics'), '/admin/settings': t('admin.settings'),
   }
   const [restaurants, setRestaurants] = useState([])
   const [restaurantId, setRestaurantId] = useState(null)
