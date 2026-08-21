@@ -316,3 +316,35 @@ Object.assign(translations.ru.customer, {
   emptyOrdersHelp: 'Выберите блюда в меню и оформите свой первый заказ.',
   orderNumber: 'Номер заказа',
 })
+
+Object.assign(translations.ky.common, {
+  realtimeConnected: 'Түз байланыш',
+  realtimeConnecting: 'Туташууда...',
+  realtimeReconnecting: 'Кайра туташууда...',
+  realtimePolling: 'Авто жаңыртуу',
+  realtimeConnectedHelp: 'Жаңыртуулар түз байланыш аркылуу дароо келет.',
+  realtimeConnectingHelp: 'Түз байланыш орнотулууда.',
+  realtimeReconnectingHelp: 'Байланыш калыбына келтирилүүдө; маалымат автоматтык жаңыртылат.',
+  realtimePollingHelp: 'Түз байланыш жок; маалымат автоматтык түрдө жаңыртылат.',
+})
+
+Object.assign(translations.ru.common, {
+  realtimeConnected: 'Онлайн',
+  realtimeConnecting: 'Подключение...',
+  realtimeReconnecting: 'Переподключение...',
+  realtimePolling: 'Автообновление',
+  realtimeConnectedHelp: 'Обновления поступают сразу через постоянное соединение.',
+  realtimeConnectingHelp: 'Устанавливается постоянное соединение.',
+  realtimeReconnectingHelp: 'Соединение восстанавливается; данные обновляются автоматически.',
+  realtimePollingHelp: 'Постоянного соединения нет; данные обновляются автоматически.',
+})
+
+Object.assign(translations.ky.customer, {
+  orderAcceptedWithNumber: 'Заказ {number} кабыл алынды жана ашканага жөнөтүлдү. Абалын «Менин заказдарым» бөлүмүнөн көрө аласыз.',
+  callingWaiter: 'Официант чакырылууда...',
+})
+
+Object.assign(translations.ru.customer, {
+  orderAcceptedWithNumber: 'Заказ {number} принят и отправлен на кухню. Статус можно отслеживать в разделе «Мои заказы».',
+  callingWaiter: 'Вызов официанта...',
+})

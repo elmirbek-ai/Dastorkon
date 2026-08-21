@@ -741,6 +741,7 @@ function CartReviewSheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby="cart-sheet-title"
+        aria-busy={submitting}
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="sheet-handle" aria-hidden="true" />
@@ -990,12 +991,17 @@ export function WaiterCallSheet({ open, sending, onClose, onCall }) {
   if (!open) return null
 
   return (
-    <div className="sheet-backdrop" role="presentation" onMouseDown={onClose}>
+    <div
+      className="sheet-backdrop"
+      role="presentation"
+      onMouseDown={sending ? undefined : onClose}
+    >
       <section
         className="waiter-sheet"
         role="dialog"
         aria-modal="true"
         aria-labelledby="waiter-sheet-title"
+        aria-busy={sending}
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="sheet-handle" aria-hidden="true" />
@@ -1004,8 +1010,21 @@ export function WaiterCallSheet({ open, sending, onClose, onCall }) {
             <h2 id="waiter-sheet-title">{t('customer.callWaiter')}</h2>
             <p>{t('customer.chooseWaiterReason')}</p>
           </div>
-          <button type="button" onClick={onClose} aria-label={t('common.close')}>×</button>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={sending}
+            aria-label={t('common.close')}
+          >
+            ×
+          </button>
         </div>
+        {sending && (
+          <p className="waiter-sheet__status" role="status" aria-live="polite">
+            <span className="button-loader" aria-hidden="true" />
+            {t('customer.callingWaiter')}
+          </p>
+        )}
         <div className="waiter-reasons">
           {waiterReasons.map((reason) => (
             <button
@@ -1033,11 +1052,14 @@ function CustomerMenuPage() {
   const navigate = useNavigate()
   const { language, t } = useLanguage()
   const sessionRequestRef = useRef({ basePath: '', promise: null })
+  const orderSubmitInFlightRef = useRef(false)
+  const waiterCallInFlightRef = useRef(false)
   const [menu, setMenu] = useState(null)
   const [cart, setCart] = useState(emptyCart)
   const [orders, setOrders] = useState(emptyOrders)
   const [loading, setLoading] = useState(true)
   const [loadFailed, setLoadFailed] = useState(false)
+  const [loadRevision, setLoadRevision] = useState(0)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [pendingMenuItemId, setPendingMenuItemId] = useState(null)
@@ -1133,18 +1155,18 @@ function CustomerMenuPage() {
     return () => {
       active = false
     }
-  }, [basePath])
+  }, [basePath, loadRevision])
 
   useEffect(() => {
     if (!waiterSheetOpen) return undefined
 
     function closeOnEscape(event) {
-      if (event.key === 'Escape') setWaiterSheetOpen(false)
+      if (event.key === 'Escape' && !sendingWaiterCall) setWaiterSheetOpen(false)
     }
 
     document.addEventListener('keydown', closeOnEscape)
     return () => document.removeEventListener('keydown', closeOnEscape)
-  }, [waiterSheetOpen])
+  }, [sendingWaiterCall, waiterSheetOpen])
 
   useEffect(() => {
     if (!cartSheetOpen) return undefined
@@ -1279,25 +1301,51 @@ function CustomerMenuPage() {
   }
 
   async function submitOrder() {
+    if (orderSubmitInFlightRef.current || cart.items.length === 0) return
+
+    orderSubmitInFlightRef.current = true
     setSubmittingOrder(true)
     setError('')
     setSuccess('')
 
     try {
-      await apiClient.post(`${basePath}/orders/`)
-      await Promise.all([refreshCart(), refreshOrders()])
+      const response = await apiClient.post(`${basePath}/orders/`)
+      const createdOrder = response.data
+
+      setCart(emptyCart)
+      setOrders((current) => {
+        const currentOrders = Array.isArray(current.orders) ? current.orders : []
+        const alreadyPresent = currentOrders.some((order) => order.id === createdOrder?.id)
+        if (alreadyPresent || !createdOrder) return current
+        return {
+          ...current,
+          orders: [createdOrder, ...currentOrders],
+          total_amount: (
+            Number(current.total_amount ?? 0) + Number(createdOrder?.total_amount ?? 0)
+          ).toFixed(2),
+        }
+      })
       setCartSheetOpen(false)
       setCartStage('cart')
-      setSuccess(t('customer.orderAccepted'))
+      setSuccess(
+        createdOrder?.order_number
+          ? t('customer.orderAcceptedWithNumber', { number: createdOrder.order_number })
+          : t('customer.orderAccepted'),
+      )
       window.scrollTo({ top: 0, behavior: 'smooth' })
+      await Promise.allSettled([refreshCart(), refreshOrders()])
     } catch (requestError) {
       setError(getBackendErrorMessage(requestError, language))
     } finally {
+      orderSubmitInFlightRef.current = false
       setSubmittingOrder(false)
     }
   }
 
   async function callWaiter(reason) {
+    if (waiterCallInFlightRef.current) return
+
+    waiterCallInFlightRef.current = true
     setSendingWaiterCall(true)
     setError('')
     setSuccess('')
@@ -1310,6 +1358,7 @@ function CustomerMenuPage() {
       setError(getBackendErrorMessage(requestError, language))
       setWaiterSheetOpen(false)
     } finally {
+      waiterCallInFlightRef.current = false
       setSendingWaiterCall(false)
     }
   }
@@ -1327,7 +1376,16 @@ function CustomerMenuPage() {
     return (
       <main className="page-state page-state--error customer-page-state" role="alert">
         <span className="state-icon" aria-hidden="true">!</span>
-        {loadFailed ? t('customer.menuLoadError') : t('customer.menuEmpty')}
+        <span>{loadFailed ? t('customer.menuLoadError') : t('customer.menuEmpty')}</span>
+        {loadFailed && (
+          <button
+            className="page-state__action"
+            type="button"
+            onClick={() => setLoadRevision((value) => value + 1)}
+          >
+            {t('common.tryAgain')}
+          </button>
+        )}
       </main>
     )
   }

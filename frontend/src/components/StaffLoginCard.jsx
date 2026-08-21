@@ -19,6 +19,7 @@ export default function StaffLoginCard({
   const { t } = useLanguage()
   const [passwordVisible, setPasswordVisible] = useState(false)
   const titleId = `${pageClass}-title`
+  const errorId = `${pageClass}-error`
 
   return (
     <main className={`staff-login-page ${pageClass}`}>
@@ -40,9 +41,9 @@ export default function StaffLoginCard({
           <p>{description}</p>
         </div>
 
-        {error && <div className="staff-login-error" role="alert">{error}</div>}
+        {error && <div className="staff-login-error" id={errorId} role="alert">{error}</div>}
 
-        <form onSubmit={onSubmit}>
+        <form onSubmit={onSubmit} aria-busy={submitting}>
           <label>
             <span>{t('auth.username')}</span>
             <input
@@ -50,6 +51,8 @@ export default function StaffLoginCard({
               value={username}
               onChange={onUsernameChange}
               autoComplete="username"
+              disabled={submitting}
+              aria-describedby={error ? errorId : undefined}
               required
             />
           </label>
@@ -61,11 +64,14 @@ export default function StaffLoginCard({
                 value={password}
                 onChange={onPasswordChange}
                 autoComplete="current-password"
+                disabled={submitting}
+                aria-describedby={error ? errorId : undefined}
                 required
               />
               <button
                 type="button"
                 onClick={() => setPasswordVisible((visible) => !visible)}
+                disabled={submitting}
                 aria-pressed={passwordVisible}
               >
                 {passwordVisible ? t('auth.hidePassword') : t('auth.showPassword')}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { kitchenApiClient, KITCHEN_TOKEN_KEY } from '../api/client.js'
+import ConnectionStatus from '../components/ConnectionStatus.jsx'
 import LanguageSwitch from '../components/LanguageSwitch.jsx'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getBackendErrorMessage, getLocalizedField, getStatusLabel } from '../i18n/index.js'
@@ -48,17 +49,8 @@ function LogoutIcon() {
   )
 }
 
-function connectionStatusDisplay(status) {
-  if (status === 'connected') return { label: 'Realtime', tone: 'connected' }
-  if (status === 'connecting' || status === 'reconnecting') {
-    return { label: 'Reconnecting', tone: 'reconnecting' }
-  }
-  return { label: 'Polling', tone: 'disconnected' }
-}
-
 function KitchenHeader({ connectionStatus, lastUpdated, refreshing, onRefresh, onLogout }) {
   const { t } = useLanguage()
-  const connection = connectionStatusDisplay(connectionStatus)
   return (
     <header className="kitchen-header">
       <div className="kitchen-brand">
@@ -74,12 +66,7 @@ function KitchenHeader({ connectionStatus, lastUpdated, refreshing, onRefresh, o
           <span>{t('common.updated')}</span>
           <strong>{lastUpdated ? formatTime(lastUpdated) : '—'}</strong>
         </p>
-        <span
-          className={`notifications-connection-status is-${connection.tone}`}
-          role="status"
-        >
-          {connection.label}
-        </span>
+        <ConnectionStatus status={connectionStatus} />
         <button type="button" onClick={onRefresh} disabled={refreshing} aria-label={t('common.refresh')}>
           <RefreshIcon />
           <span>{refreshing ? t('common.working') : t('common.refresh')}</span>

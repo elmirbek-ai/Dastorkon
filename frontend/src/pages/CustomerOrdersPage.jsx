@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import apiClient from '../api/client.js'
 import { CustomerHeader, OrderHistory, WaiterCallSheet } from './CustomerMenuPage.jsx'
@@ -12,10 +12,12 @@ function CustomerOrdersPage() {
   const { qrToken } = useParams()
   const navigate = useNavigate()
   const { language, t } = useLanguage()
+  const waiterCallInFlightRef = useRef(false)
   const [orders, setOrders] = useState(emptyOrders)
   const [tableNumber, setTableNumber] = useState(null)
   const [loading, setLoading] = useState(true)
   const [loadFailed, setLoadFailed] = useState(false)
+  const [loadRevision, setLoadRevision] = useState(0)
   const [message, setMessage] = useState({ type: '', text: '' })
   const [waiterSheetOpen, setWaiterSheetOpen] = useState(false)
   const [sendingWaiterCall, setSendingWaiterCall] = useState(false)
@@ -54,7 +56,7 @@ function CustomerOrdersPage() {
     return () => {
       active = false
     }
-  }, [basePath])
+  }, [basePath, loadRevision])
 
   useEffect(() => {
     if (!waiterSheetOpen) return undefined
@@ -68,6 +70,9 @@ function CustomerOrdersPage() {
   }, [sendingWaiterCall, waiterSheetOpen])
 
   async function callWaiter(reason) {
+    if (waiterCallInFlightRef.current) return
+
+    waiterCallInFlightRef.current = true
     setSendingWaiterCall(true)
     setMessage({ type: '', text: '' })
 
@@ -79,6 +84,7 @@ function CustomerOrdersPage() {
       setWaiterSheetOpen(false)
       setMessage({ type: 'error', text: getBackendErrorMessage(requestError, language) })
     } finally {
+      waiterCallInFlightRef.current = false
       setSendingWaiterCall(false)
     }
   }
@@ -128,8 +134,16 @@ function CustomerOrdersPage() {
           <span>{t('customer.ordersLoading')}</span>
         </div>
       ) : loadFailed ? (
-        <div className="notice notice--error" role="alert">
-          {t('customer.ordersLoadError')}
+        <div className="customer-orders-state customer-orders-state--error" role="alert">
+          <span className="state-icon" aria-hidden="true">!</span>
+          <strong>{t('customer.ordersLoadError')}</strong>
+          <button
+            className="page-state__action"
+            type="button"
+            onClick={() => setLoadRevision((value) => value + 1)}
+          >
+            {t('common.tryAgain')}
+          </button>
         </div>
       ) : (
         <OrderHistory orders={orders} tableNumber={tableNumber} onBackToMenu={goToMenu} />
