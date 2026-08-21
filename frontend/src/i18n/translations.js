@@ -343,10 +343,12 @@ Object.assign(translations.ky.customer, {
   orderAcceptedWithNumber: 'Заказ {number} кабыл алынды жана ашканага жөнөтүлдү. Абалын «Менин заказдарым» бөлүмүнөн көрө аласыз.',
   callingWaiter: 'Официант чакырылууда...',
   updatingCart: 'Себет жаңыртылууда...',
+  viewMyOrders: 'Менин заказдарымды көрүү',
 })
 
 Object.assign(translations.ru.customer, {
   orderAcceptedWithNumber: 'Заказ {number} принят и отправлен на кухню. Статус можно отслеживать в разделе «Мои заказы».',
   callingWaiter: 'Вызов официанта...',
   updatingCart: 'Корзина обновляется...',
+  viewMyOrders: 'Посмотреть мои заказы',
 })

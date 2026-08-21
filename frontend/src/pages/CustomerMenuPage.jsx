@@ -1141,6 +1141,7 @@ function CustomerMenuPage() {
   const [loadRevision, setLoadRevision] = useState(0)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [showOrdersSuccessAction, setShowOrdersSuccessAction] = useState(false)
   const [pendingMenuItemId, setPendingMenuItemId] = useState(null)
   const [submittingOrder, setSubmittingOrder] = useState(false)
   const [search, setSearch] = useState('')
@@ -1153,6 +1154,7 @@ function CustomerMenuPage() {
   const [sendingWaiterCall, setSendingWaiterCall] = useState(false)
 
   const basePath = `/api/public/qr/${encodeURIComponent(qrToken)}`
+  const customerOrdersPath = `/menu/${encodeURIComponent(qrToken)}/orders`
   const cartItemCount = cart.items.reduce((sum, item) => sum + item.quantity, 0)
   const cartItemsByMenuItem = useMemo(
     () => new Map(cart.items.map((cartItem) => [cartItem.menu_item, cartItem])),
@@ -1314,6 +1316,7 @@ function CustomerMenuPage() {
     setPendingMenuItemId(item.id)
     setError('')
     setSuccess('')
+    setShowOrdersSuccessAction(false)
 
     try {
       await apiClient.post(`${basePath}/cart/items/`, {
@@ -1338,6 +1341,7 @@ function CustomerMenuPage() {
     setPendingMenuItemId(item.id)
     setError('')
     setSuccess('')
+    setShowOrdersSuccessAction(false)
 
     try {
       const itemPath = `${basePath}/cart/items/${cartItem.id}/`
@@ -1393,6 +1397,7 @@ function CustomerMenuPage() {
     setSubmittingOrder(true)
     setError('')
     setSuccess('')
+    setShowOrdersSuccessAction(false)
 
     try {
       const response = await apiClient.post(`${basePath}/orders/`)
@@ -1418,6 +1423,7 @@ function CustomerMenuPage() {
           ? t('customer.orderAcceptedWithNumber', { number: createdOrder.order_number })
           : t('customer.orderAccepted'),
       )
+      setShowOrdersSuccessAction(true)
       window.scrollTo({ top: 0, behavior: 'smooth' })
       await Promise.allSettled([refreshCart(), refreshOrders()])
     } catch (requestError) {
@@ -1435,6 +1441,7 @@ function CustomerMenuPage() {
     setSendingWaiterCall(true)
     setError('')
     setSuccess('')
+    setShowOrdersSuccessAction(false)
 
     try {
       await apiClient.post(`${basePath}/waiter-calls/`, { reason })
@@ -1488,11 +1495,25 @@ function CustomerMenuPage() {
       <CustomerContextBar
         tableNumber={menu.table.number}
         orderCount={orders.orders.length}
-        onOrdersClick={() => navigate(`/menu/${encodeURIComponent(qrToken)}/orders`)}
+        onOrdersClick={() => navigate(customerOrdersPath)}
       />
 
       {error && <div className="notice notice--error" role="alert">{error}</div>}
-      {success && <div className="notice notice--success" role="status">{success}</div>}
+      {success && (
+        <div className={`notice notice--success${showOrdersSuccessAction ? ' notice--order-success' : ''}`}>
+          <span role="status">{success}</span>
+          {showOrdersSuccessAction && (
+            <button
+              className="order-success__action"
+              type="button"
+              onClick={() => navigate(customerOrdersPath)}
+            >
+              {t('customer.viewMyOrders')}
+              <span aria-hidden="true">→</span>
+            </button>
+          )}
+        </div>
+      )}
 
       <section className="menu-tools" aria-label={t('customer.searchAndCategories')}>
         <SearchBar search={search} onSearchChange={setSearch} onClear={() => setSearch('')} />
