@@ -26,6 +26,7 @@ from drf_spectacular.views import (
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from apps.analytics import urls as analytics_urls
+from apps.common.views import health, readiness
 from apps.menu import urls as menu_urls
 from apps.orders import urls as order_urls
 from apps.restaurants import urls as restaurant_urls
@@ -34,6 +35,8 @@ from apps.users import urls as user_urls
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/health/', health, name='health'),
+    path('api/health/ready/', readiness, name='readiness'),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path(
         'api/docs/',

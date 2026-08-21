@@ -78,6 +78,11 @@ Email is written to the backend console during local development and CI.
 Production can use environment-driven SMTP settings without changing local
 behavior; see [Email deployment](docs/EMAIL_DEPLOYMENT.md).
 
+Backend logs are written to stdout and controlled with `LOG_LEVEL`. Public
+liveness and readiness endpoints are available at `/api/health/` and
+`/api/health/ready/`; see
+[Logging and health checks](docs/LOGGING_AND_HEALTHCHECKS.md).
+
 ## Run locally
 
 Keep the backend and frontend running in separate terminals.
@@ -87,7 +92,7 @@ Keep the backend and frontend running in separate terminals.
 From the repository root with the virtual environment activated:
 
 ```powershell
-daphne -b 127.0.0.1 -p 8000 config.asgi:application
+daphne --verbosity 0 -b 127.0.0.1 -p 8000 config.asgi:application
 ```
 
 Daphne serves the Django API and `/ws/notifications/` WebSocket endpoint at
@@ -154,6 +159,7 @@ expose the socket over `wss://`. See
 - [Docker Compose production-like setup](docs/DOCKER_PROD_LIKE.md)
 - [Security hardening](docs/SECURITY_HARDENING.md)
 - [Email deployment](docs/EMAIL_DEPLOYMENT.md)
+- [Logging and health checks](docs/LOGGING_AND_HEALTHCHECKS.md)
 - [Production readiness](docs/PRODUCTION_READINESS.md)
 - [API overview](docs/API.md)
 

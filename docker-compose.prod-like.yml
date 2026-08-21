@@ -48,6 +48,7 @@ services:
       SECURE_CONTENT_TYPE_NOSNIFF: "${SECURE_CONTENT_TYPE_NOSNIFF:-True}"
       SECURE_REFERRER_POLICY: "${SECURE_REFERRER_POLICY:-same-origin}"
       X_FRAME_OPTIONS: "${X_FRAME_OPTIONS:-DENY}"
+      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
       EMAIL_BACKEND: "${EMAIL_BACKEND:-django.core.mail.backends.console.EmailBackend}"
       EMAIL_HOST: "${EMAIL_HOST:-localhost}"
       EMAIL_PORT: "${EMAIL_PORT:-25}"
@@ -70,7 +71,7 @@ services:
         set -eu
         python manage.py migrate --noinput
         python manage.py collectstatic --noinput
-        exec daphne -b 0.0.0.0 -p 8000 config.asgi:application
+        exec daphne --verbosity 0 -b 0.0.0.0 -p 8000 config.asgi:application
     volumes:
       - staticfiles:/app/staticfiles
       - media:/app/media
@@ -79,7 +80,7 @@ services:
         - CMD
         - python
         - -c
-        - "import socket; socket.create_connection(('127.0.0.1', 8000), 2).close()"
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health/ready/', timeout=3).read()"
       interval: 10s
       timeout: 5s
       retries: 10

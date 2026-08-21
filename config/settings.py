@@ -108,6 +108,68 @@ if X_FRAME_OPTIONS not in {'DENY', 'SAMEORIGIN'}:
 if env_bool('SECURE_PROXY_SSL_HEADER', False):
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
+LOG_LEVEL = os.environ.get(
+    'LOG_LEVEL',
+    'DEBUG' if DEBUG else 'INFO',
+).strip().upper()
+if LOG_LEVEL not in {'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'}:
+    raise ImproperlyConfigured(
+        'LOG_LEVEL must be DEBUG, INFO, WARNING, ERROR, or CRITICAL.'
+    )
+
+console_log_level = (
+    'ERROR' if 'test' in sys.argv and 'LOG_LEVEL' not in os.environ else LOG_LEVEL
+)
+request_log_level = (
+    'CRITICAL'
+    if 'test' in sys.argv and 'LOG_LEVEL' not in os.environ
+    else console_log_level
+)
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'console': {
+            'format': '{asctime} {levelname} {name}: {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'console',
+            'level': console_log_level,
+            'stream': 'ext://sys.stdout',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': console_log_level,
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': console_log_level,
+            'propagate': False,
+        },
+        'apps': {
+            'handlers': ['console'],
+            'level': console_log_level,
+            'propagate': False,
+        },
+        'django.db.backends': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console'],
+            'level': request_log_level,
+            'propagate': False,
+        },
+    },
+}
+
 
 # Application definition
 

@@ -35,6 +35,9 @@ is disabled.
   prepared and documented in [Security hardening](SECURITY_HARDENING.md).
 - Environment-driven console/SMTP email configuration is prepared and
   documented in [Email deployment](EMAIL_DEPLOYMENT.md).
+- Stdout application logging, safe Docker access logging, and public liveness
+  and dependency readiness checks are prepared; see
+  [Logging and health checks](LOGGING_AND_HEALTHCHECKS.md).
 - Local defaults retain the current SQLite and Vite development workflow.
 
 PostgreSQL remains optional. Local development and CI continue to use the
@@ -56,7 +59,10 @@ Redis also remains optional: local development and CI keep using
   configured and tested yet.
 - A real SMTP provider, account, verified sender domain, and credentials have
   not been selected or tested yet.
-- Production monitoring and logging are not configured yet.
+- A production monitoring/log aggregation platform, alert rules, log retention
+  policy, and operational dashboard have not been selected or configured yet.
+- Incident escalation and service restart/recovery procedures have not been
+  tested yet.
 - Backup restoration and pre-launch penetration/smoke tests are not complete.
 
 ## Next-stage checklist
@@ -76,6 +82,7 @@ Redis also remains optional: local development and CI keep using
 - [x] Prepare the optional Docker Compose production-like validation stack.
 - [x] Prepare environment-driven security settings and hardening guidance.
 - [x] Prepare environment-driven production SMTP configuration and guidance.
+- [x] Prepare console logging and liveness/readiness health checks.
 - [ ] Configure the real Nginx static, media, frontend, API, and WebSocket paths.
 - [ ] Configure the real domain and DNS.
 - [ ] Install the HTTPS certificate and configure HTTP-to-HTTPS redirects.
@@ -85,7 +92,9 @@ Redis also remains optional: local development and CI keep using
 - [ ] Configure and test backups for media and PostgreSQL.
 - [ ] Select an SMTP provider, supply secret credentials, verify the sender
   domain, and test delivery.
-- [ ] Configure production monitoring and logging.
+- [ ] Select and configure production monitoring and log aggregation.
+- [ ] Configure alert rules, log retention, and the operational dashboard.
+- [ ] Test incident escalation and application restart/recovery procedures.
 - [ ] Run a backup restore test and focused penetration/smoke test before
   public use.
 - [ ] Run `collectstatic` and the Vite build in the real deployment environment.
@@ -97,5 +106,5 @@ Redis also remains optional: local development and CI keep using
   redirect and secure cookies once TLS is configured.
 - [ ] Run Django's deployment checks and the complete backend/frontend test and
   build pipeline in the deployment environment.
-- [ ] Add monitoring, logging, health checks, backup/restore verification, and
-  a rollback procedure.
+- [ ] Add platform monitoring, backup/restore verification, and a rollback
+  procedure.

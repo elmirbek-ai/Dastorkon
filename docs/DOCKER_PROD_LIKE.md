@@ -54,7 +54,9 @@ docker compose --env-file .env.docker -f docker-compose.prod-like.yml ps
 On each backend container start, the Compose command waits for PostgreSQL and
 Redis health checks, runs migrations, runs `collectstatic --noinput`, and then
 starts Daphne on port 8000. Nginx waits for the Daphne health check and exposes
-the complete application at `http://localhost:8080` by default.
+the complete application at `http://localhost:8080` by default. The backend
+health check calls `/api/health/ready/`, which verifies both PostgreSQL and the
+configured Redis service.
 
 To follow startup output:
 
@@ -92,6 +94,8 @@ Use the following checks after all four services report healthy or running:
   JavaScript load from `/static/`.
 - Open `http://localhost:8080/api/docs/` or call an API endpoint and confirm the
   request reaches Django through Nginx.
+- Open `http://localhost:8080/api/health/` and confirm it returns
+  `{"status": "ok"}`.
 - Sign in to a staff screen and use browser developer tools to confirm
   `/ws/notifications/` establishes a WebSocket connection and receives events.
 - Upload or seed an image, open its `/media/` URL, restart `backend` and `nginx`,
