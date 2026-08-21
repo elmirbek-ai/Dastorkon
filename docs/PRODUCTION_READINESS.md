@@ -2,12 +2,18 @@
 
 ## Current stage
 
-Dastorkon is at the environment-based settings stage. Security-sensitive and
-deployment-specific Django settings can now be supplied through environment
-variables while local development continues to work without extra setup. Use
+Dastorkon is at the production deployment-preparation stage. The repository
+contains environment-driven settings, optional production service
+configuration, production-like local validation, and deployment and operations
+runbooks while local development continues to work without extra setup. Use
 [`.env.example`](../.env.example) as the configuration reference; environment
 variables must be set by the shell or deployment platform because Django does
 not load that file automatically.
+
+Use the [Production release checklist](RELEASE_CHECKLIST.md) as the final
+go/no-go audit for a specific commit and target environment. A prepared setting,
+template, or runbook is not evidence that a real server has been configured or
+validated.
 
 For production, set `DEBUG=False`, provide a unique `SECRET_KEY`, configure the
 public hosts and origins, and enable the secure cookie and HTTPS settings after
@@ -42,6 +48,9 @@ is disabled.
   guidance is prepared; see [Backup and restore](BACKUP_AND_RESTORE.md).
 - An Ubuntu deployment runbook plus adaptable systemd and Nginx examples is
   prepared; see [Ubuntu production deployment](UBUNTU_DEPLOYMENT.md).
+- A final release audit, public-launch blocker list, pre/post-release checks,
+  and rollback decision points are prepared; see
+  [Production release checklist](RELEASE_CHECKLIST.md).
 - Local defaults retain the current SQLite and Vite development workflow.
 
 PostgreSQL remains optional. Local development and CI continue to use the
@@ -95,6 +104,7 @@ Redis also remains optional: local development and CI keep using
 - [x] Prepare console logging and liveness/readiness health checks.
 - [x] Prepare the PostgreSQL and media backup/restore runbook.
 - [x] Prepare the Ubuntu deployment runbook and example systemd/Nginx files.
+- [x] Prepare the final production release audit and go/no-go checklist.
 - [ ] Select and provision the actual Ubuntu server and domain.
 - [ ] Install and patch the required server packages.
 - [ ] Replace example paths/domains and inject final production secrets.

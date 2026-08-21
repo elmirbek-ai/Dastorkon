@@ -88,6 +88,10 @@ with example Nginx and systemd files under `deploy/`. See
 [Ubuntu production deployment](docs/UBUNTU_DEPLOYMENT.md). These are templates,
 not deployment automation.
 
+Before a public release, complete the
+[Production release checklist](docs/RELEASE_CHECKLIST.md) against the exact
+commit and target environment.
+
 ## Run locally
 
 Keep the backend and frontend running in separate terminals.
@@ -168,6 +172,7 @@ expose the socket over `wss://`. See
 - [Backup and restore](docs/BACKUP_AND_RESTORE.md)
 - [Ubuntu production deployment](docs/UBUNTU_DEPLOYMENT.md)
 - [Production readiness](docs/PRODUCTION_READINESS.md)
+- [Production release checklist](docs/RELEASE_CHECKLIST.md)
 - [API overview](docs/API.md)
 
 For production, collect Django and admin static assets with:
