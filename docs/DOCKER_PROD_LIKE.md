@@ -127,6 +127,10 @@ A normal stop does not delete these volumes:
 docker compose --env-file .env.docker -f docker-compose.prod-like.yml down
 ```
 
+The named PostgreSQL, media, and static volumes remain available after this
+normal `down`. Back up PostgreSQL and media before operations that could affect
+them; see [Backup and restore](BACKUP_AND_RESTORE.md).
+
 To stop containers and deliberately delete all local PostgreSQL data, media,
 and collected static output, use the following only after confirming nothing
 must be retained:
@@ -136,7 +140,8 @@ docker compose --env-file .env.docker -f docker-compose.prod-like.yml down --vol
 ```
 
 The `--volumes` operation is destructive. Back up any database or media data
-that matters before running it.
+that matters before running it. It must never be used as part of a backup or
+restore validation procedure.
 
 ## Differences from real production
 

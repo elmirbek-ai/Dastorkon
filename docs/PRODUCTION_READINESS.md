@@ -38,6 +38,8 @@ is disabled.
 - Stdout application logging, safe Docker access logging, and public liveness
   and dependency readiness checks are prepared; see
   [Logging and health checks](LOGGING_AND_HEALTHCHECKS.md).
+- A PostgreSQL and media backup/restore runbook with isolated local validation
+  guidance is prepared; see [Backup and restore](BACKUP_AND_RESTORE.md).
 - Local defaults retain the current SQLite and Vite development workflow.
 
 PostgreSQL remains optional. Local development and CI continue to use the
@@ -55,8 +57,10 @@ Redis also remains optional: local development and CI keep using
   not configured yet.
 - The production server firewall is not configured or verified yet.
 - Server, container, proxy, and network hardening is not complete.
-- Persistent media storage and media/PostgreSQL backup procedures are not
-  configured and tested yet.
+- Production backup storage, automation, encryption, retention, and success or
+  failure monitoring are not configured yet.
+- PostgreSQL and media restore procedures have not been tested in the selected
+  production-like recovery environment yet.
 - A real SMTP provider, account, verified sender domain, and credentials have
   not been selected or tested yet.
 - A production monitoring/log aggregation platform, alert rules, log retention
@@ -83,13 +87,18 @@ Redis also remains optional: local development and CI keep using
 - [x] Prepare environment-driven security settings and hardening guidance.
 - [x] Prepare environment-driven production SMTP configuration and guidance.
 - [x] Prepare console logging and liveness/readiness health checks.
+- [x] Prepare the PostgreSQL and media backup/restore runbook.
 - [ ] Configure the real Nginx static, media, frontend, API, and WebSocket paths.
 - [ ] Configure the real domain and DNS.
 - [ ] Install the HTTPS certificate and configure HTTP-to-HTTPS redirects.
 - [ ] Apply and verify the final production security environment values.
 - [ ] Configure and verify the server firewall.
 - [ ] Complete server and service hardening.
-- [ ] Configure and test backups for media and PostgreSQL.
+- [ ] Select backup storage and automate PostgreSQL and media backups.
+- [ ] Encrypt backups and configure access controls and key recovery.
+- [ ] Define retention and secure-deletion policies.
+- [ ] Monitor and alert on backup success, failure, size, and age.
+- [ ] Test an isolated restore in a production-like recovery environment.
 - [ ] Select an SMTP provider, supply secret credentials, verify the sender
   domain, and test delivery.
 - [ ] Select and configure production monitoring and log aggregation.

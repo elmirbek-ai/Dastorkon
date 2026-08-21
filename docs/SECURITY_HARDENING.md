@@ -140,12 +140,15 @@ After HTTPS and redirects have been stable, roll out in stages:
 
 ## Backups and recovery security
 
-PostgreSQL and media backups contain sensitive business and user data. Encrypt
-them in transit and at rest, restrict access separately from the live service,
-define retention and deletion rules, and monitor backup failures. Restore tests
-must use an isolated, access-controlled environment and must verify both the
-database and matching media state. Do not copy production credentials or data
-into developer laptops for convenience.
+PostgreSQL and media backups can contain personal data, credentials or token
+material stored by the application, uploaded images, and sensitive business
+data. Encrypt them in transit and at rest, restrict backup-file access
+separately from the live service, protect encryption keys through an approved
+recovery process, define retention and deletion rules, and monitor backup
+failures. Restore tests must use an isolated, access-controlled environment and
+must verify both the database and matching media state. Do not copy production
+credentials or data into developer laptops for convenience. See
+[Backup and restore](BACKUP_AND_RESTORE.md) for the runbook.
 
 Document recovery time and recovery point targets. A scheduled backup that has
 never been restored is not a verified recovery plan.

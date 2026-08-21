@@ -160,6 +160,7 @@ expose the socket over `wss://`. See
 - [Security hardening](docs/SECURITY_HARDENING.md)
 - [Email deployment](docs/EMAIL_DEPLOYMENT.md)
 - [Logging and health checks](docs/LOGGING_AND_HEALTHCHECKS.md)
+- [Backup and restore](docs/BACKUP_AND_RESTORE.md)
 - [Production readiness](docs/PRODUCTION_READINESS.md)
 - [API overview](docs/API.md)
 
