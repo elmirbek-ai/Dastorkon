@@ -40,6 +40,8 @@ is disabled.
   [Logging and health checks](LOGGING_AND_HEALTHCHECKS.md).
 - A PostgreSQL and media backup/restore runbook with isolated local validation
   guidance is prepared; see [Backup and restore](BACKUP_AND_RESTORE.md).
+- An Ubuntu deployment runbook plus adaptable systemd and Nginx examples is
+  prepared; see [Ubuntu production deployment](UBUNTU_DEPLOYMENT.md).
 - Local defaults retain the current SQLite and Vite development workflow.
 
 PostgreSQL remains optional. Local development and CI continue to use the
@@ -51,7 +53,11 @@ Redis also remains optional: local development and CI keep using
 
 - A production PostgreSQL database has not been provisioned or validated yet.
 - A production Redis service has not been provisioned or validated yet.
-- A real domain and server/deployment target have not been selected yet.
+- The actual Ubuntu server, domain, DNS, and network layout have not been
+  selected yet.
+- Required server packages have not been installed or patched on a real host.
+- Example service users, filesystem paths, domains, and permissions have not
+  been adapted and verified on a real host.
 - A real HTTPS certificate and final Nginx configuration are not installed yet.
 - Final production hosts, origins, secrets, and security environment values are
   not configured yet.
@@ -88,6 +94,10 @@ Redis also remains optional: local development and CI keep using
 - [x] Prepare environment-driven production SMTP configuration and guidance.
 - [x] Prepare console logging and liveness/readiness health checks.
 - [x] Prepare the PostgreSQL and media backup/restore runbook.
+- [x] Prepare the Ubuntu deployment runbook and example systemd/Nginx files.
+- [ ] Select and provision the actual Ubuntu server and domain.
+- [ ] Install and patch the required server packages.
+- [ ] Replace example paths/domains and inject final production secrets.
 - [ ] Configure the real Nginx static, media, frontend, API, and WebSocket paths.
 - [ ] Configure the real domain and DNS.
 - [ ] Install the HTTPS certificate and configure HTTP-to-HTTPS redirects.

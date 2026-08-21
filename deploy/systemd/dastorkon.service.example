@@ -1,0 +1,50 @@
+# Example only. Review paths, user/group names, and hardening for the real host.
+[Unit]
+Description=Dastorkon Daphne ASGI service
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=dastorkon
+Group=dastorkon
+SupplementaryGroups=dastorkon-web
+WorkingDirectory=/srv/dastorkon/app
+EnvironmentFile=/etc/dastorkon/dastorkon.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/srv/dastorkon/venv/bin/daphne \
+    --verbosity 0 \
+    --bind 127.0.0.1 \
+    --port 8000 \
+    --no-server-name \
+    config.asgi:application
+
+Restart=on-failure
+RestartSec=5s
+TimeoutStartSec=60s
+TimeoutStopSec=30s
+KillSignal=SIGTERM
+UMask=0027
+
+# Application logs remain on stdout/stderr and are collected by journald.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=dastorkon
+
+# Baseline hardening. Daphne only needs network access, read-only application
+# code, temporary files, and write access to persistent media.
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/srv/dastorkon/app/media
+
+[Install]
+WantedBy=multi-user.target

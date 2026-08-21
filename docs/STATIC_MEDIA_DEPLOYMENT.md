@@ -69,9 +69,12 @@ regularly tested backups.
 
 ## Example Nginx layout
 
-The paths below are examples. Replace `/srv/dastorkon` and `example.com` with
-the real release, persistent-storage, and domain values for the selected host.
-Daphne is assumed to listen on `127.0.0.1:8000`.
+The paths below are examples. Replace `/srv/dastorkon/app` and `example.com`
+with the real release, persistent-storage, and domain values for the selected
+host. Daphne is assumed to listen on `127.0.0.1:8000`. The maintained, fuller
+Ubuntu example is [deploy/nginx/dastorkon.conf.example](../deploy/nginx/dastorkon.conf.example);
+see [Ubuntu production deployment](UBUNTU_DEPLOYMENT.md) for its installation
+and permission steps.
 
 ```nginx
 upstream dastorkon_asgi {
@@ -82,15 +85,15 @@ server {
     listen 80;
     server_name example.com;
 
-    root /srv/dastorkon/frontend/dist;
+    root /srv/dastorkon/app/frontend/dist;
     index index.html;
 
     location /static/ {
-        alias /srv/dastorkon/staticfiles/;
+        alias /srv/dastorkon/app/staticfiles/;
     }
 
     location /media/ {
-        alias /srv/dastorkon/media/;
+        alias /srv/dastorkon/app/media/;
     }
 
     location /api/ {

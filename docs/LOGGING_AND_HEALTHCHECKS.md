@@ -117,6 +117,10 @@ For systemd, a separate timer or monitoring agent can call the endpoints with
 `curl --fail --silent --show-error`; systemd process supervision should still
 watch Daphne itself. Nginx upstream checks or a hosting load balancer can use
 the readiness route, while public uptime monitoring normally uses liveness.
+The [Ubuntu deployment runbook](UBUNTU_DEPLOYMENT.md) supplies example systemd
+and Nginx files that send application and proxy output to journald and includes
+post-deployment health verification commands. Review logs with
+`journalctl -u dastorkon.service` and `journalctl -u nginx` on that layout.
 
 ## Remaining production monitoring work
 

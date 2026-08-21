@@ -83,6 +83,11 @@ liveness and readiness endpoints are available at `/api/health/` and
 `/api/health/ready/`; see
 [Logging and health checks](docs/LOGGING_AND_HEALTHCHECKS.md).
 
+A non-Docker Ubuntu deployment runbook is available for future server work,
+with example Nginx and systemd files under `deploy/`. See
+[Ubuntu production deployment](docs/UBUNTU_DEPLOYMENT.md). These are templates,
+not deployment automation.
+
 ## Run locally
 
 Keep the backend and frontend running in separate terminals.
@@ -161,6 +166,7 @@ expose the socket over `wss://`. See
 - [Email deployment](docs/EMAIL_DEPLOYMENT.md)
 - [Logging and health checks](docs/LOGGING_AND_HEALTHCHECKS.md)
 - [Backup and restore](docs/BACKUP_AND_RESTORE.md)
+- [Ubuntu production deployment](docs/UBUNTU_DEPLOYMENT.md)
 - [Production readiness](docs/PRODUCTION_READINESS.md)
 - [API overview](docs/API.md)
 
