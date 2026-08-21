@@ -27,6 +27,15 @@ function normalizeCart(data) {
   return { ...data, items: Array.isArray(data.items) ? data.items : [] }
 }
 
+function applyCartItemMutation(cart, cartItemId, updatedItem = null) {
+  const currentItems = Array.isArray(cart?.items) ? cart.items : []
+  const items = updatedItem
+    ? currentItems.map((item) => item.id === cartItemId ? updatedItem : item)
+    : currentItems.filter((item) => item.id !== cartItemId)
+  const total = items.reduce((sum, item) => sum + Number(item.line_total ?? 0), 0)
+  return { ...cart, items, total: total.toFixed(2) }
+}
+
 function normalizeOrders(data) {
   if (!data || typeof data !== 'object') return emptyOrders
   return { ...data, orders: Array.isArray(data.orders) ? data.orders : [] }
@@ -679,15 +688,24 @@ function CartReviewItem({ cartItem, menuItem, pending, onIncrease, onDecrease, o
   )
 }
 
-function CheckoutReviewItem({ cartItem, menuItem }) {
+function CheckoutReviewItem({
+  cartItem,
+  menuItem,
+  pending,
+  disabled,
+  onIncrease,
+  onDecrease,
+  onRemove,
+}) {
   const { language, t } = useLanguage()
   const [imageFailed, setImageFailed] = useState(false)
   const imageUrl = resolveImageUrl(menuItem?.image)
   const itemName = getLocalizedField(menuItem, 'name', language)
     || getLocalizedField(cartItem, 'menu_item_name', language)
+  const unitPrice = Number(cartItem.line_total) / cartItem.quantity
 
   return (
-    <article className="checkout-item">
+    <article className="checkout-item" aria-busy={pending}>
       <div className="checkout-item__media">
         {imageUrl && !imageFailed ? (
           <img src={imageUrl} alt="" onError={() => setImageFailed(true)} />
@@ -695,14 +713,59 @@ function CheckoutReviewItem({ cartItem, menuItem }) {
           <span aria-hidden="true">🍽</span>
         )}
       </div>
-      <div className="checkout-item__copy">
-        <h3>{itemName}</h3>
-        <p>{cartItem.quantity} × {money(Number(cartItem.line_total) / cartItem.quantity)}</p>
-        {cartItem.comment && (
-          <small>{t('customer.kitchenNote')}: {cartItem.comment}</small>
-        )}
+      <div className="checkout-item__body">
+        <div className="checkout-item__top">
+          <div className="checkout-item__copy">
+            <h3>{itemName}</h3>
+            <p>{money(unitPrice)}</p>
+            {cartItem.comment && (
+              <small>{t('customer.kitchenNote')}: {cartItem.comment}</small>
+            )}
+          </div>
+          <strong className="checkout-item__subtotal">{money(cartItem.line_total)}</strong>
+        </div>
+        <div className="checkout-item__controls">
+          <div className="cart-sheet-stepper" aria-label={`${itemName}: ${cartItem.quantity}`}>
+            <button
+              type="button"
+              onClick={onDecrease}
+              disabled={disabled}
+              title={t('customer.decreaseQuantity')}
+              aria-label={t('customer.decreaseQuantity')}
+            >
+              −
+            </button>
+            <strong aria-live="polite">
+              {pending ? <span className="stepper-loader" /> : cartItem.quantity}
+            </strong>
+            <button
+              type="button"
+              onClick={onIncrease}
+              disabled={disabled}
+              title={t('customer.increaseQuantity')}
+              aria-label={t('customer.increaseQuantity')}
+            >
+              +
+            </button>
+          </div>
+          {pending && (
+            <span className="checkout-item__updating" role="status">
+              {t('customer.updatingCart')}
+            </span>
+          )}
+          <button
+            className="checkout-item__remove"
+            type="button"
+            onClick={onRemove}
+            disabled={disabled}
+            title={t('customer.removeItem')}
+            aria-label={`${itemName}: ${t('customer.removeItem')}`}
+          >
+            <span aria-hidden="true">×</span>
+            <small>{t('customer.removeItem')}</small>
+          </button>
+        </div>
       </div>
-      <strong>{money(cartItem.line_total)}</strong>
     </article>
   )
 }
@@ -720,6 +783,7 @@ function CartReviewSheet({
   onClose,
   onIncrease,
   onDecrease,
+  onRemove,
   onRequestRemoval,
   onContinueOrdering,
   onCheckout,
@@ -741,7 +805,7 @@ function CartReviewSheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby="cart-sheet-title"
-        aria-busy={submitting}
+        aria-busy={submitting || pendingItemId !== null}
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="sheet-handle" aria-hidden="true" />
@@ -751,7 +815,7 @@ function CartReviewSheet({
               className="cart-sheet__back"
               type="button"
               onClick={onBackToCart}
-              disabled={submitting}
+              disabled={submitting || pendingItemId !== null}
               aria-label={t('customer.backToCart')}
             >
               <span aria-hidden="true">←</span>
@@ -807,13 +871,27 @@ function CartReviewSheet({
                   <h3 id="checkout-items-title">{t('customer.orderComposition')}</h3>
                   <span>{t('customer.itemCount', { count: itemCount })}</span>
                 </div>
-                {cart.items.map((cartItem) => (
-                  <CheckoutReviewItem
-                    key={cartItem.id}
-                    cartItem={cartItem}
-                    menuItem={menuItemsById.get(cartItem.menu_item)}
-                  />
-                ))}
+                {cart.items.map((cartItem) => {
+                  const menuItem = menuItemsById.get(cartItem.menu_item)
+                  const item = menuItem || { id: cartItem.menu_item }
+
+                  return (
+                    <CheckoutReviewItem
+                      key={cartItem.id}
+                      cartItem={cartItem}
+                      menuItem={menuItem}
+                      pending={pendingItemId === item.id}
+                      disabled={submitting || pendingItemId !== null}
+                      onIncrease={() => onIncrease(item, cartItem)}
+                      onDecrease={() => (
+                        cartItem.quantity === 1
+                          ? onRemove(item, cartItem)
+                          : onDecrease(item, cartItem)
+                      )}
+                      onRemove={() => onRemove(item, cartItem)}
+                    />
+                  )
+                })}
               </section>
             </div>
 
@@ -840,7 +918,7 @@ function CartReviewSheet({
                 className="order-button"
                 type="button"
                 onClick={onSubmit}
-                disabled={submitting || pendingItemId !== null}
+                disabled={submitting || pendingItemId !== null || cart.items.length === 0}
               >
                 {submitting ? t('customer.placingOrder') : t('customer.sendOrderToKitchen')}
                 {!submitting && <span aria-hidden="true">→</span>}
@@ -1054,6 +1132,7 @@ function CustomerMenuPage() {
   const sessionRequestRef = useRef({ basePath: '', promise: null })
   const orderSubmitInFlightRef = useRef(false)
   const waiterCallInFlightRef = useRef(false)
+  const cartUpdateInFlightRef = useRef(false)
   const [menu, setMenu] = useState(null)
   const [cart, setCart] = useState(emptyCart)
   const [orders, setOrders] = useState(emptyOrders)
@@ -1253,23 +1332,30 @@ function CustomerMenuPage() {
   }
 
   async function changeCartItemQuantity(item, cartItem, quantity) {
+    if (cartUpdateInFlightRef.current) return false
+
+    cartUpdateInFlightRef.current = true
     setPendingMenuItemId(item.id)
     setError('')
     setSuccess('')
 
     try {
       const itemPath = `${basePath}/cart/items/${cartItem.id}/`
+      let updatedItem = null
       if (quantity > 0) {
-        await apiClient.patch(itemPath, { quantity })
+        const response = await apiClient.patch(itemPath, { quantity })
+        updatedItem = response.data
       } else {
         await apiClient.delete(itemPath)
       }
-      await refreshCart()
+      setCart((current) => applyCartItemMutation(current, cartItem.id, updatedItem))
+      await refreshCart().catch(() => undefined)
       return true
     } catch (requestError) {
       setError(getBackendErrorMessage(requestError, language))
       return false
     } finally {
+      cartUpdateInFlightRef.current = false
       setPendingMenuItemId(null)
     }
   }
@@ -1495,6 +1581,7 @@ function CustomerMenuPage() {
         onClose={closeCartSheet}
         onIncrease={increaseCartItem}
         onDecrease={decreaseCartItem}
+        onRemove={removeCartItem}
         onRequestRemoval={requestCartItemRemoval}
         onContinueOrdering={closeCartSheet}
         onCheckout={() => setCartStage('checkout')}

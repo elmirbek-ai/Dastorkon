@@ -8051,8 +8051,8 @@ body:has(.customer-menu) {
 .customer-menu .checkout-item {
   min-width: 0;
   display: grid;
-  grid-template-columns: 58px minmax(0, 1fr) auto;
-  align-items: center;
+  grid-template-columns: 58px minmax(0, 1fr);
+  align-items: start;
   gap: 11px;
   padding: 12px 0;
   border-bottom: 1px solid #e4e4e7;
@@ -8078,6 +8078,18 @@ body:has(.customer-menu) {
 
 .customer-menu .checkout-item__copy {
   min-width: 0;
+}
+
+.customer-menu .checkout-item__body {
+  min-width: 0;
+}
+
+.customer-menu .checkout-item__top {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .customer-menu .checkout-item h3,
@@ -8111,10 +8123,67 @@ body:has(.customer-menu) {
   -webkit-line-clamp: 2;
 }
 
-.customer-menu .checkout-item > strong {
+.customer-menu .checkout-item__subtotal {
+  flex: 0 0 auto;
   color: #18181b;
   font-size: 0.78rem;
   white-space: nowrap;
+}
+
+.customer-menu .checkout-item__controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin-top: 9px;
+}
+
+.customer-menu .checkout-item__controls .cart-sheet-stepper {
+  flex: 0 0 auto;
+}
+
+.customer-menu .checkout-item__remove {
+  min-width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 12px;
+  color: #c2410c;
+  background: #fff7ed;
+  cursor: pointer;
+}
+
+.customer-menu .checkout-item__remove span {
+  font-size: 1rem;
+  line-height: 0.9;
+}
+
+.customer-menu .checkout-item__remove small {
+  margin-top: 2px;
+  color: inherit;
+  font-size: 0.54rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.customer-menu .checkout-item__remove:hover:not(:disabled) {
+  background: #ffedd5;
+}
+
+.customer-menu .checkout-item__controls button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.customer-menu .checkout-item__updating {
+  flex: 1 0 100%;
+  color: #166534;
+  font-size: 0.66rem;
+  font-weight: 750;
 }
 
 .customer-menu .checkout-summary {
@@ -8334,7 +8403,7 @@ body:has(.customer-menu) {
 .customer-menu .cart-item > strong,
 .customer-menu .cart-sheet-item p,
 .customer-menu .cart-sheet-item__footer > strong,
-.customer-menu .checkout-item > strong,
+.customer-menu .checkout-item__subtotal,
 .customer-orders-page .order-card li > strong {
   color: #f97316;
 }
