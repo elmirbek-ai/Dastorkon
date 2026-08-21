@@ -33,6 +33,8 @@ is disabled.
   [Docker Compose production-like setup](DOCKER_PROD_LIKE.md).
 - Environment-driven HTTPS, HSTS, proxy, and response-header hardening is
   prepared and documented in [Security hardening](SECURITY_HARDENING.md).
+- Environment-driven console/SMTP email configuration is prepared and
+  documented in [Email deployment](EMAIL_DEPLOYMENT.md).
 - Local defaults retain the current SQLite and Vite development workflow.
 
 PostgreSQL remains optional. Local development and CI continue to use the
@@ -52,8 +54,8 @@ Redis also remains optional: local development and CI keep using
 - Server, container, proxy, and network hardening is not complete.
 - Persistent media storage and media/PostgreSQL backup procedures are not
   configured and tested yet.
-- The console email backend is still development-only; a production email
-  backend has not been selected or tested yet.
+- A real SMTP provider, account, verified sender domain, and credentials have
+  not been selected or tested yet.
 - Production monitoring and logging are not configured yet.
 - Backup restoration and pre-launch penetration/smoke tests are not complete.
 
@@ -73,6 +75,7 @@ Redis also remains optional: local development and CI keep using
   plan.
 - [x] Prepare the optional Docker Compose production-like validation stack.
 - [x] Prepare environment-driven security settings and hardening guidance.
+- [x] Prepare environment-driven production SMTP configuration and guidance.
 - [ ] Configure the real Nginx static, media, frontend, API, and WebSocket paths.
 - [ ] Configure the real domain and DNS.
 - [ ] Install the HTTPS certificate and configure HTTP-to-HTTPS redirects.
@@ -80,7 +83,8 @@ Redis also remains optional: local development and CI keep using
 - [ ] Configure and verify the server firewall.
 - [ ] Complete server and service hardening.
 - [ ] Configure and test backups for media and PostgreSQL.
-- [ ] Configure and test the production email backend.
+- [ ] Select an SMTP provider, supply secret credentials, verify the sender
+  domain, and test delivery.
 - [ ] Configure production monitoring and logging.
 - [ ] Run a backup restore test and focused penetration/smoke test before
   public use.

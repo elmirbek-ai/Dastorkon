@@ -15,10 +15,12 @@ launch:
 python manage.py check --deploy
 ```
 
-At this stage that command also reports the existing console email backend as
-development-only (`mail.E001`). Selecting and testing a production email
-backend is a separate deployment-readiness task; it is intentionally unchanged
-by this security-settings stage.
+SMTP configuration is prepared, but local development deliberately retains the
+console backend and therefore still reports `mail.E001` during a local deploy
+check. In production, supply the SMTP environment described in
+[Email deployment](EMAIL_DEPLOYMENT.md); the SMTP backend resolves that check
+without sending a message. SMTP credentials are secrets and must never be
+committed, included in images, or written to logs.
 
 ## Required production identity and origins
 

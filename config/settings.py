@@ -303,8 +303,47 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 
+email_backend = os.environ.get(
+    'EMAIL_BACKEND',
+    'django.core.mail.backends.console.EmailBackend',
+).strip()
+if not email_backend:
+    raise ImproperlyConfigured('EMAIL_BACKEND must not be empty.')
+
+email_host = os.environ.get('EMAIL_HOST', 'localhost').strip()
+email_port = env_int('EMAIL_PORT', 25)
+if not 1 <= email_port <= 65535:
+    raise ImproperlyConfigured('EMAIL_PORT must be between 1 and 65535.')
+
+email_host_user = os.environ.get('EMAIL_HOST_USER', '')
+email_host_password = os.environ.get('EMAIL_HOST_PASSWORD', '')
+email_use_tls = env_bool('EMAIL_USE_TLS', False)
+email_use_ssl = env_bool('EMAIL_USE_SSL', False)
+if email_use_tls and email_use_ssl:
+    raise ImproperlyConfigured(
+        'EMAIL_USE_TLS and EMAIL_USE_SSL cannot both be True.'
+    )
+
+email_timeout = env_int('EMAIL_TIMEOUT', 10)
+if email_timeout <= 0:
+    raise ImproperlyConfigured('EMAIL_TIMEOUT must be greater than zero.')
+
 MAILERS = {
     'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
+        'BACKEND': email_backend,
     },
 }
+
+if email_backend == 'django.core.mail.backends.smtp.EmailBackend':
+    MAILERS['default']['OPTIONS'] = {
+        'host': email_host,
+        'port': email_port,
+        'username': email_host_user,
+        'password': email_host_password,
+        'use_tls': email_use_tls,
+        'use_ssl': email_use_ssl,
+        'timeout': email_timeout,
+    }
+
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'webmaster@localhost')
+SERVER_EMAIL = os.environ.get('SERVER_EMAIL', 'root@localhost')

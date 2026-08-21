@@ -74,6 +74,10 @@ Production must use `DEBUG=False`, a unique secret `SECRET_KEY`, HTTPS, and the
 final public hosts and origins. See
 [Security hardening](docs/SECURITY_HARDENING.md) before public deployment.
 
+Email is written to the backend console during local development and CI.
+Production can use environment-driven SMTP settings without changing local
+behavior; see [Email deployment](docs/EMAIL_DEPLOYMENT.md).
+
 ## Run locally
 
 Keep the backend and frontend running in separate terminals.
@@ -149,6 +153,7 @@ expose the socket over `wss://`. See
 - [Static and media deployment](docs/STATIC_MEDIA_DEPLOYMENT.md)
 - [Docker Compose production-like setup](docs/DOCKER_PROD_LIKE.md)
 - [Security hardening](docs/SECURITY_HARDENING.md)
+- [Email deployment](docs/EMAIL_DEPLOYMENT.md)
 - [Production readiness](docs/PRODUCTION_READINESS.md)
 - [API overview](docs/API.md)
 
