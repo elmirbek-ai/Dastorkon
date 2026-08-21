@@ -24,17 +24,20 @@ is disabled.
 - PostgreSQL configuration is prepared and can be enabled with `DATABASE_URL`.
   Both `postgres://` and `postgresql://` URLs are supported, with persistent
   connections and connection health checks enabled.
+- Redis channel-layer configuration is prepared and can be enabled with
+  `REDIS_URL` for multi-process WebSocket delivery.
 - Static files have a collection target at `staticfiles/` through `STATIC_ROOT`.
 - Local defaults retain the current SQLite and Vite development workflow.
 
 PostgreSQL remains optional. Local development and CI continue to use the
 existing SQLite database unless `DATABASE_URL` is explicitly set.
+Redis also remains optional: local development and CI keep using
+`InMemoryChannelLayer` unless `REDIS_URL` is explicitly set.
 
 ## Still not production-ready
 
 - A production PostgreSQL database has not been provisioned or validated yet.
-- Redis and `channels_redis` are not configured yet; the in-memory channel
-  layer is limited to a single application process.
+- A production Redis service has not been provisioned or validated yet.
 - Static and media serving is not finalized yet.
 - A deployment target has not been selected yet.
 
@@ -46,8 +49,10 @@ existing SQLite database unless `DATABASE_URL` is explicitly set.
 - [ ] Set `DATABASE_URL` on the server.
 - [ ] Run migrations against the production database.
 - [ ] Test the PostgreSQL backup and restore procedure.
-- [ ] Provision Redis, add `channels_redis`, configure the channel layer, and
-  test WebSocket delivery across multiple application processes.
+- [ ] Provision Redis.
+- [ ] Set `REDIS_URL` on the server.
+- [ ] Run the required Daphne/ASGI workers.
+- [ ] Verify WebSocket delivery across workers.
 - [ ] Choose production static and media storage/serving, run `collectstatic`,
   and verify uploads and cache behavior.
 - [ ] Set production hosts, CORS origins, and CSRF trusted origins to the final

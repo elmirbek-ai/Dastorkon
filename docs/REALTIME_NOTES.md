@@ -82,20 +82,26 @@ token change.
 The UI exposes **Realtime**, **Reconnecting**, or **Polling** so the operator can
 see which delivery path is active.
 
-## Current MVP limitation
+## Channel layer configuration
 
-`config/settings.py` uses `channels.layers.InMemoryChannelLayer`. This channel
-layer is process-local, so it is reliable for the MVP only when Daphne runs as
-one Django process. With multiple workers, a notification published in one
-process may not reach sockets connected to another process.
+Local development and CI use `channels.layers.InMemoryChannelLayer` by default
+and do not require a Redis server. This channel layer is process-local, so it is
+reliable only when Daphne runs as one Django process. With multiple workers, a
+notification published in one process may not reach sockets connected to
+another process.
+
+When `REDIS_URL` is set, Django uses
+`channels_redis.core.RedisChannelLayer` instead. Standard `redis://` URLs and
+TLS-enabled `rediss://` URLs are supported. Redis is required for reliable
+WebSocket group delivery across multiple application processes or workers.
 
 ## Production recommendation
 
 Before a multi-process or multi-host deployment:
 
-1. Install and configure Redis plus `channels_redis`.
-2. Replace `InMemoryChannelLayer` with
-   `channels_redis.core.RedisChannelLayer` and a managed Redis connection.
+1. Provision Redis and set `REDIS_URL` for every Daphne/ASGI worker.
+2. Verify that WebSocket events are delivered between sockets connected to
+   different workers.
 3. Terminate TLS at the reverse proxy and expose the endpoint through `wss://`.
 4. Configure the proxy for WebSocket upgrade headers and suitable idle
    timeouts.

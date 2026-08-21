@@ -127,9 +127,10 @@ functions. Polling remains enabled as a fallback: Kitchen uses 7 seconds and
 Waiter uses 8 seconds when the socket is unavailable, and both slow to 30
 seconds while connected.
 
-The MVP uses `InMemoryChannelLayer`, so realtime delivery is reliable only when
-Django runs as one process. A production deployment should use Redis with
-`channels_redis` and expose the socket over `wss://`. See
+The MVP uses `InMemoryChannelLayer` by default, so local development and CI do
+not require Redis. Production deployments can set `REDIS_URL` to enable
+`channels_redis` for realtime delivery across multiple processes and should
+expose the socket over `wss://`. See
 [Realtime notes](docs/REALTIME_NOTES.md) for details.
 
 ## Documentation and validation

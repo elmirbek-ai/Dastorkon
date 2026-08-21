@@ -176,6 +176,15 @@ CHANNEL_LAYERS = {
     },
 }
 
+REDIS_URL = os.environ.get('REDIS_URL')
+if REDIS_URL:
+    CHANNEL_LAYERS['default'] = {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [REDIS_URL],
+        },
+    }
+
 
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
