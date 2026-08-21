@@ -56,6 +56,11 @@ activate the environment with `source .venv/bin/activate` instead.
    Set-Location ..
    ```
 
+The backend works locally without environment configuration. Use
+[`.env.example`](.env.example) as a reference when setting environment
+variables in a shell or deployment platform; the project does not load the
+file automatically.
+
 ## Run locally
 
 Keep the backend and frontend running in separate terminals.
@@ -127,6 +132,7 @@ Django runs as one process. A production deployment should use Redis with
 
 - [Demo checklist](docs/DEMO_CHECKLIST.md)
 - [Realtime notes](docs/REALTIME_NOTES.md)
+- [Production readiness](docs/PRODUCTION_READINESS.md)
 - [API overview](docs/API.md)
 
 Run the project checks with:
