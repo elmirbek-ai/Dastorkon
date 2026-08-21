@@ -38,6 +38,17 @@ def env_bool(name, default):
     )
 
 
+def env_int(name, default):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+
+    try:
+        return int(value.strip())
+    except ValueError as error:
+        raise ImproperlyConfigured(f'{name} must be an integer.') from error
+
+
 def env_list(name, default):
     value = os.environ.get(name)
     if value is None:
@@ -63,6 +74,39 @@ ALLOWED_HOSTS = env_list('ALLOWED_HOSTS', ['localhost', '127.0.0.1'])
 SECURE_SSL_REDIRECT = env_bool('SECURE_SSL_REDIRECT', False)
 SESSION_COOKIE_SECURE = env_bool('SESSION_COOKIE_SECURE', not DEBUG)
 CSRF_COOKIE_SECURE = env_bool('CSRF_COOKIE_SECURE', not DEBUG)
+
+SECURE_HSTS_SECONDS = env_int('SECURE_HSTS_SECONDS', 0)
+if SECURE_HSTS_SECONDS < 0:
+    raise ImproperlyConfigured('SECURE_HSTS_SECONDS must not be negative.')
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool(
+    'SECURE_HSTS_INCLUDE_SUBDOMAINS',
+    False,
+)
+SECURE_HSTS_PRELOAD = env_bool('SECURE_HSTS_PRELOAD', False)
+SECURE_CONTENT_TYPE_NOSNIFF = env_bool('SECURE_CONTENT_TYPE_NOSNIFF', True)
+
+SECURE_REFERRER_POLICY = os.environ.get(
+    'SECURE_REFERRER_POLICY',
+    'same-origin',
+).strip()
+if SECURE_REFERRER_POLICY not in {
+    'no-referrer',
+    'no-referrer-when-downgrade',
+    'origin',
+    'origin-when-cross-origin',
+    'same-origin',
+    'strict-origin',
+    'strict-origin-when-cross-origin',
+    'unsafe-url',
+}:
+    raise ImproperlyConfigured('SECURE_REFERRER_POLICY is invalid.')
+
+X_FRAME_OPTIONS = os.environ.get('X_FRAME_OPTIONS', 'DENY').strip().upper()
+if X_FRAME_OPTIONS not in {'DENY', 'SAMEORIGIN'}:
+    raise ImproperlyConfigured('X_FRAME_OPTIONS must be DENY or SAMEORIGIN.')
+
+if env_bool('SECURE_PROXY_SSL_HEADER', False):
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
 # Application definition

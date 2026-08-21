@@ -31,6 +31,8 @@ is disabled.
 - An optional PostgreSQL, Redis, Daphne, and Nginx Docker Compose stack is
   prepared for production-like local validation; see
   [Docker Compose production-like setup](DOCKER_PROD_LIKE.md).
+- Environment-driven HTTPS, HSTS, proxy, and response-header hardening is
+  prepared and documented in [Security hardening](SECURITY_HARDENING.md).
 - Local defaults retain the current SQLite and Vite development workflow.
 
 PostgreSQL remains optional. Local development and CI continue to use the
@@ -43,12 +45,17 @@ Redis also remains optional: local development and CI keep using
 - A production PostgreSQL database has not been provisioned or validated yet.
 - A production Redis service has not been provisioned or validated yet.
 - A real domain and server/deployment target have not been selected yet.
-- Real Nginx filesystem paths and HTTPS termination are not configured yet.
+- A real HTTPS certificate and final Nginx configuration are not installed yet.
+- Final production hosts, origins, secrets, and security environment values are
+  not configured yet.
+- The production server firewall is not configured or verified yet.
 - Server, container, proxy, and network hardening is not complete.
 - Persistent media storage and media/PostgreSQL backup procedures are not
   configured and tested yet.
+- The console email backend is still development-only; a production email
+  backend has not been selected or tested yet.
 - Production monitoring and logging are not configured yet.
-- A complete deployment test has not been run on a production-like server.
+- Backup restoration and pre-launch penetration/smoke tests are not complete.
 
 ## Next-stage checklist
 
@@ -65,12 +72,18 @@ Redis also remains optional: local development and CI keep using
 - [x] Prepare the static, frontend build, media, Nginx, and Daphne deployment
   plan.
 - [x] Prepare the optional Docker Compose production-like validation stack.
+- [x] Prepare environment-driven security settings and hardening guidance.
 - [ ] Configure the real Nginx static, media, frontend, API, and WebSocket paths.
 - [ ] Configure the real domain and DNS.
-- [ ] Configure HTTPS termination and HTTP-to-HTTPS redirects.
+- [ ] Install the HTTPS certificate and configure HTTP-to-HTTPS redirects.
+- [ ] Apply and verify the final production security environment values.
+- [ ] Configure and verify the server firewall.
 - [ ] Complete server and service hardening.
 - [ ] Configure and test backups for media and PostgreSQL.
+- [ ] Configure and test the production email backend.
 - [ ] Configure production monitoring and logging.
+- [ ] Run a backup restore test and focused penetration/smoke test before
+  public use.
 - [ ] Run `collectstatic` and the Vite build in the real deployment environment.
 - [ ] Run an end-to-end deployment test, including admin assets, SPA fallback,
   media persistence, API requests, and WebSockets.

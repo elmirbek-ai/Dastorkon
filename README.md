@@ -70,6 +70,10 @@ available for production-like local validation. It is separate from normal
 development, which continues to use the Python and Vite commands below. See
 [Docker Compose production-like setup](docs/DOCKER_PROD_LIKE.md).
 
+Production must use `DEBUG=False`, a unique secret `SECRET_KEY`, HTTPS, and the
+final public hosts and origins. See
+[Security hardening](docs/SECURITY_HARDENING.md) before public deployment.
+
 ## Run locally
 
 Keep the backend and frontend running in separate terminals.
@@ -144,6 +148,7 @@ expose the socket over `wss://`. See
 - [Realtime notes](docs/REALTIME_NOTES.md)
 - [Static and media deployment](docs/STATIC_MEDIA_DEPLOYMENT.md)
 - [Docker Compose production-like setup](docs/DOCKER_PROD_LIKE.md)
+- [Security hardening](docs/SECURITY_HARDENING.md)
 - [Production readiness](docs/PRODUCTION_READINESS.md)
 - [API overview](docs/API.md)
 
