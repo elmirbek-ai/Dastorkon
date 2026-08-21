@@ -61,6 +61,10 @@ The backend works locally without environment configuration. Use
 variables in a shell or deployment platform; the project does not load the
 file automatically.
 
+Production deployments can set `DATABASE_URL` to a `postgres://` or
+`postgresql://` URL to use PostgreSQL. When it is empty or unset, Django keeps
+using the local SQLite database, including in the current CI workflow.
+
 ## Run locally
 
 Keep the backend and frontend running in separate terminals.

@@ -21,12 +21,18 @@ is disabled.
 - HTTPS redirection and secure session/CSRF cookies are environment-configurable.
 - Invalid boolean environment values fail fast instead of being interpreted
   ambiguously.
+- PostgreSQL configuration is prepared and can be enabled with `DATABASE_URL`.
+  Both `postgres://` and `postgresql://` URLs are supported, with persistent
+  connections and connection health checks enabled.
 - Static files have a collection target at `staticfiles/` through `STATIC_ROOT`.
 - Local defaults retain the current SQLite and Vite development workflow.
 
+PostgreSQL remains optional. Local development and CI continue to use the
+existing SQLite database unless `DATABASE_URL` is explicitly set.
+
 ## Still not production-ready
 
-- PostgreSQL is not configured yet; the project still uses local SQLite.
+- A production PostgreSQL database has not been provisioned or validated yet.
 - Redis and `channels_redis` are not configured yet; the in-memory channel
   layer is limited to a single application process.
 - Static and media serving is not finalized yet.
@@ -36,8 +42,10 @@ is disabled.
 
 - [ ] Select a deployment platform and define its runtime, networking, and TLS
   configuration.
-- [ ] Provision PostgreSQL, add its driver, configure database environment
-  variables, and verify migrations and backups.
+- [ ] Create the production PostgreSQL database.
+- [ ] Set `DATABASE_URL` on the server.
+- [ ] Run migrations against the production database.
+- [ ] Test the PostgreSQL backup and restore procedure.
 - [ ] Provision Redis, add `channels_redis`, configure the channel layer, and
   test WebSocket delivery across multiple application processes.
 - [ ] Choose production static and media storage/serving, run `collectstatic`,
