@@ -137,8 +137,15 @@ expose the socket over `wss://`. See
 
 - [Demo checklist](docs/DEMO_CHECKLIST.md)
 - [Realtime notes](docs/REALTIME_NOTES.md)
+- [Static and media deployment](docs/STATIC_MEDIA_DEPLOYMENT.md)
 - [Production readiness](docs/PRODUCTION_READINESS.md)
 - [API overview](docs/API.md)
+
+For production, collect Django and admin static assets with:
+
+```powershell
+python manage.py collectstatic --noinput
+```
 
 Run the project checks with:
 

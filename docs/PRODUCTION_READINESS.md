@@ -26,7 +26,8 @@ is disabled.
   connections and connection health checks enabled.
 - Redis channel-layer configuration is prepared and can be enabled with
   `REDIS_URL` for multi-process WebSocket delivery.
-- Static files have a collection target at `staticfiles/` through `STATIC_ROOT`.
+- The production static, Vite build, media, Nginx, and Daphne separation is
+  documented in [Static and media deployment](STATIC_MEDIA_DEPLOYMENT.md).
 - Local defaults retain the current SQLite and Vite development workflow.
 
 PostgreSQL remains optional. Local development and CI continue to use the
@@ -38,8 +39,11 @@ Redis also remains optional: local development and CI keep using
 
 - A production PostgreSQL database has not been provisioned or validated yet.
 - A production Redis service has not been provisioned or validated yet.
-- Static and media serving is not finalized yet.
 - A deployment target has not been selected yet.
+- Real Nginx filesystem paths and HTTPS termination are not configured yet.
+- Persistent media storage and media/PostgreSQL backup procedures are not
+  configured and tested yet.
+- A complete deployment test has not been run on a production-like server.
 
 ## Next-stage checklist
 
@@ -53,8 +57,14 @@ Redis also remains optional: local development and CI keep using
 - [ ] Set `REDIS_URL` on the server.
 - [ ] Run the required Daphne/ASGI workers.
 - [ ] Verify WebSocket delivery across workers.
-- [ ] Choose production static and media storage/serving, run `collectstatic`,
-  and verify uploads and cache behavior.
+- [x] Prepare the static, frontend build, media, Nginx, and Daphne deployment
+  plan.
+- [ ] Configure the real Nginx static, media, frontend, API, and WebSocket paths.
+- [ ] Configure HTTPS termination and HTTP-to-HTTPS redirects.
+- [ ] Configure and test backups for media and PostgreSQL.
+- [ ] Run `collectstatic` and the Vite build in the real deployment environment.
+- [ ] Run an end-to-end deployment test, including admin assets, SPA fallback,
+  media persistence, API requests, and WebSockets.
 - [ ] Set production hosts, CORS origins, and CSRF trusted origins to the final
   HTTPS domains.
 - [ ] Set `DEBUG=False`, generate a unique `SECRET_KEY`, and enable HTTPS
