@@ -28,6 +28,9 @@ is disabled.
   `REDIS_URL` for multi-process WebSocket delivery.
 - The production static, Vite build, media, Nginx, and Daphne separation is
   documented in [Static and media deployment](STATIC_MEDIA_DEPLOYMENT.md).
+- An optional PostgreSQL, Redis, Daphne, and Nginx Docker Compose stack is
+  prepared for production-like local validation; see
+  [Docker Compose production-like setup](DOCKER_PROD_LIKE.md).
 - Local defaults retain the current SQLite and Vite development workflow.
 
 PostgreSQL remains optional. Local development and CI continue to use the
@@ -39,10 +42,12 @@ Redis also remains optional: local development and CI keep using
 
 - A production PostgreSQL database has not been provisioned or validated yet.
 - A production Redis service has not been provisioned or validated yet.
-- A deployment target has not been selected yet.
+- A real domain and server/deployment target have not been selected yet.
 - Real Nginx filesystem paths and HTTPS termination are not configured yet.
+- Server, container, proxy, and network hardening is not complete.
 - Persistent media storage and media/PostgreSQL backup procedures are not
   configured and tested yet.
+- Production monitoring and logging are not configured yet.
 - A complete deployment test has not been run on a production-like server.
 
 ## Next-stage checklist
@@ -59,9 +64,13 @@ Redis also remains optional: local development and CI keep using
 - [ ] Verify WebSocket delivery across workers.
 - [x] Prepare the static, frontend build, media, Nginx, and Daphne deployment
   plan.
+- [x] Prepare the optional Docker Compose production-like validation stack.
 - [ ] Configure the real Nginx static, media, frontend, API, and WebSocket paths.
+- [ ] Configure the real domain and DNS.
 - [ ] Configure HTTPS termination and HTTP-to-HTTPS redirects.
+- [ ] Complete server and service hardening.
 - [ ] Configure and test backups for media and PostgreSQL.
+- [ ] Configure production monitoring and logging.
 - [ ] Run `collectstatic` and the Vite build in the real deployment environment.
 - [ ] Run an end-to-end deployment test, including admin assets, SPA fallback,
   media persistence, API requests, and WebSockets.
