@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { waiterApiClient, WAITER_TOKEN_KEY } from '../api/client.js'
 import ConnectionStatus from '../components/ConnectionStatus.jsx'
@@ -7,6 +7,7 @@ import { getBackendErrorMessage, getLocalizedField, getStatusLabel } from '../i1
 import useNotificationsSocket from '../realtime/useNotificationsSocket.js'
 import { getAvatarInitial } from '../utils/avatar.js'
 
+const ACTIVE_WAITER_ORDER_STATUSES = ['NEW', 'PREPARING', 'READY', 'DELIVERED']
 const unfinishedOrderStatuses = new Set(['NEW', 'PREPARING', 'READY'])
 const WAITER_POLL_INTERVAL_MS = 8000
 const CONNECTED_POLL_INTERVAL_MS = 30000
@@ -22,6 +23,10 @@ const WAITER_NOTIFICATION_EVENTS = new Set([
   'table_session_assigned',
   'table_session_closed',
 ])
+
+function emptyOrderStatusCounts() {
+  return Object.fromEntries(ACTIVE_WAITER_ORDER_STATUSES.map((status) => [status, 0]))
+}
 
 function formatMoney(value) {
   const amount = Number(value ?? 0)
@@ -89,7 +94,7 @@ function WaiterHeader({ connectionStatus, notificationCount, onNotifications }) 
   )
 }
 
-function WaiterProfileCard({ avatarInitial, shift, pending, error, onStart, onOpenProfile }) {
+function WaiterProfileCard({ avatarInitial, shift, pending, actionsLocked, error, onStart, onOpenProfile }) {
   const { language, t } = useLanguage()
   return (
     <section className={`waiter-profile-card ${shift ? 'is-online' : ''}`}>
@@ -110,7 +115,7 @@ function WaiterProfileCard({ avatarInitial, shift, pending, error, onStart, onOp
           <i><AppIcon name="chevron" /></i>
         </button>
       ) : (
-        <button className="waiter-start-shift" type="button" onClick={onStart} disabled={pending}>
+        <button className="waiter-start-shift" type="button" onClick={onStart} disabled={actionsLocked}>
           {pending ? <span className="waiter-action-spinner" /> : t('waiter.startShift')}
         </button>
       )}
@@ -183,18 +188,36 @@ function SessionFacts({ session }) {
   return (
     <div className="waiter-session-facts">
       <span>{t('waiter.opened')}<strong>{timeAgo(session.created_at, language, t)}</strong></span>
-      <span>{t('common.order')}<strong>{session.orders_count}</strong></span>
+      <span>{t('waiter.orders')}<strong>{session.orders_count}</strong></span>
       <span>{t('common.total')}<strong>{formatMoney(session.total_amount)}</strong></span>
     </div>
   )
 }
 
-function NewOrderCard({ session, compact = false, pending, error, onAccept, referenceTime }) {
+function OrderStatusBadges({ counts }) {
+  const { language, t } = useLanguage()
+  const visibleStatuses = ACTIVE_WAITER_ORDER_STATUSES.filter((status) => counts[status] > 0)
+
+  return (
+    <ul className="waiter-order-statuses" aria-label={t('waiter.orderStatuses')}>
+      {visibleStatuses.length === 0 ? (
+        <li className="is-clear"><span>{t('waiter.noOpenOrders')}</span></li>
+      ) : visibleStatuses.map((status) => (
+        <li className={`is-${status.toLowerCase()}`} key={status}>
+          <span>{getStatusLabel(status, language)}</span>
+          <b>{counts[status]}</b>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function NewOrderCard({ session, compact = false, pending, disabled, error, onAccept, referenceTime }) {
   const { language, t } = useLanguage()
   const ageMinutes = (referenceTime - new Date(session.created_at).getTime()) / 60000
   const highPriority = ageMinutes >= 5
   return (
-    <article className={`waiter-new-card ${compact ? 'is-compact' : ''}`}>
+    <article className={`waiter-new-card ${compact ? 'is-compact' : ''}`} aria-busy={pending}>
       <div className="waiter-priority-row">
         <span className={highPriority ? 'is-high' : ''}>
           {highPriority ? t('waiter.highPriority') : t('waiter.mediumPriority')}
@@ -203,78 +226,83 @@ function NewOrderCard({ session, compact = false, pending, error, onAccept, refe
       </div>
       <div className="waiter-new-card__main">
         <div>
-          <small>{t('waiter.newOrder')}</small>
+          <small>{t('waiter.sessionLabel', { number: session.id })}</small>
           <h3>{t('customer.tableLabel', { number: session.table.number })}</h3>
         </div>
-        <strong>{session.orders_count} {t('common.order')}</strong>
+        <strong>{t('waiter.orderCount', { count: session.orders_count })}</strong>
       </div>
       {!compact && <SessionFacts session={session} />}
       {compact && <p className="waiter-order-summary">{t('common.total')}: {formatMoney(session.total_amount)}</p>}
-      <button type="button" onClick={() => onAccept(session)} disabled={pending}>
-        {pending ? <span className="waiter-action-spinner" /> : t('waiter.accept')}
+      <button
+        type="button"
+        onClick={() => onAccept(session)}
+        disabled={disabled}
+        aria-label={`${t('waiter.acceptTable')}: ${t('customer.tableLabel', { number: session.table.number })}`}
+      >
+        {pending ? <span className="waiter-action-spinner" /> : t('waiter.acceptTable')}
       </button>
       {error && <p className="waiter-card-error" role="alert">{error}</p>}
     </article>
   )
 }
 
-function MyTableCard({ session, unfinishedCounts, pending, error, onClose }) {
+function MyTableCard({ session, orderCounts, compact = false, pending, disabled, error, onClose }) {
   const { t } = useLanguage()
-  const hasUnfinishedOrders = Object.values(unfinishedCounts).some((count) => count > 0)
+  const hasUnfinishedOrders = [...unfinishedOrderStatuses].some((status) => orderCounts[status] > 0)
 
   return (
-    <article className="waiter-my-table-card">
+    <article className={`waiter-my-table-card ${compact ? 'is-compact' : ''}`} aria-busy={pending}>
       <div className="waiter-list-card-heading">
-        <div><small>{t('waiter.myTable')}</small><h3>{t('customer.tableLabel', { number: session.table.number })}</h3></div>
+        <div><small>{t('waiter.sessionLabel', { number: session.id })}</small><h3>{t('customer.tableLabel', { number: session.table.number })}</h3></div>
         <span>{t('admin.active')}</span>
       </div>
       <SessionFacts session={session} />
-      {hasUnfinishedOrders && (
+      <OrderStatusBadges counts={orderCounts} />
+      {!compact && hasUnfinishedOrders && (
         <div className="waiter-table-warning" id={`table-warning-${session.id}`}>
           <strong>{t('waiter.cannotCloseTable')}</strong>
           <p>{t('waiter.unfinishedOrdersExist')}</p>
-          <ul>
-            {unfinishedCounts.NEW > 0 && <li className="is-new">{t('waiter.newCount', { count: unfinishedCounts.NEW })}</li>}
-            {unfinishedCounts.PREPARING > 0 && <li className="is-preparing">{t('waiter.preparingCount', { count: unfinishedCounts.PREPARING })}</li>}
-            {unfinishedCounts.READY > 0 && <li className="is-ready">{t('waiter.readyCount', { count: unfinishedCounts.READY })}</li>}
-          </ul>
           <small>{t('waiter.deliverReadyOrdersFirst')}</small>
         </div>
       )}
-      <button
-        className={hasUnfinishedOrders ? 'is-blocked' : ''}
-        type="button"
-        onClick={() => onClose(session)}
-        disabled={pending}
-        aria-describedby={hasUnfinishedOrders ? `table-warning-${session.id}` : undefined}
-      >
-        {pending ? <span className="waiter-dark-spinner" /> : t('waiter.closeTable')}
-      </button>
+      {!compact && (
+        <button
+          className={hasUnfinishedOrders ? 'is-blocked' : ''}
+          type="button"
+          onClick={() => onClose(session)}
+          disabled={disabled || hasUnfinishedOrders}
+          aria-describedby={hasUnfinishedOrders ? `table-warning-${session.id}` : undefined}
+        >
+          {pending ? <span className="waiter-dark-spinner" /> : t('waiter.closeTable')}
+        </button>
+      )}
       {error && <p className="waiter-card-error" role="alert">{error}</p>}
     </article>
   )
 }
 
-function WaiterCallCard({ waiterCall, compact = false, pending, error, onAction }) {
+function WaiterCallCard({ waiterCall, compact = false, pending, disabled, error, onAction }) {
   const { language, t } = useLanguage()
   const reasonKey = { WAITER_NEEDED: 'waiter.waiterNeeded', BILL_REQUEST: 'waiter.billRequest', EXTRA_ORDER: 'waiter.extraOrder', HELP_NEEDED: 'waiter.helpNeeded' }[waiterCall.reason]
-  const callStatus = waiterCall.status === 'NEW' ? getStatusLabel('NEW', language) : waiterCall.status === 'ACCEPTED' ? t('waiter.accepted') : t('waiter.completed')
+  const normalizedStatus = String(waiterCall.status || '').toUpperCase()
+  const statusClass = normalizedStatus.toLowerCase()
+  const callStatus = normalizedStatus === 'NEW' ? t('waiter.waiting') : normalizedStatus === 'ACCEPTED' ? t('waiter.accepted') : t('waiter.completed')
   return (
-    <article className={`waiter-call-row waiter-call-row--${waiterCall.status.toLowerCase()} ${compact ? 'is-compact' : ''}`}>
+    <article className={`waiter-call-row waiter-call-row--${statusClass} ${compact ? 'is-compact' : ''}`} aria-busy={pending}>
       <span className="waiter-call-row__icon" aria-hidden="true"><AppIcon name="bell" /></span>
       <div>
         <strong>{t('customer.tableLabel', { number: waiterCall.table_number })}</strong>
         <p>{reasonKey ? t(reasonKey) : t('waiter.call')}</p>
         <small>{timeAgo(waiterCall.created_at, language, t)}</small>
       </div>
-      <span className={`waiter-call-status waiter-call-status--${waiterCall.status.toLowerCase()}`}>
+      <span className={`waiter-call-status waiter-call-status--${statusClass}`} role="status">
         {callStatus}
       </span>
-      {waiterCall.status !== 'DONE' && (
-        <button type="button" onClick={() => onAction(waiterCall)} disabled={pending}>
+      {normalizedStatus !== 'DONE' && (
+        <button type="button" onClick={() => onAction(waiterCall)} disabled={disabled}>
           {pending
             ? <span className="waiter-orange-spinner" />
-            : waiterCall.status === 'NEW' ? t('waiter.go') : t('waiter.done')}
+            : normalizedStatus === 'NEW' ? t('waiter.acceptCall') : t('waiter.completeCall')}
         </button>
       )}
       {error && <p className="waiter-card-error" role="alert">{error}</p>}
@@ -283,26 +311,30 @@ function WaiterCallCard({ waiterCall, compact = false, pending, error, onAction 
 }
 
 function itemSummary(order, language) {
-  return order.items.slice(0, 2).map((item) => `${item.quantity}× ${getLocalizedField(item, 'name_at_order', language)}`).join(', ')
+  const items = Array.isArray(order.items) ? order.items : []
+  return items.slice(0, 2).map((item) => `${item.quantity}× ${getLocalizedField(item, 'name_at_order', language)}`).join(', ')
 }
 
-function ReadyOrderCard({ order, compact = false, pending, error, onDeliver }) {
+function ReadyOrderCard({ order, compact = false, pending, disabled, error, onDeliver }) {
   const { language, t } = useLanguage()
+  const items = Array.isArray(order.items) ? order.items : []
+  const itemCount = items.reduce((count, item) => count + Number(item.quantity || 0), 0)
   return (
-    <article className={`waiter-ready-row ${compact ? 'is-compact' : ''}`}>
+    <article className={`waiter-ready-row ${compact ? 'is-compact' : ''}`} aria-busy={pending}>
       <span className="waiter-ready-row__icon" aria-hidden="true"><AppIcon name="ready" /></span>
       <div className="waiter-ready-row__copy">
-        <div><strong>{t('customer.tableLabel', { number: order.table_number })}</strong><small>{order.order_number}</small></div>
+        <div><strong>{t('customer.tableLabel', { number: order.table_number })}</strong><small>№{order.order_number}</small></div>
         <p>{itemSummary(order, language)}</p>
         <div className="waiter-ready-row__meta">
           <time>{timeAgo(order.created_at, language, t)}</time>
-          <span>{t('waiter.readyMarker')}</span>
+          <span className="waiter-order-status-badge is-ready">{getStatusLabel(order.status, language)}</span>
+          <span>{t('waiter.itemCount', { count: itemCount })}</span>
           <strong>{formatMoney(order.total_amount)}</strong>
         </div>
       </div>
       {!compact && (
         <ul>
-          {order.items.map((item) => (
+          {items.map((item) => (
             <li key={item.id}>
               <span><b>{item.quantity}×</b> {getLocalizedField(item, 'name_at_order', language)}</span>
               {item.comment && <small>{t('common.comments')}: {item.comment}</small>}
@@ -310,7 +342,7 @@ function ReadyOrderCard({ order, compact = false, pending, error, onDeliver }) {
           ))}
         </ul>
       )}
-      <button type="button" onClick={() => onDeliver(order)} disabled={pending}>
+      <button type="button" onClick={() => onDeliver(order)} disabled={disabled}>
         {pending ? <span className="waiter-action-spinner" /> : t('waiter.deliverOrder')}
       </button>
       {error && <p className="waiter-card-error" role="alert">{error}</p>}
@@ -318,19 +350,19 @@ function ReadyOrderCard({ order, compact = false, pending, error, onDeliver }) {
   )
 }
 
-function FullListView({ title, count, emptyText, children }) {
+function FullListView({ title, count, emptyText, emptyHelp, children }) {
   const { t } = useLanguage()
   return (
     <section className="waiter-full-view">
       <header><div><small>{t('waiter.dashboard')}</small><h1>{title}</h1></div><span>{count}</span></header>
       {count === 0
-        ? <div className="waiter-full-empty"><span aria-hidden="true">✓</span><p>{emptyText}</p></div>
+        ? <div className="waiter-full-empty"><span aria-hidden="true">✓</span><strong>{emptyText}</strong><p>{emptyHelp}</p></div>
         : <div className="waiter-full-list">{children}</div>}
     </section>
   )
 }
 
-function ProfilePanel({ avatarInitial, shift, refreshing, pending, error, onRefresh, onStart, onEnd, onViewProfile, onLogout }) {
+function ProfilePanel({ avatarInitial, shift, refreshing, pending, actionsLocked, error, onRefresh, onStart, onEnd, onViewProfile, onLogout }) {
   const { language, t } = useLanguage()
   return (
     <section className="waiter-profile-panel">
@@ -344,10 +376,10 @@ function ProfilePanel({ avatarInitial, shift, refreshing, pending, error, onRefr
       </div>
       <div className="waiter-profile-actions">
         <button type="button" onClick={onViewProfile}>{t('waiterProfile.myProfile')}</button>
-        <button className={shift ? 'is-end-shift' : 'is-primary'} type="button" onClick={shift ? onEnd : onStart} disabled={pending}>
+        <button className={shift ? 'is-end-shift' : 'is-primary'} type="button" onClick={shift ? onEnd : onStart} disabled={actionsLocked}>
           {pending ? <span className="waiter-action-spinner" /> : shift ? t('waiter.endShift') : t('waiter.startShift')}
         </button>
-        <button type="button" onClick={onRefresh} disabled={refreshing}><AppIcon name="refresh" />{t('waiter.refreshData')}</button>
+        <button type="button" onClick={onRefresh} disabled={refreshing || actionsLocked}><AppIcon name="refresh" />{t('waiter.refreshData')}</button>
         <button className="is-danger" type="button" onClick={onLogout}><AppIcon name="logout" />{t('waiter.systemLogout')}</button>
       </div>
       {error && <p className="waiter-card-error" role="alert">{error}</p>}
@@ -358,6 +390,8 @@ function ProfilePanel({ avatarInitial, shift, refreshing, pending, error, onRefr
 function WaiterDashboardPage() {
   const navigate = useNavigate()
   const { language, t } = useLanguage()
+  const dashboardLoadInFlightRef = useRef(null)
+  const pendingActionRef = useRef('')
   const [shift, setShift] = useState(null)
   const [availableSessions, setAvailableSessions] = useState([])
   const [mySessions, setMySessions] = useState([])
@@ -388,38 +422,55 @@ function WaiterDashboardPage() {
     return true
   }, [logout, t])
 
-  const loadDashboard = useCallback(async () => {
-    try {
-      const shiftResponse = await waiterApiClient.get('/api/waiter/shifts/current/')
-      const currentShift = shiftResponse.data
-      setLastUpdatedAt(Date.now())
-      setShift(currentShift)
-      if (!currentShift) {
-        setAvailableSessions([])
-        setMySessions([])
-        setWaiterCalls([])
-        setOrders([])
-        setError('')
-        return
-      }
+  const loadDashboard = useCallback(async ({ refreshAfterCurrent = false } = {}) => {
+    if (dashboardLoadInFlightRef.current) {
+      if (!refreshAfterCurrent) return dashboardLoadInFlightRef.current
+      await dashboardLoadInFlightRef.current
+    }
 
-      const [availableResponse, mineResponse, callsResponse, ordersResponse] = await Promise.all([
-        waiterApiClient.get('/api/waiter/table-sessions/available/'),
-        waiterApiClient.get('/api/waiter/table-sessions/my/'),
-        waiterApiClient.get('/api/waiter/calls/'),
-        waiterApiClient.get('/api/waiter/orders/'),
-      ])
-      setAvailableSessions(availableResponse.data)
-      setMySessions(mineResponse.data)
-      setWaiterCalls(callsResponse.data)
-      setOrders(ordersResponse.data)
-      setError('')
-    } catch (requestError) {
-      if (handleUnauthorized(requestError)) return
-      setError(getBackendErrorMessage(requestError, language))
+    const loadPromise = (async () => {
+      try {
+        const shiftResponse = await waiterApiClient.get('/api/waiter/shifts/current/')
+        const currentShift = shiftResponse.data
+        setShift(currentShift)
+        if (!currentShift) {
+          setAvailableSessions([])
+          setMySessions([])
+          setWaiterCalls([])
+          setOrders([])
+          setLastUpdatedAt(Date.now())
+          setError('')
+          return
+        }
+
+        const [availableResponse, mineResponse, callsResponse, ordersResponse] = await Promise.all([
+          waiterApiClient.get('/api/waiter/table-sessions/available/'),
+          waiterApiClient.get('/api/waiter/table-sessions/my/'),
+          waiterApiClient.get('/api/waiter/calls/'),
+          waiterApiClient.get('/api/waiter/orders/'),
+        ])
+        setAvailableSessions(availableResponse.data)
+        setMySessions(mineResponse.data)
+        setWaiterCalls(callsResponse.data)
+        setOrders(ordersResponse.data)
+        setLastUpdatedAt(Date.now())
+        setError('')
+      } catch (requestError) {
+        if (handleUnauthorized(requestError)) return
+        setError(getBackendErrorMessage(requestError, language))
+      } finally {
+        setLoading(false)
+        setRefreshing(false)
+      }
+    })()
+
+    dashboardLoadInFlightRef.current = loadPromise
+    try {
+      return await loadPromise
     } finally {
-      setLoading(false)
-      setRefreshing(false)
+      if (dashboardLoadInFlightRef.current === loadPromise) {
+        dashboardLoadInFlightRef.current = null
+      }
     }
   }, [handleUnauthorized, language])
 
@@ -457,13 +508,13 @@ function WaiterDashboardPage() {
   }, [handleUnauthorized, language])
 
   const readyOrders = useMemo(() => orders.filter((order) => order.status === 'READY'), [orders])
-  const unfinishedCountsBySession = useMemo(() => {
+  const orderCountsBySession = useMemo(() => {
     const countsBySession = new Map()
 
     orders.forEach((order) => {
-      if (!unfinishedOrderStatuses.has(order.status)) return
+      if (!ACTIVE_WAITER_ORDER_STATUSES.includes(order.status)) return
       const sessionId = Number(order.table_session)
-      const counts = countsBySession.get(sessionId) || { NEW: 0, PREPARING: 0, READY: 0 }
+      const counts = countsBySession.get(sessionId) || emptyOrderStatusCounts()
       counts[order.status] += 1
       countsBySession.set(sessionId, counts)
     })
@@ -477,19 +528,24 @@ function WaiterDashboardPage() {
     ready: readyOrders.length,
   }
   const avatarInitial = getAvatarInitial(waiterProfile?.first_name, waiterProfile?.username)
+  const actionsLocked = Boolean(pendingAction)
 
   async function runAction(key, request, fallbackError) {
+    if (pendingActionRef.current) return
+
+    pendingActionRef.current = key
     setPendingAction(key)
     setActionError(null)
     try {
       await request()
-      await loadDashboard()
+      await loadDashboard({ refreshAfterCurrent: true })
     } catch (requestError) {
       if (handleUnauthorized(requestError)) return
       const backendMessage = getBackendErrorMessage(requestError, language)
       setActionError({ key, message: requestError.response?.data ? backendMessage : fallbackError })
     } finally {
-      setPendingAction('')
+      if (pendingActionRef.current === key) pendingActionRef.current = ''
+      setPendingAction((current) => current === key ? '' : current)
     }
   }
 
@@ -537,13 +593,16 @@ function WaiterDashboardPage() {
   }
 
   const newCards = (compact = false, limit) => availableSessions.slice(0, limit).map((session) => (
-    <NewOrderCard session={session} compact={compact} pending={pendingAction === `session-${session.id}`} error={cardError(`session-${session.id}`)} onAccept={acceptSession} referenceTime={lastUpdatedAt} key={session.id} />
+    <NewOrderCard session={session} compact={compact} pending={pendingAction === `session-${session.id}`} disabled={actionsLocked} error={cardError(`session-${session.id}`)} onAccept={acceptSession} referenceTime={lastUpdatedAt} key={session.id} />
+  ))
+  const tableCards = (compact = false, limit) => mySessions.slice(0, limit).map((session) => (
+    <MyTableCard session={session} orderCounts={orderCountsBySession.get(Number(session.id)) || emptyOrderStatusCounts()} compact={compact} pending={pendingAction === `session-${session.id}`} disabled={actionsLocked} error={cardError(`session-${session.id}`)} onClose={closeSession} key={session.id} />
   ))
   const callCards = (compact = false, limit) => waiterCalls.slice(0, limit).map((waiterCall) => (
-    <WaiterCallCard waiterCall={waiterCall} compact={compact} pending={pendingAction === `call-${waiterCall.id}`} error={cardError(`call-${waiterCall.id}`)} onAction={actOnCall} key={waiterCall.id} />
+    <WaiterCallCard waiterCall={waiterCall} compact={compact} pending={pendingAction === `call-${waiterCall.id}`} disabled={actionsLocked} error={cardError(`call-${waiterCall.id}`)} onAction={actOnCall} key={waiterCall.id} />
   ))
   const readyCards = (compact = false, limit) => readyOrders.slice(0, limit).map((order) => (
-    <ReadyOrderCard order={order} compact={compact} pending={pendingAction === `order-${order.id}`} error={cardError(`order-${order.id}`)} onDeliver={deliverOrder} key={order.id} />
+    <ReadyOrderCard order={order} compact={compact} pending={pendingAction === `order-${order.id}`} disabled={actionsLocked} error={cardError(`order-${order.id}`)} onDeliver={deliverOrder} key={order.id} />
   ))
 
   return (
@@ -558,14 +617,22 @@ function WaiterDashboardPage() {
           </div>
         )}
         {activeView !== 'profile' && (
-          <WaiterProfileCard avatarInitial={avatarInitial} shift={shift} pending={pendingAction === 'shift'} error={cardError('shift')} onStart={startShift} onOpenProfile={() => navigateView('profile')} />
+          <WaiterProfileCard avatarInitial={avatarInitial} shift={shift} pending={pendingAction === 'shift'} actionsLocked={actionsLocked} error={cardError('shift')} onStart={startShift} onOpenProfile={() => navigateView('profile')} />
         )}
         {!shift && activeView !== 'profile' && <p className="waiter-shift-warning">{t('waiter.startToAccept')}</p>}
+        {shift && activeView !== 'profile' && lastUpdatedAt > 0 && (
+          <p className="waiter-dashboard-refreshed" role="status" aria-live="polite">
+            {t('waiter.refreshedAt', { time: formatDateTime(lastUpdatedAt, language) })}
+          </p>
+        )}
 
         {activeView === 'overview' && (
           <div className="waiter-overview-grid">
-            <OverviewSection icon="orders" tone="info" title={t('waiter.newOrders')} count={counts.available} onViewAll={() => navigateView('new')} emptyText={t('waiter.noInformation')}>
+            <OverviewSection icon="orders" tone="info" title={t('waiter.newOrders')} count={counts.available} onViewAll={() => navigateView('new')} emptyText={t('waiter.noNewOrders')}>
               {newCards(true, 3)}
+            </OverviewSection>
+            <OverviewSection icon="tables" tone="tables" title={t('waiter.myTables')} count={counts.tables} onViewAll={() => navigateView('tables')} emptyText={t('waiter.noAssignedTables')}>
+              {tableCards(true, 2)}
             </OverviewSection>
             <OverviewSection icon="bell" tone="orange" title={t('waiter.calls')} count={counts.calls} onViewAll={() => navigateView('calls')} emptyText={t('waiter.noNewCalls')}>
               {callCards(true, 2)}
@@ -576,24 +643,15 @@ function WaiterDashboardPage() {
           </div>
         )}
 
-        {activeView === 'new' && <FullListView title={t('waiter.newOrders')} count={counts.available} emptyText={t('waiter.noInformation')}>{newCards()}</FullListView>}
+        {activeView === 'new' && <FullListView title={t('waiter.newOrders')} count={counts.available} emptyText={t('waiter.noNewOrders')} emptyHelp={t('waiter.noNewOrdersHelp')}>{newCards()}</FullListView>}
         {activeView === 'tables' && (
-          <FullListView title={t('waiter.myTables')} count={counts.tables} emptyText={t('waiter.noTables')}>
-            {mySessions.map((session) => (
-              <MyTableCard
-                session={session}
-                unfinishedCounts={unfinishedCountsBySession.get(Number(session.id)) || { NEW: 0, PREPARING: 0, READY: 0 }}
-                pending={pendingAction === `session-${session.id}`}
-                error={cardError(`session-${session.id}`)}
-                onClose={closeSession}
-                key={session.id}
-              />
-            ))}
+          <FullListView title={t('waiter.myTables')} count={counts.tables} emptyText={t('waiter.noAssignedTables')} emptyHelp={t('waiter.noAssignedTablesHelp')}>
+            {tableCards()}
           </FullListView>
         )}
-        {activeView === 'calls' && <FullListView title={t('waiter.calls')} count={counts.calls} emptyText={t('waiter.noNewCalls')}>{callCards()}</FullListView>}
-        {activeView === 'ready' && <FullListView title={t('waiter.readyOrders')} count={counts.ready} emptyText={t('waiter.noReadyOrders')}>{readyCards()}</FullListView>}
-        {activeView === 'profile' && <ProfilePanel avatarInitial={avatarInitial} shift={shift} refreshing={refreshing} pending={pendingAction === 'shift'} error={cardError('shift')} onRefresh={refreshManually} onStart={startShift} onEnd={endShift} onViewProfile={() => navigate('/waiter/profile')} onLogout={logout} />}
+        {activeView === 'calls' && <FullListView title={t('waiter.calls')} count={counts.calls} emptyText={t('waiter.noNewCalls')} emptyHelp={t('waiter.noCallsHelp')}>{callCards()}</FullListView>}
+        {activeView === 'ready' && <FullListView title={t('waiter.readyOrders')} count={counts.ready} emptyText={t('waiter.noReadyOrders')} emptyHelp={t('waiter.noReadyOrdersHelp')}>{readyCards()}</FullListView>}
+        {activeView === 'profile' && <ProfilePanel avatarInitial={avatarInitial} shift={shift} refreshing={refreshing} pending={pendingAction === 'shift'} actionsLocked={actionsLocked} error={cardError('shift')} onRefresh={refreshManually} onStart={startShift} onEnd={endShift} onViewProfile={() => navigate('/waiter/profile')} onLogout={logout} />}
       </div>
       <WaiterBottomNav activeView={activeView} counts={counts} onChange={navigateView} />
     </main>

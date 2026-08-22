@@ -362,3 +362,29 @@ Object.assign(translations.ru.customer, {
   updatingCart: 'Корзина обновляется...',
   viewMyOrders: 'Посмотреть мои заказы',
 })
+
+Object.assign(translations.ky.waiter, {
+  orderStatuses: 'Заказдардын абалы',
+  noOpenOrders: 'Ачык заказдар жок',
+  sessionLabel: 'Сессия №{number}',
+  orderCount: 'Заказ: {count}',
+  itemCount: 'Позиция: {count}',
+  noAssignedTables: 'Сизге дайындалган столдор жок',
+  noNewOrdersHelp: 'Жаңы заказ түшкөндө бул жерде автоматтык түрдө көрүнөт.',
+  noAssignedTablesHelp: 'Кабыл алган столдоруңуз ушул жерде көрүнөт.',
+  noCallsHelp: 'Кардар чакырганда билдирүү ушул жерде пайда болот.',
+  noReadyOrdersHelp: 'Ашкана заказды даярдаганда жеткирүү үчүн ушул жерде көрүнөт.',
+})
+
+Object.assign(translations.ru.waiter, {
+  orderStatuses: 'Статусы заказов',
+  noOpenOrders: 'Открытых заказов нет',
+  sessionLabel: 'Сессия №{number}',
+  orderCount: 'Заказов: {count}',
+  itemCount: 'Позиций: {count}',
+  noAssignedTables: 'Нет назначенных вам столов',
+  noNewOrdersHelp: 'Новый заказ автоматически появится здесь после оформления.',
+  noAssignedTablesHelp: 'Принятые вами столы будут отображаться здесь.',
+  noCallsHelp: 'Когда клиент позовёт официанта, вызов появится здесь.',
+  noReadyOrdersHelp: 'Готовые на кухне заказы появятся здесь для доставки.',
+})
