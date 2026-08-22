@@ -3006,9 +3006,9 @@ body:has(.customer-orders-page) {
 }
 
 .kitchen-header__actions .language-switch {
-  width: 92px;
-  height: 36px;
-  flex: 0 0 92px;
+  width: 104px;
+  height: 44px;
+  flex: 0 0 104px;
   gap: 2px;
   padding: 2px;
   border-radius: 11px;
@@ -3018,8 +3018,8 @@ body:has(.customer-orders-page) {
 .kitchen-header__actions .language-switch button {
   width: auto;
   min-width: 0;
-  min-height: 30px;
-  height: 30px;
+  min-height: 40px;
+  height: 40px;
   flex: 1 1 0;
   gap: 0;
   padding: 0 6px;
@@ -3046,6 +3046,99 @@ body:has(.customer-orders-page) {
   margin-top: 18px;
 }
 
+.kitchen-queue-summary {
+  min-height: 66px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 18px;
+  padding: 12px 15px;
+  border: 1px solid var(--info-border);
+  border-radius: 17px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.kitchen-queue-summary > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.kitchen-queue-summary > div strong {
+  color: var(--text-heading);
+  font-size: 0.9rem;
+}
+
+.kitchen-queue-summary > div small {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.kitchen-queue-summary.is-clear {
+  border-color: var(--success-border);
+  background: var(--success-bg);
+}
+
+.kitchen-queue-summary.is-clear > div strong {
+  color: var(--success-dark);
+}
+
+.kitchen-queue-summary ul {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.kitchen-queue-summary li {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 9px;
+  border: 1px solid var(--info-border);
+  border-radius: 11px;
+  color: var(--info-dark);
+  background: var(--info-bg);
+  font-size: 0.68rem;
+  font-weight: 850;
+}
+
+.kitchen-queue-summary li::before {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+}
+
+.kitchen-queue-summary li b {
+  min-width: 22px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  color: inherit;
+  background: var(--surface);
+  text-align: center;
+}
+
+.kitchen-queue-summary li.is-preparing {
+  border-color: var(--warning-border);
+  color: var(--warning-dark);
+  background: var(--warning-bg);
+}
+
+.kitchen-queue-summary li.is-ready {
+  border-color: var(--success-border);
+  color: var(--success-dark);
+  background: var(--success-bg);
+}
+
 .kitchen-board {
   min-height: 0;
   flex: 1 1 auto;
@@ -3053,7 +3146,7 @@ body:has(.customer-orders-page) {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: stretch;
   gap: 18px;
-  margin-top: 22px;
+  margin-top: 16px;
   overflow: hidden;
 }
 
@@ -3212,7 +3305,8 @@ body:has(.customer-orders-page) {
   display: grid;
   place-items: center;
   align-content: center;
-  gap: 10px;
+  gap: 7px;
+  padding: 24px 18px;
   border: 1px dashed var(--border-strong);
   border-radius: 17px;
   color: var(--text-muted);
@@ -3230,10 +3324,19 @@ body:has(.customer-orders-page) {
   font-weight: 900;
 }
 
+.kitchen-empty-state strong {
+  color: var(--text-heading);
+  font-size: 0.86rem;
+  text-align: center;
+}
+
 .kitchen-empty-state p {
+  max-width: 280px;
   margin: 0;
-  font-size: 0.82rem;
-  font-weight: 750;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  text-align: center;
 }
 
 .kitchen-order-card {
@@ -3281,15 +3384,16 @@ body:has(.customer-orders-page) {
 .kitchen-order-card__top > div span {
   overflow: hidden;
   color: var(--text-secondary);
-  font-size: 0.78rem;
-  font-weight: 750;
+  font-size: 0.75rem;
+  font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .kitchen-status {
   flex: 0 0 auto;
-  padding: 6px 9px;
+  min-height: 30px;
+  padding: 6px 10px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
@@ -3331,24 +3435,32 @@ body:has(.customer-orders-page) {
 .kitchen-order-meta {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 1px;
+  overflow: hidden;
   margin: 0 16px;
-  padding: 10px 0;
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--border);
 }
 
 .kitchen-order-meta span {
   display: flex;
+  min-width: 0;
   flex-direction: column;
   gap: 3px;
+  padding: 9px 8px;
   color: var(--text-muted);
+  background: var(--surface-secondary);
   font-size: 0.66rem;
 }
 
 .kitchen-order-meta strong {
+  overflow: hidden;
   color: var(--text-primary);
   font-size: 0.83rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .kitchen-order-comment {
@@ -3360,6 +3472,10 @@ body:has(.customer-orders-page) {
   background: var(--warning-bg);
   font-size: 0.79rem;
   font-weight: 750;
+}
+
+.kitchen-order-comment b {
+  color: var(--text-primary);
 }
 
 .kitchen-order-items {
@@ -3390,6 +3506,14 @@ body:has(.customer-orders-page) {
   font-size: 1rem;
 }
 
+.kitchen-order-items li > div > b {
+  min-height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--primary-light);
+}
+
 .kitchen-order-items li strong {
   color: var(--text-primary);
   font-size: 0.94rem;
@@ -3405,6 +3529,11 @@ body:has(.customer-orders-page) {
   background: var(--warning-bg);
   font-size: 0.72rem;
   font-weight: 700;
+}
+
+.kitchen-order-items li p b {
+  color: var(--warning-dark);
+  font-size: inherit;
 }
 
 .kitchen-order-action,
@@ -3425,6 +3554,11 @@ body:has(.customer-orders-page) {
   background: var(--warning-bg);
   box-shadow: var(--shadow-sm);
   cursor: pointer;
+}
+
+.kitchen-order-action:disabled {
+  cursor: wait;
+  opacity: 0.62;
 }
 
 .kitchen-order-card--new .kitchen-action-spinner {
@@ -3529,6 +3663,31 @@ body:has(.customer-orders-page) {
   .kitchen-header__actions .language-switch button {
     width: auto;
     padding: 0 6px;
+  }
+
+  .kitchen-queue-summary {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+    padding: 13px;
+  }
+
+  .kitchen-queue-summary ul {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .kitchen-queue-summary li {
+    min-width: 0;
+    justify-content: space-between;
+    padding-right: 7px;
+    padding-left: 7px;
+  }
+
+  .kitchen-queue-summary li span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .kitchen-board {
@@ -4228,6 +4387,10 @@ body:has(.customer-orders-page) {
   .kitchen-order-items {
     padding-right: 13px;
     padding-left: 13px;
+  }
+
+  .kitchen-order-items li p {
+    margin-left: 0;
   }
 }
 
