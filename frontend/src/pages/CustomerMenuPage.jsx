@@ -481,40 +481,69 @@ function CartPanel({ cart, itemCount, onOpenCart, onCheckout }) {
   )
 }
 
-const ORDER_PROGRESS_STAGES = ['NEW', 'PREPARING', 'READY', 'DELIVERED']
+const ORDER_PROGRESS_STAGES = ['NEW', 'PREPARING', 'READY', 'DELIVERED', 'COMPLETED']
+const TERMINAL_ORDER_STATUSES = new Set(['COMPLETED', 'CANCELLED'])
+
+function formatCustomerOrderTime(value, language) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return new Intl.DateTimeFormat(language === 'ru' ? 'ru-RU' : 'ky-KG', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+}
 
 function OrderProgress({ status }) {
   const { t } = useLanguage()
   const normalizedStatus = String(status || '').toUpperCase()
-  const completed = normalizedStatus === 'COMPLETED'
   const cancelled = normalizedStatus === 'CANCELLED'
-  const currentIndex = completed
-    ? ORDER_PROGRESS_STAGES.length
-    : ORDER_PROGRESS_STAGES.indexOf(normalizedStatus)
-  const progressPercent = !cancelled && currentIndex >= 0
-    ? (Math.min(currentIndex, ORDER_PROGRESS_STAGES.length - 1)
-      / (ORDER_PROGRESS_STAGES.length - 1)) * 100
+  const currentIndex = ORDER_PROGRESS_STAGES.indexOf(normalizedStatus)
+  const progressPercent = currentIndex >= 0
+    ? (currentIndex / (ORDER_PROGRESS_STAGES.length - 1)) * 100
     : 0
   const labels = {
     NEW: t('customer.orderStageNew'),
     PREPARING: t('customer.orderStagePreparing'),
     READY: t('customer.orderStageReady'),
     DELIVERED: t('customer.orderStageDelivered'),
+    COMPLETED: t('customer.orderStageCompleted'),
   }
 
+  if (cancelled) {
+    return (
+      <div className="customer-status-progress is-cancelled">
+        <div className="customer-status-cancelled" role="status">
+          <span aria-hidden="true">×</span>
+          <div>
+            <strong>{t('customer.orderStageCancelled')}</strong>
+            <p>{t('customer.cancelledOrderHelp')}</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (currentIndex < 0) return null
+
   return (
-    <div className={`customer-status-progress ${cancelled ? 'is-cancelled' : ''}`}>
+    <div className="customer-status-progress">
       <div className="customer-status-visual">
         <div className="customer-status-track" aria-hidden="true">
           <span
             className="customer-status-track-fill"
-            style={{ width: `${progressPercent}%` }}
+            style={{ '--customer-order-progress': `${progressPercent}%` }}
           />
         </div>
-        <ol className="customer-status-steps" aria-label={t('customer.orderProgress')}>
+        <ol
+          className="customer-status-steps"
+          aria-label={`${t('customer.orderProgress')}: ${labels[normalizedStatus]}`}
+        >
           {ORDER_PROGRESS_STAGES.map((stage, index) => {
-            const isDone = !cancelled && index < currentIndex
-            const isCurrent = !cancelled && index === currentIndex
+            const isDone = index < currentIndex
+            const isCurrent = index === currentIndex
             return (
               <li
                 className={`customer-status-step ${isDone ? 'is-done' : ''} ${isCurrent ? 'is-current' : ''}`.trim()}
@@ -528,12 +557,11 @@ function OrderProgress({ status }) {
           })}
         </ol>
       </div>
-      {cancelled && <p>{t('customer.cancelledOrderHelp')}</p>}
     </div>
   )
 }
 
-export function OrderHistory({ orders, tableNumber, onBackToMenu }) {
+function CustomerOrderCard({ order, tableNumber }) {
   const { language, t } = useLanguage()
   const customerStatusLabels = {
     NEW: t('customer.orderStageNew'),
@@ -543,6 +571,82 @@ export function OrderHistory({ orders, tableNumber, onBackToMenu }) {
     COMPLETED: t('customer.orderStageCompleted'),
     CANCELLED: t('customer.orderStageCancelled'),
   }
+  const normalizedStatus = String(order.status || '').toUpperCase()
+  const statusLabel = customerStatusLabels[normalizedStatus]
+    || getStatusLabel(normalizedStatus, language)
+  const statusClass = normalizedStatus.toLowerCase() || 'unknown'
+  const createdAt = formatCustomerOrderTime(order.created_at, language)
+  const items = Array.isArray(order.items) ? order.items : []
+
+  return (
+    <article className="order-card">
+      <div className="order-card__heading">
+        <div>
+          <p>{t('customer.orderNumber')}</p>
+          <h3>№{order.order_number}</h3>
+          <div className="order-card__meta">
+            {tableNumber !== null && tableNumber !== undefined && (
+              <span>{t('customer.tableLabel', { number: tableNumber })}</span>
+            )}
+            {createdAt && <span>{t('customer.orderedAt', { time: createdAt })}</span>}
+          </div>
+        </div>
+        <span
+          className={`status-badge status-badge--${statusClass}`}
+          role="status"
+          aria-label={`${t('customer.orderStatus')}: ${statusLabel}`}
+        >
+          {statusLabel}
+        </span>
+      </div>
+
+      <OrderProgress status={normalizedStatus} />
+
+      <div className="order-card__content">
+        <section className="order-card__items">
+          <h4>{t('customer.orderComposition')}</h4>
+          <ul>
+            {items.map((item) => (
+              <li key={item.id}>
+                <span>
+                  <b>{item.quantity}×</b>
+                  {getLocalizedField(item, 'name_at_order', language)}
+                </span>
+                <strong>{money(item.total_price)}</strong>
+                {item.comment && (
+                  <small>{t('customer.kitchenNote')}: {item.comment}</small>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+        <div className="order-card__total">
+          <span>{t('common.total')}</span>
+          <strong>{money(order.total_amount)}</strong>
+        </div>
+      </div>
+    </article>
+  )
+}
+
+export function OrderHistory({ orders, tableNumber, onBackToMenu }) {
+  const { t } = useLanguage()
+  const orderList = Array.isArray(orders?.orders) ? orders.orders : []
+  const activeOrders = orderList.filter(
+    (order) => !TERMINAL_ORDER_STATUSES.has(String(order.status || '').toUpperCase()),
+  )
+  const pastOrders = orderList.filter(
+    (order) => TERMINAL_ORDER_STATUSES.has(String(order.status || '').toUpperCase()),
+  )
+
+  const renderOrders = (items) => (
+    <div className="orders-list">
+      {items.map((order) => (
+        <CustomerOrderCard order={order} tableNumber={tableNumber} key={order.id} />
+      ))}
+    </div>
+  )
+
   return (
     <section
       className="orders-section"
@@ -552,65 +656,41 @@ export function OrderHistory({ orders, tableNumber, onBackToMenu }) {
     >
       <div className="orders-heading">
         <div>
-          <p>{t('customer.orderHistory')}</p>
-          <h2 id="orders-title">{t('customer.myOrders')}</h2>
+          <p>{t('customer.orderTracking')}</p>
+          <h2 id="orders-title">{t('customer.activeOrders')}</h2>
         </div>
-        {orders.orders.length > 0 && <span>{orders.orders.length}</span>}
+        {activeOrders.length > 0 && <span>{activeOrders.length}</span>}
       </div>
-      {orders.orders.length === 0 ? (
+      {activeOrders.length === 0 ? (
         <div className="orders-empty-state">
           <span aria-hidden="true"><OrdersIcon /></span>
-          <strong>{t('customer.emptyOrders')}</strong>
-          <p>{t('customer.emptyOrdersHelp')}</p>
+          <strong>
+            {orderList.length === 0 ? t('customer.emptyOrders') : t('customer.noActiveOrders')}
+          </strong>
+          <p>
+            {orderList.length === 0
+              ? t('customer.emptyOrdersHelp')
+              : t('customer.noActiveOrdersHelp')}
+          </p>
           {onBackToMenu && (
             <button type="button" onClick={onBackToMenu}>{t('customer.backToMenu')}</button>
           )}
         </div>
       ) : (
-        <div className="orders-list">
-          {orders.orders.map((order) => (
-            <article className="order-card" key={order.id}>
-              <div className="order-card__heading">
-                <div>
-                  <p>{t('customer.orderNumber')}</p>
-                  <h3>№{order.order_number}</h3>
-                  {tableNumber !== null && tableNumber !== undefined && (
-                    <small>{t('customer.tableLabel', { number: tableNumber })}</small>
-                  )}
-                </div>
-                <span className={`status-badge status-badge--${order.status.toLowerCase()}`}>
-                  {customerStatusLabels[order.status] || getStatusLabel(order.status, language)}
-                </span>
-              </div>
+        renderOrders(activeOrders)
+      )}
 
-              <OrderProgress status={order.status} />
-
-              <div className="order-card__content">
-                <section className="order-card__items">
-                  <h4>{t('customer.orderComposition')}</h4>
-                  <ul>
-                    {order.items.map((item) => (
-                      <li key={item.id}>
-                        <span>
-                          <b>{item.quantity}×</b>
-                          {getLocalizedField(item, 'name_at_order', language)}
-                        </span>
-                        <strong>{money(item.total_price)}</strong>
-                        {item.comment && (
-                          <small>{t('customer.kitchenNote')}: {item.comment}</small>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-                <div className="order-card__total">
-                  <span>{t('common.total')}</span>
-                  <strong>{money(order.total_amount)}</strong>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
+      {pastOrders.length > 0 && (
+        <section className="customer-orders-past" aria-labelledby="past-orders-title">
+          <div className="orders-heading">
+            <div>
+              <p>{t('customer.orderHistory')}</p>
+              <h2 id="past-orders-title">{t('customer.pastOrders')}</h2>
+            </div>
+            <span>{pastOrders.length}</span>
+          </div>
+          {renderOrders(pastOrders)}
+        </section>
       )}
     </section>
   )

@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import apiClient from '../api/client.js'
+import ConnectionStatus from '../components/ConnectionStatus.jsx'
 import { CustomerHeader, OrderHistory, WaiterCallSheet } from './CustomerMenuPage.jsx'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getBackendErrorMessage } from '../i18n/index.js'
 
 const emptyOrders = { orders: [], total_amount: '0.00' }
 const CUSTOMER_REQUEST_CONFIG = { timeout: 15000 }
+const CUSTOMER_ORDERS_POLL_INTERVAL_MS = 8000
 
 function CustomerOrdersPage() {
   const { qrToken } = useParams()
@@ -57,6 +59,38 @@ function CustomerOrdersPage() {
       active = false
     }
   }, [basePath, loadRevision])
+
+  useEffect(() => {
+    if (loading || loadFailed) return undefined
+
+    let active = true
+    let requestInFlight = false
+
+    async function refreshOrders() {
+      if (requestInFlight) return
+      requestInFlight = true
+
+      try {
+        const response = await apiClient.get(`${basePath}/orders/`, CUSTOMER_REQUEST_CONFIG)
+        if (active) {
+          setOrders({
+            ...response.data,
+            orders: Array.isArray(response.data?.orders) ? response.data.orders : [],
+          })
+        }
+      } catch {
+        // Preserve the last successful result; the next poll will retry quietly.
+      } finally {
+        requestInFlight = false
+      }
+    }
+
+    const pollTimer = window.setInterval(refreshOrders, CUSTOMER_ORDERS_POLL_INTERVAL_MS)
+    return () => {
+      active = false
+      window.clearInterval(pollTimer)
+    }
+  }, [basePath, loadFailed, loading])
 
   useEffect(() => {
     if (!waiterSheetOpen) return undefined
@@ -121,6 +155,12 @@ function CustomerOrdersPage() {
           <span aria-hidden="true">♧</span> {t('customer.callWaiter')}
         </button>
       </div>
+
+      {!loading && !loadFailed && (
+        <div className="customer-orders-update-status">
+          <ConnectionStatus status="disconnected" />
+        </div>
+      )}
 
       {message.text && (
         <div className={`notice notice--${message.type}`} role={message.type === 'error' ? 'alert' : 'status'}>

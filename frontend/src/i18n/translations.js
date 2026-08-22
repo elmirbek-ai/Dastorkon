@@ -279,6 +279,11 @@ Object.assign(translations.ky.customer, {
   cancelledOrderHelp: 'Бул заказ жокко чыгарылган. Сурооңуз болсо официантты чакырыңыз.',
   emptyOrdersHelp: 'Менюдан тамак тандап, биринчи заказыңызды бериңиз.',
   orderNumber: 'Заказ номери',
+  activeOrders: 'Активдүү заказдар',
+  pastOrders: 'Мурунку заказдар',
+  noActiveOrders: 'Активдүү заказдар жок',
+  noActiveOrdersHelp: 'Жаңы заказ берүү үчүн менюга кайтыңыз.',
+  orderedAt: 'Берилди: {time}',
 })
 
 Object.assign(translations.ru.customer, {
@@ -315,6 +320,11 @@ Object.assign(translations.ru.customer, {
   cancelledOrderHelp: 'Этот заказ отменён. Если у вас есть вопрос, позовите официанта.',
   emptyOrdersHelp: 'Выберите блюда в меню и оформите свой первый заказ.',
   orderNumber: 'Номер заказа',
+  activeOrders: 'Активные заказы',
+  pastOrders: 'Прошлые заказы',
+  noActiveOrders: 'Активных заказов нет',
+  noActiveOrdersHelp: 'Вернитесь в меню, чтобы оформить новый заказ.',
+  orderedAt: 'Оформлен: {time}',
 })
 
 Object.assign(translations.ky.common, {
