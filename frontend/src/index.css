@@ -82,42 +82,73 @@
 }
 
 .language-switch {
-  display: inline-flex;
+  position: relative;
+  display: inline-grid;
+  min-width: 132px;
+  min-height: 40px;
+  grid-template-columns: 17px minmax(0, 1fr) 14px;
   align-items: center;
-  gap: 2px;
-  padding: 3px;
+  gap: 7px;
+  padding: 0 10px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: 12px;
+  color: var(--text-secondary);
   background: var(--surface);
-}
-
-.language-switch button {
-  min-width: 38px;
-  min-height: 32px;
-  padding: 5px 9px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--text-muted);
-  font: inherit;
-  font-size: 0.75rem;
-  font-weight: 700;
   cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
 }
 
-.language-switch button:hover {
+.language-switch:hover {
+  border-color: var(--border-strong);
   background: var(--surface-hover);
-  color: var(--text-primary);
 }
 
-.language-switch button:focus-visible {
+.language-switch:focus-within {
+  border-color: var(--primary);
   outline: 3px solid color-mix(in srgb, var(--focus) 28%, transparent);
   outline-offset: 2px;
 }
 
-.language-switch button.is-active {
-  background: var(--primary);
-  color: var(--on-primary);
+.language-switch > svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+  pointer-events: none;
+}
+
+.language-switch select {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  appearance: none;
+  padding: 0;
+  border: 0;
+  color: var(--text-primary);
+  background: transparent;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.language-switch select:focus {
+  outline: 0;
+}
+
+.language-switch__chevron {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+.language-switch--compact {
+  min-width: 76px;
+  grid-template-columns: 15px minmax(0, 1fr) 12px;
+  gap: 4px;
+  padding: 0 7px;
 }
 
 .phone-number-field {

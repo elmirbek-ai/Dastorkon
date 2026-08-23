@@ -239,6 +239,11 @@
   gap: 10px;
 }
 
+.admin-topbar-actions .admin-language-switch {
+  min-width: 146px;
+  flex: 0 0 146px;
+}
+
 .admin-topbar-actions > button {
   display: flex;
   min-height: 40px;
@@ -536,8 +541,9 @@
 .admin-panel > header a svg { width: 16px; height: 16px; }
 
 .admin-compact-orders {
-  --admin-recent-orders-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(92px, 0.9fr) minmax(116px, 1fr) auto;
+  --admin-recent-orders-columns: minmax(84px, 1.2fr) minmax(72px, 0.8fr) minmax(96px, 0.95fr) minmax(98px, 1fr) minmax(84px, 0.75fr);
   display: grid;
+  width: 100%;
 }
 
 .admin-compact-orders__header,
@@ -547,6 +553,11 @@
   align-items: center;
   gap: 11px;
   padding-inline: 16px;
+}
+
+.admin-compact-orders__header > *,
+.admin-compact-orders > a > * {
+  min-width: 0;
 }
 
 .admin-compact-orders__header {
@@ -1453,6 +1464,7 @@
 .admin-file-input {
   position: relative;
   display: flex;
+  width: 100%;
   min-height: 40px;
   align-items: center;
   gap: 7px;
@@ -1477,11 +1489,62 @@
   white-space: nowrap;
 }
 
-.admin-file-input input {
+.admin-menu-image-field {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  color: #344054;
+  font-size: 0.67rem;
+  font-weight: 800;
+}
+
+.admin-image-control {
+  position: relative;
+}
+
+.admin-image-file-input {
   position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.admin-image-actions {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 6px);
+  right: 0;
+  left: 0;
+  display: grid;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.admin-image-actions button {
+  min-height: 36px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--text-primary);
+  background: transparent;
+  text-align: left;
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+.admin-image-actions button:hover {
+  background: var(--surface-hover);
+}
+
+.admin-image-actions button.is-danger {
+  color: var(--error);
 }
 
 .admin-menu-image-status {
@@ -1617,8 +1680,6 @@
 .admin-login-card form label { display: grid; gap: 6px; color: #475467; font-size: 0.7rem; font-weight: 800; }
 .admin-login-card form input { min-height: 46px; padding: 0 12px; border: 1px solid #dce5df; border-radius: 12px; background: #fafcfb; }
 .admin-login-card form button { display: grid; min-height: 47px; place-items: center; margin-top: 3px; border: 0; border-radius: 12px; color: #fff; background: #0f8a3a; font-weight: 900; }
-.admin-login-demo { margin: 16px 0 0; color: #98a2b3; font-size: 0.65rem; text-align: center; }
-
 .role-check-loading {
   display: grid;
   min-height: 100dvh;
@@ -1807,6 +1868,7 @@
   .admin-content { padding: 17px 12px 34px; }
   .admin-topbar { gap: 10px; padding-inline: 12px; }
   .admin-topbar h1 { max-width: 150px; overflow: hidden; font-size: 0.95rem; text-overflow: ellipsis; white-space: nowrap; }
+  .admin-topbar-actions .admin-language-switch { min-width: 138px; flex-basis: 138px; padding-inline: 8px; }
   .admin-page-intro { display: grid; gap: 13px; margin-bottom: 16px; }
   .admin-page-intro .admin-primary-action { width: 100%; }
   .admin-stat-grid { grid-template-columns: 1fr; gap: 10px; }
@@ -2615,10 +2677,6 @@
   color: var(--text-placeholder);
 }
 
-.admin-login-demo {
-  color: var(--text-placeholder);
-}
-
 /* Admin login composition */
 .admin-login-page {
   padding: clamp(16px, 4vw, 32px);
@@ -2883,7 +2941,7 @@
   background: var(--primary-light);
 }
 
-/* v0.2 admin demo-readiness refinements */
+/* v0.2 admin polish refinements */
 .admin-empty-action,
 .admin-request-error button {
   display: inline-flex;

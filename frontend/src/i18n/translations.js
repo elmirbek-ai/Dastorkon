@@ -53,7 +53,6 @@ Object.assign(translations.ky.auth, {
   roleNotAllowed: 'Бул аккаунт бул панелге кире албайт.',
   restaurantOS: 'Ресторан системасы',
   staffLogin: 'Кызматкерлер үчүн кирүү',
-  demoCredentials: 'Демо маалымат: {username} / {password}',
   showPassword: 'Көрсөтүү',
   hidePassword: 'Жашыруу',
 })
@@ -62,7 +61,6 @@ Object.assign(translations.ru.auth, {
   roleNotAllowed: 'Этот аккаунт не может войти в эту панель.',
   restaurantOS: 'Ресторанная система',
   staffLogin: 'Вход для сотрудников',
-  demoCredentials: 'Демо-данные: {username} / {password}',
   showPassword: 'Показать',
   hidePassword: 'Скрыть',
 })
@@ -253,7 +251,6 @@ Object.assign(translations.ky.customer, {
   specialInstructions: 'Өзгөчө каалоолор',
   specialInstructionsPlaceholder: 'Мисалы: пиязсыз же ачуу эмес',
   viewDishDetails: '«{name}» тууралуу толук маалымат',
-  reviewCart: 'Себетти текшерүү',
   proceedToCheckout: 'Заказга өтүү',
   checkoutTitle: 'Заказды ырастоо',
   backToCart: 'Себетке кайтуу',
@@ -294,7 +291,6 @@ Object.assign(translations.ru.customer, {
   specialInstructions: 'Особые пожелания',
   specialInstructionsPlaceholder: 'Например: без лука или не острое',
   viewDishDetails: 'Подробнее о блюде «{name}»',
-  reviewCart: 'Проверить корзину',
   proceedToCheckout: 'Перейти к заказу',
   checkoutTitle: 'Подтверждение заказа',
   backToCart: 'Вернуться в корзину',
@@ -493,4 +489,16 @@ Object.assign(translations.ru.admin, {
   statusDataUnavailable: 'Нет данных по статусам',
   waiterStatisticsHelp: 'Заказы, принятые официантами',
   tableStatisticsHelp: 'Заказы и сумма по каждому столу',
+})
+
+Object.assign(translations.ky.admin, {
+  chooseImage: 'Сүрөт кошуу',
+  changeImage: 'Сүрөттү өзгөртүү',
+  removeImage: 'Сүрөттү өчүрүү',
+})
+
+Object.assign(translations.ru.admin, {
+  chooseImage: 'Добавить фото',
+  changeImage: 'Изменить фото',
+  removeImage: 'Удалить фото',
 })

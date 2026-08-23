@@ -13,8 +13,6 @@ export default function StaffLoginCard({
   onSubmit,
   submitting,
   error,
-  demoUsername,
-  demoPassword,
 }) {
   const { t } = useLanguage()
   const [passwordVisible, setPasswordVisible] = useState(false)
@@ -84,9 +82,6 @@ export default function StaffLoginCard({
           </button>
         </form>
 
-        <p className="staff-login-demo">
-          {t('auth.demoCredentials', { username: demoUsername, password: demoPassword })}
-        </p>
       </section>
     </main>
   )

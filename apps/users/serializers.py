@@ -1,7 +1,89 @@
+from datetime import timedelta
+
+from django.contrib.auth import get_user_model
 from rest_framework import serializers
+from rest_framework.exceptions import AuthenticationFailed
 from phonenumber_field.serializerfields import PhoneNumberField
+from rest_framework_simplejwt.exceptions import InvalidToken
+from rest_framework_simplejwt.serializers import (
+    TokenObtainPairSerializer,
+    TokenRefreshSerializer,
+)
+from rest_framework_simplejwt.settings import api_settings
 
 from .models import User, WaiterShift
+
+
+STAFF_SESSION_LIFETIMES = {
+    User.Role.ADMIN: timedelta(hours=24),
+    User.Role.WAITER: timedelta(hours=12),
+    User.Role.KITCHEN: timedelta(hours=24),
+}
+
+
+class RoleTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """Issue staff access and refresh tokens with a role-specific fixed expiry."""
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        lifetime = STAFF_SESSION_LIFETIMES[self.user.role]
+        refresh = self.get_token(self.user)
+        refresh.set_exp(lifetime=lifetime)
+        refresh["session_exp"] = refresh["exp"]
+        refresh["role"] = self.user.role
+
+        access = refresh.access_token
+        access.set_exp(lifetime=lifetime)
+        data["refresh"] = str(refresh)
+        data["access"] = str(access)
+        data["expires_in"] = int(lifetime.total_seconds())
+        return data
+
+
+class RoleTokenRefreshSerializer(TokenRefreshSerializer):
+    """Refresh without extending a staff session past its original end time."""
+
+    def validate(self, attrs):
+        refresh = self.token_class(attrs["refresh"])
+        user_id = refresh.payload.get(api_settings.USER_ID_CLAIM)
+        if user_id:
+            try:
+                user = get_user_model().objects.get(
+                    **{api_settings.USER_ID_FIELD: user_id}
+                )
+            except get_user_model().DoesNotExist as exc:
+                raise AuthenticationFailed(
+                    self.error_messages["no_active_account"],
+                    "no_active_account",
+                ) from exc
+            if not api_settings.USER_AUTHENTICATION_RULE(user):
+                raise AuthenticationFailed(
+                    self.error_messages["no_active_account"],
+                    "no_active_account",
+                )
+
+        session_exp = int(refresh.payload.get("session_exp", refresh["exp"]))
+        remaining_seconds = session_exp - int(refresh.current_time.timestamp())
+        if remaining_seconds <= 0:
+            raise InvalidToken("Staff session has expired.")
+
+        access = refresh.access_token
+        access.set_exp(lifetime=timedelta(seconds=remaining_seconds))
+        data = {"access": str(access)}
+
+        if api_settings.ROTATE_REFRESH_TOKENS:
+            if api_settings.BLACKLIST_AFTER_ROTATION:
+                try:
+                    refresh.blacklist()
+                except AttributeError:
+                    pass
+            refresh.set_jti()
+            refresh.set_iat()
+            refresh.payload["exp"] = session_exp
+            refresh.outstand()
+            data["refresh"] = str(refresh)
+
+        return data
 
 
 class AdminUserSerializer(serializers.ModelSerializer):

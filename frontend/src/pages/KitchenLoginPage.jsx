@@ -9,7 +9,7 @@ function KitchenLoginPage({ guardError = '' }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { language, t } = useLanguage()
-  const [username, setUsername] = useState('kitchen')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState(location.state?.authError || guardError)
   const [submitting, setSubmitting] = useState(false)
@@ -29,7 +29,7 @@ function KitchenLoginPage({ guardError = '' }) {
     }
   }
 
-  return <StaffLoginCard pageClass="kitchen-login-page" title={t('kitchen.kitchenLogin')} description={t('kitchen.loginDescription')} username={username} password={password} onUsernameChange={(event) => setUsername(event.target.value)} onPasswordChange={(event) => setPassword(event.target.value)} onSubmit={handleSubmit} submitting={submitting} error={error} demoUsername="kitchen" demoPassword="kitchen12345" />
+  return <StaffLoginCard pageClass="kitchen-login-page" title={t('kitchen.kitchenLogin')} description={t('kitchen.loginDescription')} username={username} password={password} onUsernameChange={(event) => setUsername(event.target.value)} onPasswordChange={(event) => setPassword(event.target.value)} onSubmit={handleSubmit} submitting={submitting} error={error} />
 }
 
 export default KitchenLoginPage

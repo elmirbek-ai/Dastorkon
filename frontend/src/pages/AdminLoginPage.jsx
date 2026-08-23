@@ -9,8 +9,8 @@ export default function AdminLoginPage({ guardError = '' }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { language, t } = useLanguage()
-  const [username, setUsername] = useState('admin')
-  const [password, setPassword] = useState('admin12345')
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(location.state?.authError || guardError)
 
@@ -28,5 +28,5 @@ export default function AdminLoginPage({ guardError = '' }) {
     }
   }
 
-  return <StaffLoginCard pageClass="admin-login-page" title={t('admin.adminLogin')} description={t('admin.loginDescription')} username={username} password={password} onUsernameChange={(event) => setUsername(event.target.value)} onPasswordChange={(event) => setPassword(event.target.value)} onSubmit={submit} submitting={submitting} error={error} demoUsername="admin" demoPassword="admin12345" />
+  return <StaffLoginCard pageClass="admin-login-page" title={t('admin.adminLogin')} description={t('admin.loginDescription')} username={username} password={password} onUsernameChange={(event) => setUsername(event.target.value)} onPasswordChange={(event) => setPassword(event.target.value)} onSubmit={submit} submitting={submitting} error={error} />
 }

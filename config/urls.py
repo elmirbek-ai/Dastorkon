@@ -23,8 +23,6 @@ from drf_spectacular.views import (
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-
 from apps.analytics import urls as analytics_urls
 from apps.common.views import health, readiness
 from apps.menu import urls as menu_urls
@@ -32,6 +30,7 @@ from apps.orders import urls as order_urls
 from apps.restaurants import urls as restaurant_urls
 from apps.tables import urls as table_urls
 from apps.users import urls as user_urls
+from apps.users.views import RoleTokenObtainPairView, RoleTokenRefreshView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -48,10 +47,14 @@ urlpatterns = [
         SpectacularRedocView.as_view(url_name='schema'),
         name='redoc',
     ),
-    path('api/auth/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path(
+        'api/auth/token/',
+        RoleTokenObtainPairView.as_view(),
+        name='token_obtain_pair',
+    ),
     path(
         'api/auth/token/refresh/',
-        TokenRefreshView.as_view(),
+        RoleTokenRefreshView.as_view(),
         name='token_refresh',
     ),
     path('api/auth/', include(user_urls.auth_urlpatterns)),

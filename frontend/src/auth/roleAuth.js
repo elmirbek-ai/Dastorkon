@@ -17,6 +17,18 @@ function localizedWrongRole(language = getStoredLanguage()) {
   return t(language, 'auth.roleNotAllowed')
 }
 
+export function getTokenExpiryMs(token) {
+  try {
+    const payload = token.split('.')[1]
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=')
+    const decoded = JSON.parse(window.atob(padded))
+    return Number(decoded.exp) * 1000 || 0
+  } catch {
+    return 0
+  }
+}
+
 export async function getCurrentUser(accessToken) {
   const response = await apiClient.get('/api/auth/me/', {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -39,13 +51,17 @@ export async function loginForRole({ username, password, expectedRole, tokenKey 
 export async function verifyRoleToken({ tokenKey, expectedRole }) {
   const token = localStorage.getItem(tokenKey)
   if (!token) return { status: 'missing' }
+  if (getTokenExpiryMs(token) <= Date.now()) {
+    localStorage.removeItem(tokenKey)
+    return { status: 'denied', message: t(getStoredLanguage(), 'auth.sessionExpired') }
+  }
   try {
     const user = await getCurrentUser(token)
     if (!user.is_active || user.role !== expectedRole) {
       localStorage.removeItem(tokenKey)
       return { status: 'denied', message: user.is_active ? localizedWrongRole() : t(getStoredLanguage(), 'auth.inactive') }
     }
-    return { status: 'valid', user }
+    return { status: 'valid', user, expiresAt: getTokenExpiryMs(token) }
   } catch (error) {
     localStorage.removeItem(tokenKey)
     const detail = error.response?.data?.detail

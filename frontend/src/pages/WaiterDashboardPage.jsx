@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { waiterApiClient, WAITER_TOKEN_KEY } from '../api/client.js'
 import ConnectionStatus from '../components/ConnectionStatus.jsx'
+import LanguageSwitch from '../components/LanguageSwitch.jsx'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getBackendErrorMessage, getLocalizedField, getStatusLabel } from '../i18n/index.js'
 import useNotificationsSocket from '../realtime/useNotificationsSocket.js'
@@ -84,6 +85,7 @@ function WaiterHeader({ connectionStatus, notificationCount, onNotifications }) 
         </div>
       </div>
       <div className="waiter-header-tools">
+        <LanguageSwitch compact />
         <ConnectionStatus status={connectionStatus} />
         <button type="button" onClick={onNotifications} aria-label={t('waiter.calls')}>
           <AppIcon name="bell" />

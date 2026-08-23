@@ -6,7 +6,7 @@ import { useAdminContext } from '../components/admin/AdminContext.js'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getLocalizedField } from '../i18n/index.js'
 
-const emptyCategory = { name_ky: '', name_ru: '', sort_order: 0, is_visible: true }
+const emptyCategory = { name_ky: '', name_ru: '', is_visible: true }
 
 export default function AdminCategoriesPage() {
   const { restaurantId, loadingRestaurant, layoutError, refreshKey, handleApiError } = useAdminContext()
@@ -43,7 +43,6 @@ export default function AdminCategoriesPage() {
     const payload = {
       name_ky: editing.name_ky,
       name_ru: editing.name_ru,
-      sort_order: Number(editing.sort_order || 0),
       is_visible: editing.is_visible,
       restaurant: restaurantId,
     }
@@ -126,7 +125,6 @@ export default function AdminCategoriesPage() {
             <label>{t('admin.kyrgyzName')}<input value={editing.name_ky} onChange={(event) => setEditing((value) => ({ ...value, name_ky: event.target.value }))} required /></label>
             <label>{t('admin.russianName')}<input value={editing.name_ru} onChange={(event) => setEditing((value) => ({ ...value, name_ru: event.target.value }))} required /></label>
             <div className="admin-category-form-options admin-form-wide">
-              <label>{t('common.sortOrder')}<input type="number" min="0" value={editing.sort_order} onChange={(event) => setEditing((value) => ({ ...value, sort_order: event.target.value }))} /></label>
               <Toggle checked={editing.is_visible} onChange={(checked) => setEditing((value) => ({ ...value, is_visible: checked }))} label={t('admin.visible')} disabled={saving} />
             </div>
             <div className="admin-form-actions admin-form-wide"><button type="button" onClick={() => setEditing(null)} disabled={saving}>{t('common.cancel')}</button><button className="is-primary" type="submit" disabled={saving}>{saving ? <><span className="admin-button-spinner" />{t('common.saving')}</> : t('common.save')}</button></div>

@@ -5,6 +5,7 @@ from rest_framework import status, viewsets
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from .models import User
 from .permissions import IsAdminRole, IsWaiterRole
@@ -14,6 +15,8 @@ from .serializers import (
     WaiterProfileSerializer,
     WaiterProfileUpdateSerializer,
     WaiterShiftSerializer,
+    RoleTokenObtainPairSerializer,
+    RoleTokenRefreshSerializer,
 )
 from .services import (
     build_waiter_shift_summary,
@@ -22,6 +25,14 @@ from .services import (
     get_active_waiter_shift,
     start_waiter_shift,
 )
+
+
+class RoleTokenObtainPairView(TokenObtainPairView):
+    serializer_class = RoleTokenObtainPairSerializer
+
+
+class RoleTokenRefreshView(TokenRefreshView):
+    serializer_class = RoleTokenRefreshSerializer
 
 
 class AdminUserViewSet(viewsets.ModelViewSet):

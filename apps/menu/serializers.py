@@ -1,3 +1,5 @@
+from django.db import transaction
+from django.db.models import Max
 from rest_framework import serializers
 
 from .models import Category, MenuItem
@@ -18,6 +20,21 @@ class CategorySerializer(serializers.ModelSerializer):
             "updated_at",
         )
         read_only_fields = ("id", "created_at", "updated_at")
+
+    def create(self, validated_data):
+        if "sort_order" in validated_data:
+            return super().create(validated_data)
+
+        restaurant = validated_data["restaurant"]
+        with transaction.atomic():
+            restaurant.__class__.objects.select_for_update().get(pk=restaurant.pk)
+            current_max = Category.objects.filter(
+                restaurant=restaurant,
+            ).aggregate(max_order=Max("sort_order"))["max_order"]
+            validated_data["sort_order"] = (
+                0 if current_max is None else current_max + 1
+            )
+            return super().create(validated_data)
 
 
 class MenuItemSerializer(serializers.ModelSerializer):
@@ -60,6 +77,15 @@ class MenuItemSerializer(serializers.ModelSerializer):
                 {"category": "Category must belong to the same restaurant."}
             )
         return attrs
+
+    def update(self, instance, validated_data):
+        remove_image = "image" in validated_data and validated_data["image"] is None
+        image_storage = instance.image.storage if remove_image and instance.image else None
+        image_name = instance.image.name if remove_image and instance.image else ""
+        updated_instance = super().update(instance, validated_data)
+        if image_storage and image_name:
+            image_storage.delete(image_name)
+        return updated_instance
 
 
 class PublicMenuItemSerializer(serializers.ModelSerializer):

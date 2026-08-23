@@ -5,6 +5,7 @@ import { extractAdminError } from './adminUtils.js'
 import { AdminIcon, LoadingState, RequestErrorState } from './AdminComponents.jsx'
 import { AdminContext } from './AdminContext.js'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
+import LanguageSwitch from '../LanguageSwitch.jsx'
 
 function AdminSidebar({ restaurant, open, onClose, onLogout }) {
   const location = useLocation()
@@ -43,7 +44,7 @@ function AdminSidebar({ restaurant, open, onClose, onLogout }) {
 
 function AdminHeader({ title, refreshing, onRefresh, onMenu, onLogout }) {
   const { t } = useLanguage()
-  return <header className="admin-topbar"><button className="admin-menu-toggle" type="button" onClick={onMenu} aria-label={t('common.menu')}><span /><span /><span /></button><div><small>Dastorkon · {t('admin.adminLogin')}</small><h1>{title}</h1></div><div className="admin-topbar-actions"><button type="button" onClick={onRefresh} disabled={refreshing} aria-label={t('common.refresh')}>{refreshing ? <span className="admin-refresh-spinner" aria-hidden="true" /> : <AdminIcon name="refresh" />} <span>{refreshing ? t('common.working') : t('common.refresh')}</span></button><div className="admin-profile"><b>А</b><span><strong>{t('role.ADMIN')}</strong><small>{t('role.ADMIN')}</small></span></div><button className="admin-logout-button" type="button" onClick={onLogout} aria-label={t('common.logout')}><AdminIcon name="logout" /></button></div></header>
+  return <header className="admin-topbar"><button className="admin-menu-toggle" type="button" onClick={onMenu} aria-label={t('common.menu')}><span /><span /><span /></button><div><small>Dastorkon · {t('admin.adminLogin')}</small><h1>{title}</h1></div><div className="admin-topbar-actions"><LanguageSwitch className="admin-language-switch" /><button type="button" onClick={onRefresh} disabled={refreshing} aria-label={t('common.refresh')}>{refreshing ? <span className="admin-refresh-spinner" aria-hidden="true" /> : <AdminIcon name="refresh" />} <span>{refreshing ? t('common.working') : t('common.refresh')}</span></button><div className="admin-profile"><b>А</b><span><strong>{t('role.ADMIN')}</strong><small>{t('role.ADMIN')}</small></span></div><button className="admin-logout-button" type="button" onClick={onLogout} aria-label={t('common.logout')}><AdminIcon name="logout" /></button></div></header>
 }
 
 export default function AdminLayout() {

@@ -29,9 +29,26 @@ const editableFields = [
   'allergens_ky', 'allergens_ru', 'is_available', 'is_visible',
 ]
 
-function MenuForm({ value, categories, imagePreview, saving, error, onChange, onImageChange, onClearImage, onSubmit, onCancel }) {
+function MenuForm({ value, categories, imagePreview, saving, error, onChange, onImageChange, onClearImage, onRemoveImage, onSubmit, onCancel }) {
   const { language, t } = useLanguage()
+  const fileInputRef = useRef(null)
+  const [imageActionsOpen, setImageActionsOpen] = useState(false)
   const shownInMenu = value.is_available && value.is_visible
+
+  function chooseImage() {
+    setImageActionsOpen(false)
+    fileInputRef.current?.click()
+  }
+
+  function handleImageSelection(event) {
+    onImageChange(event.target.files?.[0] || null)
+    event.target.value = ''
+  }
+
+  function removeImage() {
+    setImageActionsOpen(false)
+    onRemoveImage()
+  }
 
   return (
     <form className="admin-menu-form" onSubmit={onSubmit} aria-busy={saving}>
@@ -58,10 +75,28 @@ function MenuForm({ value, categories, imagePreview, saving, error, onChange, on
             {t('customer.averageCookingTime')} ({t('common.minutes')})
             <input type="number" min="0" value={value.cooking_time_min} onChange={(event) => onChange('cooking_time_min', event.target.value)} />
           </label>
-          <label className="admin-menu-image-field">
-            {t('common.image')}
-            <span className="admin-file-input"><AdminIcon name="plus" /><b>{imagePreview ? t('admin.changeImage') : t('admin.chooseImage')}</b><input type="file" accept="image/*" onChange={(event) => onImageChange(event.target.files?.[0] || null)} /></span>
-          </label>
+          <div className="admin-menu-image-field">
+            <span>{t('common.image')}</span>
+            <div className="admin-image-control">
+              <button
+                className="admin-file-input"
+                type="button"
+                onClick={imagePreview ? () => setImageActionsOpen((open) => !open) : chooseImage}
+                aria-expanded={imagePreview ? imageActionsOpen : undefined}
+                disabled={saving}
+              >
+                <AdminIcon name="plus" />
+                <b>{imagePreview ? t('admin.changeImage') : t('admin.chooseImage')}</b>
+              </button>
+              {imagePreview && imageActionsOpen && (
+                <div className="admin-image-actions">
+                  <button type="button" onClick={chooseImage}>{t('admin.changeImage')}</button>
+                  <button className="is-danger" type="button" onClick={removeImage}>{t('admin.removeImage')}</button>
+                </div>
+              )}
+              <input ref={fileInputRef} className="admin-image-file-input" type="file" accept="image/*" onChange={handleImageSelection} tabIndex="-1" />
+            </div>
+          </div>
         </div>
 
         <div className="admin-menu-image-status">
@@ -127,6 +162,7 @@ export default function AdminMenuPage() {
   const [editing, setEditing] = useState(searchParams.get('create') === '1' ? { ...emptyMenuItem } : null)
   const [imageFile, setImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState('')
+  const [imageRemoved, setImageRemoved] = useState(false)
   const [saving, setSaving] = useState(false)
   const [busyId, setBusyId] = useState(null)
   const [revision, setRevision] = useState(0)
@@ -158,6 +194,7 @@ export default function AdminMenuPage() {
   function resetImageSelection() {
     setImageFile(null)
     setImagePreview('')
+    setImageRemoved(false)
   }
 
   function openCreate() {
@@ -169,6 +206,7 @@ export default function AdminMenuPage() {
   function openEdit(item) {
     setFormError('')
     setImageFile(null)
+    setImageRemoved(false)
     setImagePreview(item.image ? adminImageUrl(item.image) : '')
     setEditing({ ...emptyMenuItem, ...item, category: String(item.category) })
   }
@@ -186,6 +224,7 @@ export default function AdminMenuPage() {
     }
     setFormError('')
     setImageFile(file)
+    setImageRemoved(false)
     setImagePreview(URL.createObjectURL(file))
   }
 
@@ -197,6 +236,7 @@ export default function AdminMenuPage() {
       cooking_time_min: Number(editing.cooking_time_min || 0),
     }
     editableFields.forEach((field) => { payload[field] = editing[field] })
+    if (imageRemoved) payload.image = null
     return payload
   }
 
@@ -297,7 +337,7 @@ export default function AdminMenuPage() {
       )}
       {editing && (
         <AdminModal title={editing.id ? t('common.edit') : t('admin.addMenuItem')} onClose={closeForm} wide busy={saving}>
-          <MenuForm value={editing} categories={categories} imagePreview={imagePreview} saving={saving} error={formError} onChange={(field, value) => setEditing((current) => ({ ...current, [field]: value }))} onImageChange={selectImage} onClearImage={() => { setImageFile(null); setImagePreview(editing.image ? adminImageUrl(editing.image) : '') }} onSubmit={save} onCancel={closeForm} />
+          <MenuForm value={editing} categories={categories} imagePreview={imagePreview} saving={saving} error={formError} onChange={(field, value) => setEditing((current) => ({ ...current, [field]: value }))} onImageChange={selectImage} onClearImage={() => { setImageFile(null); setImageRemoved(false); setImagePreview(editing.image ? adminImageUrl(editing.image) : '') }} onRemoveImage={() => { setImageFile(null); setImagePreview(''); setImageRemoved(Boolean(editing.id && editing.image)) }} onSubmit={save} onCancel={closeForm} />
         </AdminModal>
       )}
     </>

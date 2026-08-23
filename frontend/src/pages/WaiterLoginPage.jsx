@@ -9,7 +9,7 @@ function WaiterLoginPage({ guardError = '' }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { language, t } = useLanguage()
-  const [username, setUsername] = useState('waiter')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState(location.state?.authError || guardError)
   const [submitting, setSubmitting] = useState(false)
@@ -29,7 +29,7 @@ function WaiterLoginPage({ guardError = '' }) {
     }
   }
 
-  return <StaffLoginCard pageClass="waiter-login-page" title={t('waiter.waiterLogin')} description={t('waiter.loginDescription')} username={username} password={password} onUsernameChange={(event) => setUsername(event.target.value)} onPasswordChange={(event) => setPassword(event.target.value)} onSubmit={handleSubmit} submitting={submitting} error={error} demoUsername="waiter" demoPassword="waiter12345" />
+  return <StaffLoginCard pageClass="waiter-login-page" title={t('waiter.waiterLogin')} description={t('waiter.loginDescription')} username={username} password={password} onUsernameChange={(event) => setUsername(event.target.value)} onPasswordChange={(event) => setPassword(event.target.value)} onSubmit={handleSubmit} submitting={submitting} error={error} />
 }
 
 export default WaiterLoginPage

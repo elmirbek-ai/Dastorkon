@@ -1,5 +1,7 @@
 from decimal import Decimal
+from uuid import uuid4
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -82,6 +84,23 @@ class AdminMenuApiTests(APITestCase):
                 name_ky="Суусундуктар",
             ).exists()
         )
+
+    def test_category_without_order_is_appended_after_current_max(self):
+        self.authenticate(self.admin)
+        self.category.sort_order = 4
+        self.category.save(update_fields=("sort_order", "updated_at"))
+
+        response = self.client.post(
+            self.category_list_url,
+            {
+                "restaurant": self.restaurant.pk,
+                "name_ky": "Суусундуктар",
+                "name_ru": "Напитки",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["sort_order"], 5)
 
     def test_admin_can_list_categories(self):
         self.authenticate(self.admin)
@@ -167,6 +186,53 @@ class AdminMenuApiTests(APITestCase):
         self.menu_item.refresh_from_db()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(self.menu_item.price, Decimal("275.00"))
+
+    def test_menu_item_image_is_preserved_when_patch_omits_image(self):
+        self.authenticate(self.admin)
+        self.menu_item.image.save(
+            f"test-preserve-{uuid4()}.gif",
+            SimpleUploadedFile(
+                "dish.gif",
+                b"GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;",
+                content_type="image/gif",
+            ),
+        )
+        image_name = self.menu_item.image.name
+        self.addCleanup(self.menu_item.image.storage.delete, image_name)
+
+        response = self.client.patch(
+            reverse("admin-menu-item-detail", args=(self.menu_item.pk,)),
+            {"price": "275.00"},
+        )
+
+        self.menu_item.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(self.menu_item.image.name, image_name)
+
+    def test_admin_can_remove_menu_item_image(self):
+        self.authenticate(self.admin)
+        self.menu_item.image.save(
+            f"test-remove-{uuid4()}.gif",
+            SimpleUploadedFile(
+                "dish.gif",
+                b"GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;",
+                content_type="image/gif",
+            ),
+        )
+        image_storage = self.menu_item.image.storage
+        image_name = self.menu_item.image.name
+        self.addCleanup(image_storage.delete, image_name)
+
+        response = self.client.patch(
+            reverse("admin-menu-item-detail", args=(self.menu_item.pk,)),
+            {"image": None},
+            format="json",
+        )
+
+        self.menu_item.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(self.menu_item.image)
+        self.assertFalse(image_storage.exists(image_name))
 
     def test_admin_destroy_menu_item_performs_soft_delete(self):
         self.authenticate(self.admin)

@@ -433,7 +433,7 @@ function DishDetailDialog({ item, pending, onClose, onAdd }) {
   )
 }
 
-function CartPanel({ cart, itemCount, onOpenCart, onCheckout }) {
+function CartPanel({ cart, itemCount, onCheckout }) {
   const { language, t } = useLanguage()
   return (
     <aside className="cart-section" id="cart" aria-labelledby="cart-title">
@@ -469,7 +469,6 @@ function CartPanel({ cart, itemCount, onOpenCart, onCheckout }) {
             <strong>{money(cart.total)}</strong>
           </div>
           <div className="cart-section__actions">
-            <button type="button" onClick={onOpenCart}>{t('customer.reviewCart')}</button>
             <button className="order-button" type="button" onClick={onCheckout}>
               {t('customer.proceedToCheckout')}
               <span aria-hidden="true">→</span>
@@ -1646,7 +1645,6 @@ function CustomerMenuPage() {
         <CartPanel
           cart={cart}
           itemCount={cartItemCount}
-          onOpenCart={() => openCartSheet('cart')}
           onCheckout={() => openCartSheet('checkout')}
         />
       </div>

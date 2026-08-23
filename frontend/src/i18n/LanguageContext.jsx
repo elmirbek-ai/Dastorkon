@@ -13,6 +13,10 @@ export function LanguageProvider({ children }) {
   }
 
   useEffect(() => {
+    document.documentElement.lang = language
+  }, [language])
+
+  useEffect(() => {
     const syncLanguage = (event) => {
       if (event.key === null || event.key === 'dastorkon_language') setLanguageState(getStoredLanguage())
     }
