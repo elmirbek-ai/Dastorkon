@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { adminApiClient } from '../api/client.js'
 import { AdminIcon, AdminModal, EmptyState, ErrorBanner, LoadingState, PageIntro, Toggle } from '../components/admin/AdminComponents.jsx'
@@ -34,7 +34,7 @@ function MenuForm({ value, categories, imagePreview, saving, error, onChange, on
   const shownInMenu = value.is_available && value.is_visible
 
   return (
-    <form className="admin-menu-form" onSubmit={onSubmit}>
+    <form className="admin-menu-form" onSubmit={onSubmit} aria-busy={saving}>
       <ErrorBanner message={error} />
 
       <section className="admin-menu-form-section">
@@ -46,7 +46,7 @@ function MenuForm({ value, categories, imagePreview, saving, error, onChange, on
           <label>
             {t('admin.category')}
             <select value={value.category} onChange={(event) => onChange('category', event.target.value)} required>
-              <option value="">{t('common.apply')}</option>
+              <option value="">{t('admin.selectCategory')}</option>
               {categories.map((category) => <option value={category.id} key={category.id}>{getLocalizedField(category, 'name', language)}</option>)}
             </select>
           </label>
@@ -69,7 +69,7 @@ function MenuForm({ value, categories, imagePreview, saving, error, onChange, on
             <div className="admin-menu-image-preview">
               <img src={imagePreview} alt={t('admin.foodImageAlt')} />
               <div><strong>{t('admin.imageReady')}</strong><small>{t('admin.currentImagePreserved')}</small></div>
-              {imagePreview.startsWith('blob:') && <button type="button" onClick={onClearImage}>{t('admin.clearSelection')}</button>}
+              {imagePreview.startsWith('blob:') && <button type="button" onClick={onClearImage} disabled={saving}>{t('admin.clearSelection')}</button>}
             </div>
           ) : <p className="admin-menu-no-image">{t('admin.noImageSelected')}</p>}
           <Toggle
@@ -79,6 +79,7 @@ function MenuForm({ value, categories, imagePreview, saving, error, onChange, on
               onChange('is_visible', checked)
             }}
             label={t('admin.visible')}
+            disabled={saving}
           />
         </div>
       </section>
@@ -107,8 +108,8 @@ function MenuForm({ value, categories, imagePreview, saving, error, onChange, on
       </section>
 
       <div className="admin-form-actions admin-menu-form-actions">
-        <button type="button" onClick={onCancel}>{t('common.cancel')}</button>
-        <button className="is-primary" type="submit" disabled={saving}>{saving ? <span className="admin-button-spinner" /> : t('common.save')}</button>
+        <button type="button" onClick={onCancel} disabled={saving}>{t('common.cancel')}</button>
+        <button className="is-primary" type="submit" disabled={saving}>{saving ? <><span className="admin-button-spinner" />{t('common.saving')}</> : t('common.save')}</button>
       </div>
     </form>
   )
@@ -131,6 +132,7 @@ export default function AdminMenuPage() {
   const [revision, setRevision] = useState(0)
   const [query, setQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
+  const mutationInFlightRef = useRef(false)
 
   useEffect(() => {
     if (!restaurantId) return
@@ -208,6 +210,8 @@ export default function AdminMenuPage() {
 
   async function save(event) {
     event.preventDefault()
+    if (mutationInFlightRef.current) return
+    mutationInFlightRef.current = true
     setSaving(true)
     setFormError('')
     const payload = imageFile ? buildMultipartPayload() : buildJsonPayload()
@@ -219,11 +223,14 @@ export default function AdminMenuPage() {
     } catch (requestError) {
       setFormError(handleApiError(requestError, t('errors.generic')))
     } finally {
+      mutationInFlightRef.current = false
       setSaving(false)
     }
   }
 
   async function toggleMenuStatus(item) {
+    if (mutationInFlightRef.current) return
+    mutationInFlightRef.current = true
     const nextStatus = !(item.is_available && item.is_visible)
     setBusyId(item.id)
     try {
@@ -232,12 +239,15 @@ export default function AdminMenuPage() {
     } catch (requestError) {
       setError(handleApiError(requestError, t('errors.generic')))
     } finally {
+      mutationInFlightRef.current = false
       setBusyId(null)
     }
   }
 
   async function remove(item) {
+    if (mutationInFlightRef.current) return
     if (!window.confirm(t('admin.foodDeleteConfirm', { name: getLocalizedField(item, 'name', language) }))) return
+    mutationInFlightRef.current = true
     setBusyId(item.id)
     try {
       await adminApiClient.delete(`/api/admin/menu-items/${item.id}/`)
@@ -245,6 +255,7 @@ export default function AdminMenuPage() {
     } catch (requestError) {
       setError(handleApiError(requestError, t('errors.generic')))
     } finally {
+      mutationInFlightRef.current = false
       setBusyId(null)
     }
   }
@@ -253,7 +264,7 @@ export default function AdminMenuPage() {
 
   return (
     <>
-      <PageIntro title={t('admin.menuManagement')} description={t('customer.itemCount', { count: items.length })} action={<button className="admin-primary-action" type="button" onClick={openCreate}><AdminIcon name="plus" />{t('admin.addMenuItem')}</button>} />
+      <PageIntro title={t('admin.menuManagement')} description={t('admin.menuManagementDescription', { count: items.length })} action={<button className="admin-primary-action" type="button" onClick={openCreate} disabled={busyId !== null}><AdminIcon name="plus" />{t('admin.addMenuItem')}</button>} />
       <ErrorBanner message={layoutError || error} />
       <div className="admin-toolbar">
         <label className="admin-search-field"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('admin.searchFood')} /></label>
@@ -270,16 +281,22 @@ export default function AdminMenuPage() {
                   <td><div className="admin-menu-cell">{item.image ? <img src={adminImageUrl(item.image)} alt="" /> : <span>{getLocalizedField(item, 'name', language).slice(0, 1)}</span>}<div><strong>{getLocalizedField(item, 'name', language)}</strong></div></div></td>
                   <td>{getLocalizedField(categoryMap[item.category], 'name', language) || '—'}</td>
                   <td><strong>{formatAdminMoney(item.price)}</strong></td>
-                  <td><Toggle checked={item.is_available && item.is_visible} onChange={() => toggleMenuStatus(item)} label={item.is_available && item.is_visible ? t('admin.available') : t('admin.hidden')} disabled={busyId === item.id} /></td>
-                  <td><div className="admin-row-actions"><button type="button" onClick={() => openEdit(item)} aria-label={t('common.edit')}><AdminIcon name="edit" /></button><button className="is-danger" type="button" onClick={() => remove(item)} disabled={busyId === item.id} aria-label={t('common.delete')}><AdminIcon name="trash" /></button></div></td>
+                  <td><Toggle checked={item.is_available && item.is_visible} onChange={() => toggleMenuStatus(item)} label={item.is_available && item.is_visible ? t('admin.available') : t('admin.hidden')} disabled={busyId !== null} /></td>
+                  <td><div className="admin-row-actions"><button type="button" onClick={() => openEdit(item)} disabled={busyId !== null} aria-label={t('common.edit')}><AdminIcon name="edit" /></button><button className="is-danger" type="button" onClick={() => remove(item)} disabled={busyId !== null} aria-label={t('common.delete')}><AdminIcon name="trash" /></button></div></td>
                 </tr>
               ))}</tbody>
             </table>
           </div>
         </div>
-      ) : <EmptyState title={t('admin.noMenuItems')} />}
+      ) : (
+        <EmptyState
+          title={(query || categoryFilter) ? t('admin.noMenuMatches') : t('admin.noMenuItems')}
+          description={(query || categoryFilter) ? t('admin.noMenuMatchesHelp') : t('admin.noMenuItemsHelp')}
+          action={(query || categoryFilter) && <button className="admin-empty-action" type="button" onClick={() => { setQuery(''); setCategoryFilter('') }}>{t('admin.clearFilters')}</button>}
+        />
+      )}
       {editing && (
-        <AdminModal title={editing.id ? t('common.edit') : t('admin.addMenuItem')} onClose={closeForm} wide>
+        <AdminModal title={editing.id ? t('common.edit') : t('admin.addMenuItem')} onClose={closeForm} wide busy={saving}>
           <MenuForm value={editing} categories={categories} imagePreview={imagePreview} saving={saving} error={formError} onChange={(field, value) => setEditing((current) => ({ ...current, [field]: value }))} onImageChange={selectImage} onClearImage={() => { setImageFile(null); setImagePreview(editing.image ? adminImageUrl(editing.image) : '') }} onSubmit={save} onCancel={closeForm} />
         </AdminModal>
       )}

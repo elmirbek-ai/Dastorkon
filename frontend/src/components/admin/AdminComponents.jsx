@@ -36,12 +36,24 @@ export function ErrorBanner({ message }) {
 
 export function LoadingState({ label }) {
   const { t } = useLanguage()
-  return <div className="admin-loading-state"><span />{label || t('common.loading')}</div>
+  return <div className="admin-loading-state" role="status" aria-live="polite"><span aria-hidden="true" />{label || t('common.loading')}</div>
 }
 
-export function EmptyState({ title, description }) {
+export function EmptyState({ title, description, action }) {
   const { t } = useLanguage()
-  return <div className="admin-empty-state"><span>—</span><strong>{title || t('common.noData')}</strong>{description && <p>{description}</p>}</div>
+  return <div className="admin-empty-state"><span aria-hidden="true">—</span><strong>{title || t('common.noData')}</strong>{description && <p>{description}</p>}{action}</div>
+}
+
+export function RequestErrorState({ message, onRetry }) {
+  const { t } = useLanguage()
+  return (
+    <div className="admin-empty-state admin-request-error" role="alert">
+      <span aria-hidden="true">!</span>
+      <strong>{t('common.error')}</strong>
+      <p>{message || t('errors.generic')}</p>
+      {onRetry && <button type="button" onClick={onRetry}>{t('common.tryAgain')}</button>}
+    </div>
+  )
 }
 
 export function StatusBadge({ status }) {
@@ -49,20 +61,20 @@ export function StatusBadge({ status }) {
   return <span className={`admin-status-badge admin-status-badge--${String(status).toLowerCase()}`}>{getStatusLabel(status, language)}</span>
 }
 
-export function AdminModal({ title, children, onClose, wide = false }) {
+export function AdminModal({ title, children, onClose, wide = false, busy = false }) {
   const { t } = useLanguage()
   useEffect(() => {
     function closeOnEscape(event) {
-      if (event.key === 'Escape') onClose()
+      if (event.key === 'Escape' && !busy) onClose()
     }
     window.addEventListener('keydown', closeOnEscape)
     return () => window.removeEventListener('keydown', closeOnEscape)
-  }, [onClose])
+  }, [busy, onClose])
 
   return (
-    <div className="admin-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <section className={`admin-modal ${wide ? 'is-wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby="admin-modal-title">
-        <header><h2 id="admin-modal-title">{title}</h2><button type="button" onClick={onClose} aria-label={t('common.close')}><AdminIcon name="close" /></button></header>
+    <div className="admin-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !busy && onClose()}>
+      <section className={`admin-modal ${wide ? 'is-wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby="admin-modal-title" aria-busy={busy}>
+        <header><h2 id="admin-modal-title">{title}</h2><button type="button" onClick={onClose} disabled={busy} aria-label={t('common.close')}><AdminIcon name="close" /></button></header>
         <div className="admin-modal-body">{children}</div>
       </section>
     </div>

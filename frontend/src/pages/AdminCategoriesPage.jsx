@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { adminApiClient } from '../api/client.js'
 import { AdminIcon, AdminModal, EmptyState, ErrorBanner, LoadingState, PageIntro, Toggle } from '../components/admin/AdminComponents.jsx'
@@ -20,6 +20,7 @@ export default function AdminCategoriesPage() {
   const [saving, setSaving] = useState(false)
   const [busyId, setBusyId] = useState(null)
   const [revision, setRevision] = useState(0)
+  const mutationInFlightRef = useRef(false)
 
   useEffect(() => {
     if (!restaurantId) return
@@ -35,6 +36,8 @@ export default function AdminCategoriesPage() {
 
   async function save(event) {
     event.preventDefault()
+    if (mutationInFlightRef.current) return
+    mutationInFlightRef.current = true
     setSaving(true)
     setFormError('')
     const payload = {
@@ -52,11 +55,14 @@ export default function AdminCategoriesPage() {
     } catch (requestError) {
       setFormError(handleApiError(requestError, t('errors.generic')))
     } finally {
+      mutationInFlightRef.current = false
       setSaving(false)
     }
   }
 
   async function toggleVisibility(category) {
+    if (mutationInFlightRef.current) return
+    mutationInFlightRef.current = true
     const nextVisibility = !category.is_visible
     setBusyId(category.id)
     try {
@@ -66,12 +72,15 @@ export default function AdminCategoriesPage() {
     } catch (requestError) {
       setError(handleApiError(requestError, t('errors.generic')))
     } finally {
+      mutationInFlightRef.current = false
       setBusyId(null)
     }
   }
 
   async function remove(category) {
+    if (mutationInFlightRef.current) return
     if (!window.confirm(t('admin.categoryDeleteConfirm', { name: getLocalizedField(category, 'name', language) }))) return
+    mutationInFlightRef.current = true
     setBusyId(category.id)
     try {
       await adminApiClient.delete(`/api/admin/categories/${category.id}/`)
@@ -80,6 +89,7 @@ export default function AdminCategoriesPage() {
       const relationError = t('admin.categoryHasItems')
       setError([400, 409].includes(requestError.response?.status) ? relationError : handleApiError(requestError, relationError))
     } finally {
+      mutationInFlightRef.current = false
       setBusyId(null)
     }
   }
@@ -88,7 +98,7 @@ export default function AdminCategoriesPage() {
 
   return (
     <>
-      <PageIntro title={t('admin.categories')} description={t('admin.categoryManagement')} action={<button className="admin-primary-action" type="button" onClick={() => setEditing({ ...emptyCategory })}><AdminIcon name="plus" />{t('admin.addCategory')}</button>} />
+      <PageIntro title={t('admin.categories')} description={t('admin.categoryManagement')} action={<button className="admin-primary-action" type="button" onClick={() => setEditing({ ...emptyCategory })} disabled={busyId !== null}><AdminIcon name="plus" />{t('admin.addCategory')}</button>} />
       <ErrorBanner message={layoutError || error} />
       {categories.length ? (
         <div className="admin-data-card">
@@ -100,26 +110,26 @@ export default function AdminCategoriesPage() {
                   <td><span className="admin-index-badge">{index + 1}</span></td>
                   <td><strong>{category.name_ky}</strong></td>
                   <td>{category.name_ru}</td>
-                  <td><Toggle checked={category.is_visible} onChange={() => toggleVisibility(category)} label={category.is_visible ? t('admin.visible') : t('admin.hidden')} disabled={busyId === category.id} /></td>
-                  <td><div className="admin-row-actions"><button type="button" onClick={() => setEditing({ ...category })} aria-label={t('common.edit')}><AdminIcon name="edit" /></button><button className="is-danger" type="button" onClick={() => remove(category)} disabled={busyId === category.id} aria-label={t('common.delete')}><AdminIcon name="trash" /></button></div></td>
+                  <td><Toggle checked={category.is_visible} onChange={() => toggleVisibility(category)} label={category.is_visible ? t('admin.visible') : t('admin.hidden')} disabled={busyId !== null} /></td>
+                  <td><div className="admin-row-actions"><button type="button" onClick={() => setEditing({ ...category })} disabled={busyId !== null} aria-label={t('common.edit')}><AdminIcon name="edit" /></button><button className="is-danger" type="button" onClick={() => remove(category)} disabled={busyId !== null} aria-label={t('common.delete')}><AdminIcon name="trash" /></button></div></td>
                 </tr>
               ))}</tbody>
             </table>
           </div>
         </div>
-      ) : <EmptyState title={t('admin.noCategories')} />}
+      ) : <EmptyState title={t('admin.noCategories')} description={t('admin.noCategoriesHelp')} />}
 
       {editing && (
-        <AdminModal title={editing.id ? t('common.edit') : t('admin.addCategory')} onClose={() => setEditing(null)}>
-          <form className="admin-form admin-form--two admin-category-form" onSubmit={save}>
+        <AdminModal title={editing.id ? t('common.edit') : t('admin.addCategory')} onClose={() => setEditing(null)} busy={saving}>
+          <form className="admin-form admin-form--two admin-category-form" onSubmit={save} aria-busy={saving}>
             <ErrorBanner message={formError} />
             <label>{t('admin.kyrgyzName')}<input value={editing.name_ky} onChange={(event) => setEditing((value) => ({ ...value, name_ky: event.target.value }))} required /></label>
             <label>{t('admin.russianName')}<input value={editing.name_ru} onChange={(event) => setEditing((value) => ({ ...value, name_ru: event.target.value }))} required /></label>
             <div className="admin-category-form-options admin-form-wide">
               <label>{t('common.sortOrder')}<input type="number" min="0" value={editing.sort_order} onChange={(event) => setEditing((value) => ({ ...value, sort_order: event.target.value }))} /></label>
-              <Toggle checked={editing.is_visible} onChange={(checked) => setEditing((value) => ({ ...value, is_visible: checked }))} label={t('admin.visible')} />
+              <Toggle checked={editing.is_visible} onChange={(checked) => setEditing((value) => ({ ...value, is_visible: checked }))} label={t('admin.visible')} disabled={saving} />
             </div>
-            <div className="admin-form-actions admin-form-wide"><button type="button" onClick={() => setEditing(null)}>{t('common.cancel')}</button><button className="is-primary" type="submit" disabled={saving}>{saving ? <span className="admin-button-spinner" /> : t('common.save')}</button></div>
+            <div className="admin-form-actions admin-form-wide"><button type="button" onClick={() => setEditing(null)} disabled={saving}>{t('common.cancel')}</button><button className="is-primary" type="submit" disabled={saving}>{saving ? <><span className="admin-button-spinner" />{t('common.saving')}</> : t('common.save')}</button></div>
           </form>
         </AdminModal>
       )}

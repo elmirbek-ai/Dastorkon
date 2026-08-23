@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { isValidPhoneNumber } from 'react-phone-number-input'
 import { adminApiClient } from '../api/client.js'
@@ -50,7 +50,7 @@ function UserForm({ value, allowedRoles, showRole, saving, error, onChange, onSu
   const creating = !value.id
   const phoneError = value.phone && !isValidPhoneNumber(value.phone) ? t('common.invalidPhone') : ''
   return (
-    <form className="admin-form admin-user-form" onSubmit={onSubmit}>
+    <form className="admin-form admin-user-form" onSubmit={onSubmit} aria-busy={saving}>
       <ErrorBanner message={error} />
       <label>{t('common.username')}<input value={value.username} onChange={(event) => onChange('username', event.target.value)} autoComplete="off" required /></label>
       {showRole && <label>{t('admin.role')}<select value={value.role} onChange={(event) => onChange('role', event.target.value)} required>{allowedRoles.map((role) => <option value={role} key={role}>{getRoleLabel(role, language)}</option>)}</select></label>}
@@ -63,8 +63,8 @@ function UserForm({ value, allowedRoles, showRole, saving, error, onChange, onSu
         helperText={t('common.optional')}
       />
       {creating && <><label>{t('common.password')}<input type="password" minLength="8" value={value.password} onChange={(event) => onChange('password', event.target.value)} autoComplete="new-password" required /></label><label>{t('common.confirmPassword')}<input type="password" minLength="8" value={value.confirm_password} onChange={(event) => onChange('confirm_password', event.target.value)} autoComplete="new-password" required /></label></>}
-      <div className="admin-user-active-field"><Toggle checked={value.is_active} onChange={(checked) => onChange('is_active', checked)} label={t('admin.isActive')} /></div>
-      <div className="admin-form-actions"><button type="button" onClick={onCancel}>{t('common.cancel')}</button><button className="is-primary" type="submit" disabled={saving}>{saving ? <><span className="admin-button-spinner" />{t('common.saving')}</> : creating ? t('admin.createAccount') : t('common.save')}</button></div>
+      <div className="admin-user-active-field"><Toggle checked={value.is_active} onChange={(checked) => onChange('is_active', checked)} label={t('admin.isActive')} disabled={saving} /></div>
+      <div className="admin-form-actions"><button type="button" onClick={onCancel} disabled={saving}>{t('common.cancel')}</button><button className="is-primary" type="submit" disabled={saving}>{saving ? <><span className="admin-button-spinner" />{t('common.saving')}</> : creating ? t('admin.createAccount') : t('common.save')}</button></div>
     </form>
   )
 }
@@ -86,6 +86,7 @@ export default function AdminUsersPage({ mode = 'waiters' }) {
   const [saving, setSaving] = useState(false)
   const [busyId, setBusyId] = useState(null)
   const [revision, setRevision] = useState(0)
+  const mutationInFlightRef = useRef(false)
 
   useEffect(() => {
     let active = true
@@ -105,15 +106,19 @@ export default function AdminUsersPage({ mode = 'waiters' }) {
 
   async function save(event) {
     event.preventDefault()
+    if (mutationInFlightRef.current) return
+    mutationInFlightRef.current = true
     setSaving(true)
     setFormError('')
     if (editing.phone && !isValidPhoneNumber(editing.phone)) {
       setFormError(t('common.invalidPhone'))
+      mutationInFlightRef.current = false
       setSaving(false)
       return
     }
     if (!editing.id && editing.password !== editing.confirm_password) {
       setFormError(t('admin.passwordMismatch'))
+      mutationInFlightRef.current = false
       setSaving(false)
       return
     }
@@ -133,11 +138,14 @@ export default function AdminUsersPage({ mode = 'waiters' }) {
     } catch (requestError) {
       setFormError(handleApiError(requestError, t('errors.generic')))
     } finally {
+      mutationInFlightRef.current = false
       setSaving(false)
     }
   }
 
   async function toggleActive(user) {
+    if (mutationInFlightRef.current) return
+    mutationInFlightRef.current = true
     setBusyId(user.id)
     setError('')
     try {
@@ -146,6 +154,7 @@ export default function AdminUsersPage({ mode = 'waiters' }) {
     } catch (requestError) {
       setError(handleApiError(requestError, t('errors.generic')))
     } finally {
+      mutationInFlightRef.current = false
       setBusyId(null)
     }
   }
@@ -158,10 +167,12 @@ export default function AdminUsersPage({ mode = 'waiters' }) {
 
   async function changePassword(event) {
     event.preventDefault()
+    if (mutationInFlightRef.current) return
     if (passwordForm.password !== passwordForm.confirm_password) {
       setFormError(t('admin.passwordMismatch'))
       return
     }
+    mutationInFlightRef.current = true
     setSaving(true)
     setFormError('')
     try {
@@ -171,6 +182,7 @@ export default function AdminUsersPage({ mode = 'waiters' }) {
     } catch (requestError) {
       setFormError(handleApiError(requestError, t('errors.generic')))
     } finally {
+      mutationInFlightRef.current = false
       setSaving(false)
     }
   }
@@ -179,9 +191,9 @@ export default function AdminUsersPage({ mode = 'waiters' }) {
 
   return (
     <>
-      <PageIntro eyebrow={pageConfig.eyebrowKey ? t(pageConfig.eyebrowKey) : undefined} title={t(pageConfig.titleKey)} description={t(pageConfig.descriptionKey)} action={<button className="admin-primary-action" type="button" onClick={() => { setEditing({ ...newUser }); setFormError('') }}><AdminIcon name="plus" />{t(pageConfig.addKey)}</button>} />
+      <PageIntro eyebrow={pageConfig.eyebrowKey ? t(pageConfig.eyebrowKey) : undefined} title={t(pageConfig.titleKey)} description={t(pageConfig.descriptionKey)} action={<button className="admin-primary-action" type="button" onClick={() => { setEditing({ ...newUser }); setFormError('') }} disabled={busyId !== null}><AdminIcon name="plus" />{t(pageConfig.addKey)}</button>} />
       <ErrorBanner message={layoutError || error} />
-      {notice && <div className="admin-success-banner">{notice}</div>}
+      {notice && <div className="admin-success-banner" role="status">{notice}</div>}
       {users.length ? (
         <div className="admin-data-card">
           <div className="admin-table-wrap">
@@ -192,18 +204,18 @@ export default function AdminUsersPage({ mode = 'waiters' }) {
                   <td><div className="admin-user-name-cell"><span>{user.username.slice(0, 1).toUpperCase()}</span><strong>{user.username}</strong></div></td>
                   {pageConfig.showRole && <td><b className={`admin-role-badge admin-role-badge--${user.role.toLowerCase()}`}>{getRoleLabel(user.role, language)}</b></td>}
                   <td>{user.phone || '—'}</td>
-                  <td><Toggle checked={user.is_active} onChange={() => toggleActive(user)} label={user.is_active ? t('admin.active') : t('admin.inactive')} disabled={busyId === user.id} /></td>
+                  <td><Toggle checked={user.is_active} onChange={() => toggleActive(user)} label={user.is_active ? t('admin.active') : t('admin.inactive')} disabled={busyId !== null} /></td>
                   <td>{formatAdminDate(user.date_joined, false)}</td>
-                  <td><div className="admin-row-actions admin-user-actions"><button type="button" onClick={() => openEdit(user)}><AdminIcon name="edit" />{t('common.edit')}</button><button type="button" onClick={() => openPassword(user)}>••• <span>{t('common.password')}</span></button></div></td>
+                  <td><div className="admin-row-actions admin-user-actions"><button type="button" onClick={() => openEdit(user)} disabled={busyId !== null}><AdminIcon name="edit" />{t('common.edit')}</button><button type="button" onClick={() => openPassword(user)} disabled={busyId !== null}>••• <span>{t('common.password')}</span></button></div></td>
                 </tr>
               ))}</tbody>
             </table>
           </div>
         </div>
-      ) : <EmptyState title={t(pageConfig.emptyKey)} />}
+      ) : <EmptyState title={t(pageConfig.emptyKey)} description={t(mode === 'profiles' ? 'admin.noProfilesHelp' : 'admin.noWaitersHelp')} />}
 
-      {editing && <AdminModal title={editing.id ? t('admin.editUser') : t(pageConfig.createKey)} onClose={() => setEditing(null)}><UserForm value={editing} allowedRoles={pageConfig.roles} showRole={pageConfig.showRole} saving={saving} error={formError} onChange={(field, value) => setEditing((current) => ({ ...current, [field]: value }))} onSubmit={save} onCancel={() => setEditing(null)} /></AdminModal>}
-      {passwordUser && <AdminModal title={`${passwordUser.username}: ${t('admin.changePassword')}`} onClose={() => setPasswordUser(null)}><form className="admin-form" onSubmit={changePassword}><ErrorBanner message={formError} /><label>{t('common.newPassword')}<input type="password" minLength="8" value={passwordForm.password} onChange={(event) => setPasswordForm((value) => ({ ...value, password: event.target.value }))} autoComplete="new-password" required /></label><label>{t('common.confirmPassword')}<input type="password" minLength="8" value={passwordForm.confirm_password} onChange={(event) => setPasswordForm((value) => ({ ...value, confirm_password: event.target.value }))} autoComplete="new-password" required /></label><div className="admin-form-actions"><button type="button" onClick={() => setPasswordUser(null)}>{t('common.cancel')}</button><button className="is-primary" type="submit" disabled={saving}>{saving ? <><span className="admin-button-spinner" />{t('common.saving')}</> : t('admin.changePassword')}</button></div></form></AdminModal>}
+      {editing && <AdminModal title={editing.id ? t('admin.editUser') : t(pageConfig.createKey)} onClose={() => setEditing(null)} busy={saving}><UserForm value={editing} allowedRoles={pageConfig.roles} showRole={pageConfig.showRole} saving={saving} error={formError} onChange={(field, value) => setEditing((current) => ({ ...current, [field]: value }))} onSubmit={save} onCancel={() => setEditing(null)} /></AdminModal>}
+      {passwordUser && <AdminModal title={`${passwordUser.username}: ${t('admin.changePassword')}`} onClose={() => setPasswordUser(null)} busy={saving}><form className="admin-form" onSubmit={changePassword} aria-busy={saving}><ErrorBanner message={formError} /><label>{t('common.newPassword')}<input type="password" minLength="8" value={passwordForm.password} onChange={(event) => setPasswordForm((value) => ({ ...value, password: event.target.value }))} autoComplete="new-password" required /></label><label>{t('common.confirmPassword')}<input type="password" minLength="8" value={passwordForm.confirm_password} onChange={(event) => setPasswordForm((value) => ({ ...value, confirm_password: event.target.value }))} autoComplete="new-password" required /></label><div className="admin-form-actions"><button type="button" onClick={() => setPasswordUser(null)} disabled={saving}>{t('common.cancel')}</button><button className="is-primary" type="submit" disabled={saving}>{saving ? <><span className="admin-button-spinner" />{t('common.saving')}</> : t('admin.changePassword')}</button></div></form></AdminModal>}
     </>
   )
 }

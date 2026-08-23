@@ -134,6 +134,7 @@ function QrPreviewModal({ table, onClose }) {
   }, [table, t])
 
   async function downloadQr() {
+    if (exporting) return
     setExporting('download')
     setQrError('')
     try {
@@ -152,6 +153,7 @@ function QrPreviewModal({ table, onClose }) {
   }
 
   async function printQr() {
+    if (exporting) return
     const printWindow = window.open('', '_blank', 'width=720,height=820')
     if (!printWindow) {
       setQrError(t('admin.qrPopupError'))
@@ -172,7 +174,7 @@ function QrPreviewModal({ table, onClose }) {
   }
 
   return (
-    <AdminModal title={t('customer.tableLabel', { number: table.number })} onClose={onClose}>
+    <AdminModal title={t('customer.tableLabel', { number: table.number })} onClose={onClose} busy={Boolean(exporting)}>
       <div className="admin-qr-preview">
         <div className="admin-qr-preview-brand"><span>D</span><div><strong>Dastorkon</strong><small>{t('admin.qrMenu')}</small></div></div>
         <div className="admin-qr-frame"><canvas ref={canvasRef} aria-label={t('admin.qrCodeLabel', { number: table.number })} /></div>
@@ -181,7 +183,7 @@ function QrPreviewModal({ table, onClose }) {
         <div className="admin-qr-actions">
           <button className="is-primary" type="button" onClick={downloadQr} disabled={Boolean(exporting)}><AdminIcon name="download" />{exporting === 'download' ? t('admin.preparingDownload') : t('admin.qrDownload')}</button>
           <button type="button" onClick={printQr} disabled={Boolean(exporting)}><AdminIcon name="print" />{exporting === 'print' ? t('admin.preparingDownload') : t('admin.qrPrint')}</button>
-          <button type="button" onClick={onClose}>{t('common.close')}</button>
+          <button type="button" onClick={onClose} disabled={Boolean(exporting)}>{t('common.close')}</button>
         </div>
       </div>
     </AdminModal>
@@ -199,7 +201,9 @@ export default function AdminTablesPage() {
   const [editing, setEditing] = useState(searchParams.get('create') === '1' ? { ...emptyTable } : null)
   const [qrTable, setQrTable] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [busyId, setBusyId] = useState(null)
   const [revision, setRevision] = useState(0)
+  const mutationInFlightRef = useRef(false)
 
   useEffect(() => {
     if (searchParams.get('view') !== 'qr') return
@@ -222,6 +226,8 @@ export default function AdminTablesPage() {
 
   async function save(event) {
     event.preventDefault()
+    if (mutationInFlightRef.current) return
+    mutationInFlightRef.current = true
     setSaving(true)
     setFormError('')
     const payload = { restaurant: restaurantId, number: Number(editing.number), is_active: editing.is_active }
@@ -233,17 +239,24 @@ export default function AdminTablesPage() {
     } catch (requestError) {
       setFormError(handleApiError(requestError, t('errors.generic')))
     } finally {
+      mutationInFlightRef.current = false
       setSaving(false)
     }
   }
 
   async function remove(table) {
+    if (mutationInFlightRef.current) return
     if (!window.confirm(t('admin.tableDeleteConfirm', { number: table.number }))) return
+    mutationInFlightRef.current = true
+    setBusyId(table.id)
     try {
       await adminApiClient.delete(`/api/admin/tables/${table.id}/`)
       setTables((current) => current.filter((item) => item.id !== table.id))
     } catch (requestError) {
       setError(handleApiError(requestError, t('errors.generic')))
+    } finally {
+      mutationInFlightRef.current = false
+      setBusyId(null)
     }
   }
 
@@ -251,7 +264,7 @@ export default function AdminTablesPage() {
 
   return (
     <>
-      <PageIntro eyebrow={t('admin.hallManagement')} title={t('admin.tablesAndQr')} description={t('admin.tablesHelper')} action={<button className="admin-primary-action" type="button" onClick={() => setEditing({ ...emptyTable })}><AdminIcon name="plus" />{t('admin.addTable')}</button>} />
+      <PageIntro eyebrow={t('admin.hallManagement')} title={t('admin.tablesAndQr')} description={t('admin.tablesHelper')} action={<button className="admin-primary-action" type="button" onClick={() => setEditing({ ...emptyTable })} disabled={busyId !== null}><AdminIcon name="plus" />{t('admin.addTable')}</button>} />
       <ErrorBanner message={layoutError || error} />
       {tables.length ? (
         <div className="admin-table-grid">
@@ -260,20 +273,20 @@ export default function AdminTablesPage() {
               <header>
                 <span><AdminIcon name="tables" /></span>
                 <div><h2>{t('customer.tableLabel', { number: table.number })}</h2></div>
-                <b className={table.status === 'OCCUPIED' ? 'is-occupied' : ''}>{table.status === 'OCCUPIED' ? t('admin.occupied') : t('admin.free')}</b>
+                <b className={!table.is_active ? 'is-inactive' : table.status === 'OCCUPIED' ? 'is-occupied' : ''}>{!table.is_active ? t('admin.inactive') : table.status === 'OCCUPIED' ? t('admin.occupied') : t('admin.free')}</b>
               </header>
               <footer>
-                <button className="admin-qr-view-button" type="button" onClick={() => setQrTable(table)}><AdminIcon name="qr" />{t('admin.qrView')}</button>
-                <a href={publicMenuUrl(table)} target="_blank" rel="noreferrer"><AdminIcon name="eye" />{t('admin.openPublicMenu')}</a>
-                <button type="button" onClick={() => setEditing({ ...table })}><AdminIcon name="edit" />{t('common.edit')}</button>
-                <button className="is-danger" type="button" onClick={() => remove(table)}><AdminIcon name="trash" />{t('common.delete')}</button>
+                <button className="admin-qr-view-button" type="button" onClick={() => setQrTable(table)} disabled={busyId !== null}><AdminIcon name="qr" />{t('admin.qrView')}</button>
+                <a href={publicMenuUrl(table)} target="_blank" rel="noreferrer" aria-disabled={busyId !== null} onClick={(event) => busyId !== null && event.preventDefault()}><AdminIcon name="eye" />{t('admin.openPublicMenu')}</a>
+                <button type="button" onClick={() => setEditing({ ...table })} disabled={busyId !== null}><AdminIcon name="edit" />{t('common.edit')}</button>
+                <button className="is-danger" type="button" onClick={() => remove(table)} disabled={busyId !== null}><AdminIcon name="trash" />{busyId === table.id ? t('common.working') : t('common.delete')}</button>
               </footer>
             </article>
           ))}
         </div>
-      ) : <EmptyState title={t('waiter.noTables')} />}
+      ) : <EmptyState title={t('waiter.noTables')} description={t('admin.noTablesHelp')} />}
 
-      {editing && <AdminModal title={editing.id ? t('customer.tableLabel', { number: editing.number }) : t('admin.addTable')} onClose={() => setEditing(null)}><form className="admin-form" onSubmit={save}><ErrorBanner message={formError} /><label>{t('common.tableNumber')}<input type="number" min="1" value={editing.number} onChange={(event) => setEditing((value) => ({ ...value, number: event.target.value }))} required /></label>{editing.id && <Toggle checked={editing.is_active} onChange={(checked) => setEditing((value) => ({ ...value, is_active: checked }))} label={t('admin.active')} />}<div className="admin-form-actions"><button type="button" onClick={() => setEditing(null)}>{t('common.cancel')}</button><button className="is-primary" type="submit" disabled={saving}>{saving ? <span className="admin-button-spinner" /> : t('common.save')}</button></div></form></AdminModal>}
+      {editing && <AdminModal title={editing.id ? t('customer.tableLabel', { number: editing.number }) : t('admin.addTable')} onClose={() => setEditing(null)} busy={saving}><form className="admin-form" onSubmit={save} aria-busy={saving}><ErrorBanner message={formError} /><label>{t('common.tableNumber')}<input type="number" min="1" value={editing.number} onChange={(event) => setEditing((value) => ({ ...value, number: event.target.value }))} required /></label>{editing.id && <Toggle checked={editing.is_active} onChange={(checked) => setEditing((value) => ({ ...value, is_active: checked }))} label={t('admin.active')} disabled={saving} />}<div className="admin-form-actions"><button type="button" onClick={() => setEditing(null)} disabled={saving}>{t('common.cancel')}</button><button className="is-primary" type="submit" disabled={saving}>{saving ? <><span className="admin-button-spinner" />{t('common.saving')}</> : t('common.save')}</button></div></form></AdminModal>}
       {qrTable && <QrPreviewModal table={qrTable} onClose={() => setQrTable(null)} />}
     </>
   )

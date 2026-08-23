@@ -536,16 +536,32 @@
 .admin-panel > header a svg { width: 16px; height: 16px; }
 
 .admin-compact-orders {
+  --admin-recent-orders-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(92px, 0.9fr) minmax(116px, 1fr) auto;
   display: grid;
 }
 
+.admin-compact-orders__header,
 .admin-compact-orders > a {
   display: grid;
-  grid-template-columns: 1fr 0.7fr auto 1fr auto;
+  grid-template-columns: var(--admin-recent-orders-columns);
   align-items: center;
   gap: 11px;
+  padding-inline: 16px;
+}
+
+.admin-compact-orders__header {
+  min-height: 38px;
+  color: var(--text-secondary);
+  background: var(--surface-secondary);
+  font-size: 0.57rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.admin-compact-orders > a {
   min-height: 58px;
-  padding: 9px 16px;
+  padding-block: 9px;
   border-bottom: 1px solid #edf1ee;
   color: #344054;
   text-decoration: none;
@@ -555,6 +571,12 @@
 .admin-compact-orders > a:last-child { border-bottom: 0; }
 .admin-compact-orders > a:hover { background: #f8fbf9; }
 .admin-compact-orders small { color: #667085; }
+.admin-compact-orders__table,
+.admin-compact-orders__date,
+.admin-compact-orders__amount,
+.admin-order-number { white-space: nowrap; }
+.admin-compact-orders__status { display: flex; justify-content: center; }
+.admin-compact-orders__amount { justify-self: end; text-align: right; }
 .admin-order-number { color: #0f8a3a; font-weight: 900; }
 
 .admin-status-badge,
@@ -1764,8 +1786,6 @@
   .admin-page-intro { align-items: flex-start; }
   .admin-dashboard-grid, .admin-statistics-grid, .admin-settings-grid { grid-template-columns: 1fr; }
   .admin-table-grid, .admin-user-grid { grid-template-columns: 1fr; }
-  .admin-compact-orders > a { grid-template-columns: 1fr auto auto; }
-  .admin-compact-orders > a strong, .admin-compact-orders > a small { display: none; }
   .admin-toolbar { align-items: stretch; flex-wrap: wrap; }
   .admin-search-field { width: 100%; }
   .admin-toolbar select { flex: 1; }
@@ -2861,4 +2881,147 @@
 .login-hub-grid a > span {
   color: var(--primary);
   background: var(--primary-light);
+}
+
+/* v0.2 admin demo-readiness refinements */
+.admin-empty-action,
+.admin-request-error button {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 4px;
+  padding: 0 15px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  color: var(--primary);
+  background: var(--surface);
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.admin-empty-action:hover,
+.admin-request-error button:hover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+
+.admin-request-error > span {
+  color: var(--error-dark);
+  background: var(--error-bg);
+}
+
+.admin-request-error p {
+  max-width: 420px;
+  line-height: 1.45;
+}
+
+.admin-refresh-spinner {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: admin-spin 0.75s linear infinite;
+}
+
+.admin-form-actions button,
+.admin-settings-form .admin-primary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.admin-row-actions button,
+.admin-filter-tabs button,
+.admin-date-filter input,
+.admin-date-filter button,
+.admin-toggle,
+.admin-modal > header button {
+  min-height: 40px;
+}
+
+.admin-row-actions button,
+.admin-modal > header button {
+  min-width: 40px;
+}
+
+.admin-table-card > header > b.is-inactive {
+  border-color: var(--border);
+  color: var(--text-muted);
+  background: var(--surface-secondary);
+}
+
+.admin-table-card footer a[aria-disabled='true'] {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.admin-filter-status {
+  align-self: center;
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.admin-data-card[aria-busy='true'],
+.admin-stat-grid[aria-busy='true'],
+.admin-statistics-grid[aria-busy='true'] {
+  opacity: 0.72;
+  transition: opacity 120ms ease;
+}
+
+.admin-order-detail .admin-empty-state {
+  min-height: 150px;
+}
+
+.admin-orders-table tbody tr:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: -3px;
+}
+
+@media (max-width: 1180px) {
+  .admin-panel--orders {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 540px) {
+  .admin-empty-state {
+    min-height: 190px;
+    padding: 22px 16px;
+  }
+
+  .admin-filter-status {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .admin-settings-form .admin-primary-action {
+    width: 100%;
+    justify-self: stretch;
+  }
+
+  .admin-compact-orders__header {
+    display: none;
+  }
+
+  .admin-compact-orders > a {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "order amount"
+      "table status"
+      "date date";
+    gap: 6px 12px;
+    padding-block: 12px;
+  }
+
+  .admin-compact-orders > a .admin-order-number { grid-area: order; }
+  .admin-compact-orders__table { grid-area: table; }
+  .admin-compact-orders__status { grid-area: status; justify-self: end; }
+  .admin-compact-orders__date { grid-area: date; }
+  .admin-compact-orders__amount { grid-area: amount; }
 }

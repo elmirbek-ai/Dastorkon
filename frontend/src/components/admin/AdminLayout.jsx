@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ADMIN_TOKEN_KEY, adminApiClient } from '../../api/client.js'
 import { extractAdminError } from './adminUtils.js'
-import { AdminIcon } from './AdminComponents.jsx'
+import { AdminIcon, LoadingState, RequestErrorState } from './AdminComponents.jsx'
 import { AdminContext } from './AdminContext.js'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
 
@@ -43,7 +43,7 @@ function AdminSidebar({ restaurant, open, onClose, onLogout }) {
 
 function AdminHeader({ title, refreshing, onRefresh, onMenu, onLogout }) {
   const { t } = useLanguage()
-  return <header className="admin-topbar"><button className="admin-menu-toggle" type="button" onClick={onMenu} aria-label={t('common.menu')}><span /><span /><span /></button><div><small>Dastorkon · {t('admin.adminLogin')}</small><h1>{title}</h1></div><div className="admin-topbar-actions"><button type="button" onClick={onRefresh} disabled={refreshing} aria-label={t('common.refresh')}><AdminIcon name="refresh" /> <span>{t('common.refresh')}</span></button><div className="admin-profile"><b>А</b><span><strong>{t('role.ADMIN')}</strong><small>{t('role.ADMIN')}</small></span></div><button className="admin-logout-button" type="button" onClick={onLogout} aria-label={t('common.logout')}><AdminIcon name="logout" /></button></div></header>
+  return <header className="admin-topbar"><button className="admin-menu-toggle" type="button" onClick={onMenu} aria-label={t('common.menu')}><span /><span /><span /></button><div><small>Dastorkon · {t('admin.adminLogin')}</small><h1>{title}</h1></div><div className="admin-topbar-actions"><button type="button" onClick={onRefresh} disabled={refreshing} aria-label={t('common.refresh')}>{refreshing ? <span className="admin-refresh-spinner" aria-hidden="true" /> : <AdminIcon name="refresh" />} <span>{refreshing ? t('common.working') : t('common.refresh')}</span></button><div className="admin-profile"><b>А</b><span><strong>{t('role.ADMIN')}</strong><small>{t('role.ADMIN')}</small></span></div><button className="admin-logout-button" type="button" onClick={onLogout} aria-label={t('common.logout')}><AdminIcon name="logout" /></button></div></header>
 }
 
 export default function AdminLayout() {
@@ -57,6 +57,7 @@ export default function AdminLayout() {
   const [restaurantId, setRestaurantId] = useState(null)
   const [loadingRestaurant, setLoadingRestaurant] = useState(true)
   const [layoutError, setLayoutError] = useState('')
+  const [restaurantRevision, setRestaurantRevision] = useState(0)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
@@ -90,7 +91,7 @@ export default function AdminLayout() {
       .catch((error) => active && setLayoutError(handleApiError(error, t('errors.generic'))))
       .finally(() => active && setLoadingRestaurant(false))
     return () => { active = false }
-  }, [handleApiError, t])
+  }, [handleApiError, restaurantRevision, t])
 
   function refresh() {
     setRefreshing(true)
@@ -101,5 +102,11 @@ export default function AdminLayout() {
   const restaurant = restaurants.find((item) => item.id === restaurantId) || restaurants[0] || null
   const context = { restaurant, restaurants, restaurantId, setRestaurantId, loadingRestaurant, layoutError, refreshKey, handleApiError }
 
-  return <AdminContext.Provider value={context}><main className="admin-app"><AdminSidebar restaurant={restaurant} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={logout} /><div className="admin-main"><AdminHeader title={pageTitles[location.pathname] || t('admin.adminLogin')} refreshing={refreshing} onRefresh={refresh} onMenu={() => setSidebarOpen(true)} onLogout={logout} /><div className="admin-content"><Outlet /></div></div></main></AdminContext.Provider>
+  function retryRestaurants() {
+    setLoadingRestaurant(true)
+    setLayoutError('')
+    setRestaurantRevision((value) => value + 1)
+  }
+
+  return <AdminContext.Provider value={context}><main className="admin-app"><AdminSidebar restaurant={restaurant} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={logout} /><div className="admin-main"><AdminHeader title={pageTitles[location.pathname] || t('admin.adminLogin')} refreshing={refreshing} onRefresh={refresh} onMenu={() => setSidebarOpen(true)} onLogout={logout} /><div className="admin-content">{loadingRestaurant ? <LoadingState /> : restaurantId ? <Outlet /> : <RequestErrorState message={layoutError || t('errors.generic')} onRetry={retryRestaurants} />}</div></div></main></AdminContext.Provider>
 }
