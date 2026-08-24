@@ -258,6 +258,20 @@ class PublicCartOrderApiTests(APITestCase):
                     status.HTTP_400_BAD_REQUEST,
                 )
 
+    def test_unavailable_menu_item_cannot_be_added_to_cart(self):
+        self.menu_item.is_available = False
+        self.menu_item.save(update_fields=("is_available", "updated_at"))
+
+        response = self.client.post(
+            self.cart_item_create_url,
+            {"menu_item": self.menu_item.pk},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(
+            CartItem.objects.filter(customer_session=self.customer_session).exists()
+        )
+
     def test_post_orders_creates_order_from_cart(self):
         add_cart_item(self.customer_session, self.menu_item, quantity=2)
 
@@ -284,6 +298,28 @@ class PublicCartOrderApiTests(APITestCase):
         response = self.client.post(self.orders_url)
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_post_orders_rejects_item_that_became_unavailable(self):
+        cart_item = add_cart_item(self.customer_session, self.menu_item)
+        self.menu_item.is_available = False
+        self.menu_item.save(update_fields=("is_available", "updated_at"))
+
+        response = self.client.post(self.orders_url)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(Order.objects.exists())
+        self.assertTrue(CartItem.objects.filter(pk=cart_item.pk).exists())
+
+    def test_available_menu_item_can_still_be_ordered(self):
+        response = self.client.post(
+            self.cart_item_create_url,
+            {"menu_item": self.menu_item.pk},
+        )
+        order_response = self.client.post(self.orders_url)
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(order_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Order.objects.count(), 1)
 
     def test_get_orders_returns_current_customer_orders(self):
         order = self.create_order()

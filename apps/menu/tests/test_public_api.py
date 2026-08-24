@@ -95,13 +95,15 @@ class PublicMenuApiTests(APITestCase):
 
         self.assertEqual(self.get_item_ids(response), [])
 
-    def test_public_menu_excludes_unavailable_menu_items(self):
+    def test_public_menu_includes_unavailable_menu_items_with_status(self):
         self.menu_item.is_available = False
         self.menu_item.save(update_fields=("is_available", "updated_at"))
 
         response = self.client.get(self.url)
 
-        self.assertEqual(self.get_item_ids(response), [])
+        self.assertEqual(self.get_item_ids(response), [self.menu_item.pk])
+        item = response.data["categories"][0]["items"][0]
+        self.assertFalse(item["is_available"])
 
     def test_public_menu_groups_items_under_categories(self):
         drinks = Category.objects.create(

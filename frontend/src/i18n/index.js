@@ -84,11 +84,26 @@ export function getRoleLabel(role, language) {
   return label === key ? normalizedRole : label
 }
 
+function firstErrorText(value) {
+  if (typeof value === 'string') return value
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const message = firstErrorText(item)
+      if (message) return message
+    }
+  }
+  if (value && typeof value === 'object') {
+    for (const item of Object.values(value)) {
+      const message = firstErrorText(item)
+      if (message) return message
+    }
+  }
+  return ''
+}
+
 function errorText(error) {
-  const data = error?.response?.data
-  if (typeof data === 'string') return data
-  if (typeof data?.detail === 'string') return data.detail
-  if (typeof data?.error === 'string') return data.error
+  const responseMessage = firstErrorText(error?.response?.data)
+  if (responseMessage) return responseMessage
   if (typeof error?.message === 'string') return error.message
   return ''
 }
@@ -98,6 +113,7 @@ export function getBackendErrorMessage(error, language) {
   const lowered = message.toLowerCase()
   if (lowered.includes('table session has unfinished orders')) return t(language, 'errors.unfinishedOrders')
   if (lowered.includes('customer session cookie is required')) return t(language, 'errors.customerSessionRequired')
+  if (lowered.includes('menu item is unavailable')) return t(language, 'errors.menuItemUnavailable')
   if (!error?.response) return t(language, 'errors.network')
   if (error.response.status === 401 || error.response.status === 403) return t(language, 'errors.unauthorized')
   return t(language, 'errors.generic')

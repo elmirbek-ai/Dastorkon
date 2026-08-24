@@ -7703,6 +7703,394 @@ body:has(.customer-menu) {
   }
 }
 
+/* Waiter menu availability */
+.waiter-availability-page {
+  min-height: 100dvh;
+  color: var(--text-primary);
+  background: var(--bg);
+}
+
+.waiter-availability-header {
+  position: sticky;
+  z-index: 30;
+  top: 0;
+  display: grid;
+  min-height: 66px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 10px max(14px, calc((100% - 920px) / 2));
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.waiter-availability-header > button {
+  min-height: 42px;
+  padding: 0 13px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text-primary);
+  background: var(--surface);
+  font-weight: 800;
+}
+
+.waiter-availability-header > div {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.waiter-availability-header strong,
+.waiter-availability-header small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.waiter-availability-header strong {
+  color: var(--text-heading);
+  font-size: 0.94rem;
+}
+
+.waiter-availability-header small {
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+}
+
+.waiter-availability-content {
+  display: grid;
+  width: min(100%, 920px);
+  gap: 14px;
+  margin: 0 auto;
+  padding: 18px 14px max(30px, env(safe-area-inset-bottom));
+}
+
+.waiter-availability-intro {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.waiter-availability-intro small {
+  color: var(--primary);
+  font-size: 0.64rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.waiter-availability-intro h1 {
+  margin: 2px 0 0;
+  color: var(--text-heading);
+  font-size: clamp(1.25rem, 4vw, 1.7rem);
+}
+
+.waiter-availability-intro > p {
+  max-width: 670px;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.waiter-availability-intro dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--border);
+}
+
+.waiter-availability-intro dl > div {
+  display: grid;
+  gap: 3px;
+  padding: 9px 10px;
+  background: var(--surface-secondary);
+}
+
+.waiter-availability-intro dt {
+  color: var(--text-secondary);
+  font-size: 0.61rem;
+}
+
+.waiter-availability-intro dd {
+  margin: 0;
+  color: var(--text-heading);
+  font-size: 0.95rem;
+  font-weight: 900;
+}
+
+.waiter-availability-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(170px, 0.4fr);
+  gap: 9px;
+}
+
+.waiter-availability-toolbar label {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  color: var(--text-muted);
+  background: var(--surface);
+}
+
+.waiter-availability-toolbar input,
+.waiter-availability-toolbar select {
+  width: 100%;
+  min-width: 0;
+  min-height: 46px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  color: var(--text-primary);
+  background: var(--surface);
+  font: inherit;
+  font-size: 0.78rem;
+}
+
+.waiter-availability-toolbar input {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+}
+
+.waiter-availability-toolbar select {
+  padding: 0 11px;
+}
+
+.waiter-availability-message {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 0.76rem;
+  font-weight: 750;
+}
+
+.waiter-availability-message.is-error {
+  border: 1px solid var(--error-border);
+  color: var(--error-dark);
+  background: var(--error-bg);
+}
+
+.waiter-availability-message.is-success {
+  border: 1px solid var(--success-border);
+  color: var(--success-dark);
+  background: var(--success-bg);
+}
+
+.waiter-availability-message button {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid currentColor;
+  border-radius: 9px;
+  color: inherit;
+  background: var(--surface);
+  font-weight: 800;
+}
+
+.waiter-availability-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.waiter-availability-list > article {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.waiter-availability-list > article.is-unavailable {
+  border-color: var(--warning-border);
+  background: var(--surface-secondary);
+}
+
+.waiter-availability-item-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.waiter-availability-item-copy > small {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.64rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.waiter-availability-item-copy h2 {
+  overflow: hidden;
+  margin: 0;
+  color: var(--text-heading);
+  font-size: 0.94rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.waiter-availability-item-copy p {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  color: var(--primary);
+  font-size: 0.73rem;
+  font-weight: 850;
+}
+
+.waiter-availability-item-copy p span {
+  padding: 3px 6px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  background: var(--border);
+  font-size: 0.56rem;
+}
+
+.waiter-availability-control {
+  display: grid;
+  justify-items: end;
+  gap: 7px;
+}
+
+.waiter-availability-control > span {
+  font-size: 0.61rem;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.waiter-availability-control > span.is-available {
+  color: var(--success-dark);
+}
+
+.waiter-availability-control > span.is-unavailable {
+  color: var(--warning-dark);
+}
+
+.waiter-availability-control > button {
+  position: relative;
+  width: 48px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--text-placeholder);
+  transition: background-color 150ms ease;
+}
+
+.waiter-availability-control > button[aria-checked='true'] {
+  background: var(--success);
+}
+
+.waiter-availability-control > button i {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition: transform 150ms ease;
+}
+
+.waiter-availability-control > button[aria-checked='true'] i {
+  transform: translateX(20px);
+}
+
+.waiter-availability-control > button .waiter-action-spinner {
+  position: absolute;
+  z-index: 2;
+  top: 5px;
+  left: 15px;
+  width: 18px;
+  height: 18px;
+  color: var(--text-heading);
+}
+
+.waiter-availability-state {
+  display: grid;
+  min-height: 210px;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  padding: 24px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--text-secondary);
+  background: var(--surface);
+  text-align: center;
+}
+
+.waiter-availability-state p {
+  max-width: 360px;
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.waiter-availability-page button:focus-visible,
+.waiter-availability-page input:focus-visible,
+.waiter-availability-page select:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .waiter-availability-header {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .waiter-availability-header small {
+    display: none;
+  }
+
+  .waiter-availability-toolbar,
+  .waiter-availability-list {
+    grid-template-columns: 1fr;
+  }
+
+  .waiter-availability-content {
+    padding-top: 14px;
+  }
+}
+
+@media (max-width: 380px) {
+  .waiter-availability-header {
+    gap: 8px;
+    padding-inline: 10px;
+  }
+
+  .waiter-availability-header > button {
+    padding-inline: 9px;
+  }
+
+  .waiter-availability-intro dl {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Customer dish detail */
 .customer-menu .menu-card {
   position: relative;
@@ -8619,6 +9007,38 @@ body:has(.customer-menu) {
   color: #8b938d;
   background: #e8ece9;
   opacity: 0.62;
+}
+
+.customer-menu .cart-sheet-item.is-unavailable,
+.customer-menu .checkout-item.is-unavailable {
+  border-color: #fed7aa;
+  background: #fffaf5;
+}
+
+.customer-menu .cart-sheet-item.is-unavailable {
+  padding: 12px;
+  border: 1px solid #fed7aa;
+  border-radius: 14px;
+}
+
+.customer-menu .cart-sheet-item.is-unavailable .cart-sheet-item__media,
+.customer-menu .checkout-item.is-unavailable .checkout-item__media {
+  filter: grayscale(0.75);
+  opacity: 0.7;
+}
+
+.customer-menu .cart-item-unavailable,
+.customer-menu .checkout-item small.cart-item-unavailable {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 5px;
+  padding: 3px 7px;
+  border-radius: 7px;
+  color: #9a3412;
+  background: #ffedd5;
+  font-size: 0.63rem;
+  font-weight: 850;
+  line-height: 1.25;
 }
 
 .customer-menu .checkout-item__remove {

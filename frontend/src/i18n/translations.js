@@ -520,3 +520,63 @@ Object.assign(translations.ru.admin, {
   qrCopyError: 'Не удалось скопировать ссылку на меню.',
   qrPrintCheck: 'После печати проверьте QR-код камерой телефона.',
 })
+
+Object.assign(translations.ky.customer, {
+  temporarilyUnavailable: 'Убактылуу жок',
+})
+
+Object.assign(translations.ru.customer, {
+  temporarilyUnavailable: 'Временно нет',
+})
+
+Object.assign(translations.ky.errors, {
+  menuItemUnavailable: 'Бул тамак убактылуу жок. Аны себеттен чыгарып, заказды кайра ырастап көрүңүз.',
+})
+
+Object.assign(translations.ru.errors, {
+  menuItemUnavailable: 'Это блюдо временно недоступно. Удалите его из корзины и подтвердите заказ снова.',
+})
+
+Object.assign(translations.ky.waiter, {
+  menuAvailability: 'Менюнун жеткиликтүүлүгү',
+  menuAvailabilityShortHelp: 'Сатуу абалын башкаруу',
+  menuAvailabilityHelp: 'Тамактын сатууда бар же убактылуу жок экенин гана өзгөртө аласыз.',
+  searchMenu: 'Тамак издөө...',
+  filterByCategory: 'Категория боюнча чыпкалоо',
+  allCategories: 'Бардык категориялар',
+  availabilityUpdated: '«{name}» сатуу абалы жаңыртылды.',
+  noMenuMatches: 'Туура келген тамак табылган жок',
+  noMenuMatchesHelp: 'Издөө сөзүн же категория чыпкасын өзгөртүп көрүңүз.',
+  noMenuItems: 'Менюда тамак жок',
+  noMenuItemsHelp: 'Администратор менюга тамак кошкондо бул жерде көрүнөт.',
+})
+
+Object.assign(translations.ru.waiter, {
+  menuAvailability: 'Доступность меню',
+  menuAvailabilityShortHelp: 'Управление статусом продажи',
+  menuAvailabilityHelp: 'Вы можете менять только статус: блюдо в продаже или временно недоступно.',
+  searchMenu: 'Поиск блюда...',
+  filterByCategory: 'Фильтр по категории',
+  allCategories: 'Все категории',
+  availabilityUpdated: 'Статус продажи «{name}» обновлён.',
+  noMenuMatches: 'Подходящие блюда не найдены',
+  noMenuMatchesHelp: 'Измените поисковый запрос или фильтр категории.',
+  noMenuItems: 'В меню пока нет блюд',
+  noMenuItemsHelp: 'Блюда появятся здесь после добавления администратором.',
+})
+
+Object.assign(translations.ky.admin, {
+  showInMenu: 'Менюда көрсөтүү',
+})
+
+Object.assign(translations.ru.admin, {
+  showInMenu: 'Показывать в меню',
+})
+
+Object.assign(translations.ky.waiterProfile, {
+  interfaceLanguage: 'Тил',
+})
+
+Object.assign(translations.ru.waiterProfile, {
+  interfaceLanguage: 'Язык',
+})

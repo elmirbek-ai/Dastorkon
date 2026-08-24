@@ -104,7 +104,49 @@ class PublicMenuItemSerializer(serializers.ModelSerializer):
             "allergens_ky",
             "allergens_ru",
             "cooking_time_min",
+            "is_available",
         )
+
+
+class WaiterMenuItemSerializer(serializers.ModelSerializer):
+    category_name_ky = serializers.CharField(
+        source="category.name_ky",
+        read_only=True,
+    )
+    category_name_ru = serializers.CharField(
+        source="category.name_ru",
+        read_only=True,
+    )
+
+    class Meta:
+        model = MenuItem
+        fields = (
+            "id",
+            "category",
+            "category_name_ky",
+            "category_name_ru",
+            "name_ky",
+            "name_ru",
+            "price",
+            "is_available",
+            "is_visible",
+        )
+        read_only_fields = fields
+
+
+class MenuItemAvailabilityUpdateSerializer(serializers.Serializer):
+    is_available = serializers.BooleanField()
+
+    def validate(self, attrs):
+        unexpected_fields = set(self.initial_data) - {"is_available"}
+        if unexpected_fields:
+            raise serializers.ValidationError(
+                {
+                    field: "Waiters can only change menu item availability."
+                    for field in sorted(unexpected_fields)
+                }
+            )
+        return attrs
 
 
 class PublicCategorySerializer(serializers.ModelSerializer):

@@ -23,6 +23,10 @@ class CartItemSerializer(serializers.ModelSerializer):
         decimal_places=2,
         read_only=True,
     )
+    is_available = serializers.BooleanField(
+        source="menu_item.is_available",
+        read_only=True,
+    )
     line_total = serializers.SerializerMethodField()
 
     class Meta:
@@ -33,6 +37,7 @@ class CartItemSerializer(serializers.ModelSerializer):
             "menu_item_name_ky",
             "menu_item_name_ru",
             "price",
+            "is_available",
             "quantity",
             "comment",
             "line_total",

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { waiterApiClient, WAITER_TOKEN_KEY } from '../api/client.js'
 import ConnectionStatus from '../components/ConnectionStatus.jsx'
-import LanguageSwitch from '../components/LanguageSwitch.jsx'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getBackendErrorMessage, getLocalizedField, getStatusLabel } from '../i18n/index.js'
 import useNotificationsSocket from '../realtime/useNotificationsSocket.js'
@@ -60,6 +59,7 @@ function AppIcon({ name }) {
     tables: <><path d="M4 10h16M7 10v9m10-9v9M6 19h12" /><path d="M8 5h8v5H8z" /></>,
     bell: <><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 8h18c0-1-3-1-3-8" /><path d="M10 21h4" /></>,
     ready: <><circle cx="12" cy="12" r="9" /><path d="m8 12 2.6 2.6L16.5 9" /></>,
+    menu: <><path d="M5 5h14v14H5z" /><path d="M8 9h8M8 13h8M8 17h5" /></>,
     profile: <><circle cx="12" cy="8" r="4" /><path d="M4.5 20a7.5 7.5 0 0 1 15 0" /></>,
     refresh: <><path d="M20 7v5h-5M4 17v-5h5" /><path d="M6.1 8a7 7 0 0 1 11.6-1.5L20 9M4 15l2.3 2.5A7 7 0 0 0 18 16" /></>,
     logout: <><path d="M10 5H5v14h5M14 8l4 4-4 4M18 12H9" /></>,
@@ -85,7 +85,6 @@ function WaiterHeader({ connectionStatus, notificationCount, onNotifications }) 
         </div>
       </div>
       <div className="waiter-header-tools">
-        <LanguageSwitch compact />
         <ConnectionStatus status={connectionStatus} />
         <button type="button" onClick={onNotifications} aria-label={t('waiter.calls')}>
           <AppIcon name="bell" />
@@ -364,7 +363,7 @@ function FullListView({ title, count, emptyText, emptyHelp, children }) {
   )
 }
 
-function ProfilePanel({ avatarInitial, shift, refreshing, pending, actionsLocked, error, onRefresh, onStart, onEnd, onViewProfile, onLogout }) {
+function ProfilePanel({ avatarInitial, shift, refreshing, pending, actionsLocked, error, onRefresh, onStart, onEnd, onViewProfile, onMenuAvailability, onLogout }) {
   const { language, t } = useLanguage()
   return (
     <section className="waiter-profile-panel">
@@ -378,6 +377,7 @@ function ProfilePanel({ avatarInitial, shift, refreshing, pending, actionsLocked
       </div>
       <div className="waiter-profile-actions">
         <button type="button" onClick={onViewProfile}>{t('waiterProfile.myProfile')}</button>
+        <button type="button" onClick={onMenuAvailability}><AppIcon name="menu" />{t('waiter.menuAvailability')}</button>
         <button className={shift ? 'is-end-shift' : 'is-primary'} type="button" onClick={shift ? onEnd : onStart} disabled={actionsLocked}>
           {pending ? <span className="waiter-action-spinner" /> : shift ? t('waiter.endShift') : t('waiter.startShift')}
         </button>
@@ -653,7 +653,7 @@ function WaiterDashboardPage() {
         )}
         {activeView === 'calls' && <FullListView title={t('waiter.calls')} count={counts.calls} emptyText={t('waiter.noNewCalls')} emptyHelp={t('waiter.noCallsHelp')}>{callCards()}</FullListView>}
         {activeView === 'ready' && <FullListView title={t('waiter.readyOrders')} count={counts.ready} emptyText={t('waiter.noReadyOrders')} emptyHelp={t('waiter.noReadyOrdersHelp')}>{readyCards()}</FullListView>}
-        {activeView === 'profile' && <ProfilePanel avatarInitial={avatarInitial} shift={shift} refreshing={refreshing} pending={pendingAction === 'shift'} actionsLocked={actionsLocked} error={cardError('shift')} onRefresh={refreshManually} onStart={startShift} onEnd={endShift} onViewProfile={() => navigate('/waiter/profile')} onLogout={logout} />}
+        {activeView === 'profile' && <ProfilePanel avatarInitial={avatarInitial} shift={shift} refreshing={refreshing} pending={pendingAction === 'shift'} actionsLocked={actionsLocked} error={cardError('shift')} onRefresh={refreshManually} onStart={startShift} onEnd={endShift} onViewProfile={() => navigate('/waiter/profile')} onMenuAvailability={() => navigate('/waiter/menu-availability')} onLogout={logout} />}
       </div>
       <WaiterBottomNav activeView={activeView} counts={counts} onChange={navigateView} />
     </main>

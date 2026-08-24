@@ -33,7 +33,6 @@ function MenuForm({ value, categories, imagePreview, saving, error, onChange, on
   const { language, t } = useLanguage()
   const fileInputRef = useRef(null)
   const [imageActionsOpen, setImageActionsOpen] = useState(false)
-  const shownInMenu = value.is_available && value.is_visible
 
   function chooseImage() {
     setImageActionsOpen(false)
@@ -107,15 +106,20 @@ function MenuForm({ value, categories, imagePreview, saving, error, onChange, on
               {imagePreview.startsWith('blob:') && <button type="button" onClick={onClearImage} disabled={saving}>{t('admin.clearSelection')}</button>}
             </div>
           ) : <p className="admin-menu-no-image">{t('admin.noImageSelected')}</p>}
-          <Toggle
-            checked={shownInMenu}
-            onChange={(checked) => {
-              onChange('is_available', checked)
-              onChange('is_visible', checked)
-            }}
-            label={t('admin.visible')}
-            disabled={saving}
-          />
+          <div className="admin-menu-status-controls">
+            <Toggle
+              checked={value.is_available}
+              onChange={(checked) => onChange('is_available', checked)}
+              label={t('admin.available')}
+              disabled={saving}
+            />
+            <Toggle
+              checked={value.is_visible}
+              onChange={(checked) => onChange('is_visible', checked)}
+              label={t('admin.showInMenu')}
+              disabled={saving}
+            />
+          </div>
         </div>
       </section>
 
@@ -271,11 +275,11 @@ export default function AdminMenuPage() {
   async function toggleMenuStatus(item) {
     if (mutationInFlightRef.current) return
     mutationInFlightRef.current = true
-    const nextStatus = !(item.is_available && item.is_visible)
+    const nextStatus = !item.is_available
     setBusyId(item.id)
     try {
-      await adminApiClient.patch(`/api/admin/menu-items/${item.id}/`, { is_available: nextStatus, is_visible: nextStatus })
-      setItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, is_available: nextStatus, is_visible: nextStatus } : entry))
+      await adminApiClient.patch(`/api/admin/menu-items/${item.id}/`, { is_available: nextStatus })
+      setItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, is_available: nextStatus } : entry))
     } catch (requestError) {
       setError(handleApiError(requestError, t('errors.generic')))
     } finally {
@@ -317,11 +321,11 @@ export default function AdminMenuPage() {
             <table className="admin-table admin-menu-table">
               <thead><tr><th>{t('admin.food')}</th><th>{t('admin.category')}</th><th>{t('common.price')}</th><th>{t('common.status')}</th><th>{t('common.action')}</th></tr></thead>
               <tbody>{filteredItems.map((item) => (
-                <tr key={item.id}>
-                  <td><div className="admin-menu-cell">{item.image ? <img src={adminImageUrl(item.image)} alt="" /> : <span>{getLocalizedField(item, 'name', language).slice(0, 1)}</span>}<div><strong>{getLocalizedField(item, 'name', language)}</strong></div></div></td>
+                <tr className={!item.is_available ? 'is-unavailable' : ''} key={item.id}>
+                  <td><div className="admin-menu-cell">{item.image ? <img src={adminImageUrl(item.image)} alt="" /> : <span>{getLocalizedField(item, 'name', language).slice(0, 1)}</span>}<div><strong>{getLocalizedField(item, 'name', language)}</strong>{!item.is_visible && <small>{t('admin.hidden')}</small>}</div></div></td>
                   <td>{getLocalizedField(categoryMap[item.category], 'name', language) || '—'}</td>
                   <td><strong>{formatAdminMoney(item.price)}</strong></td>
-                  <td><Toggle checked={item.is_available && item.is_visible} onChange={() => toggleMenuStatus(item)} label={item.is_available && item.is_visible ? t('admin.available') : t('admin.hidden')} disabled={busyId !== null} /></td>
+                  <td><Toggle checked={item.is_available} onChange={() => toggleMenuStatus(item)} label={item.is_available ? t('admin.available') : t('admin.unavailable')} disabled={busyId !== null} /></td>
                   <td><div className="admin-row-actions"><button type="button" onClick={() => openEdit(item)} disabled={busyId !== null} aria-label={t('common.edit')}><AdminIcon name="edit" /></button><button className="is-danger" type="button" onClick={() => remove(item)} disabled={busyId !== null} aria-label={t('common.delete')}><AdminIcon name="trash" /></button></div></td>
                 </tr>
               ))}</tbody>

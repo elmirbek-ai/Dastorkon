@@ -59,6 +59,7 @@ urlpatterns = [
     ),
     path('api/auth/', include(user_urls.auth_urlpatterns)),
     path('common/', include('apps.common.urls')),
+    path('api/waiter/', include(menu_urls.waiter_urlpatterns)),
     path('api/waiter/', include(user_urls.waiter_urlpatterns)),
     path('api/waiter/', include(order_urls.waiter_urlpatterns)),
     path('api/kitchen/', include(order_urls.kitchen_urlpatterns)),

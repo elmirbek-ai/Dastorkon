@@ -227,7 +227,7 @@ function MenuItemCard({ item, cartItem, pendingItemId, onAdd, onIncrease, onDecr
         )}
         {unavailable && (
           <span className="availability-badge availability-badge--unavailable">
-            {t('common.unavailable')}
+            {t('customer.temporarilyUnavailable')}
           </span>
         )}
       </div>
@@ -338,7 +338,7 @@ function DishDetailDialog({ item, pending, onClose, onAdd }) {
             <FoodPlaceholder itemName={itemName} />
           )}
           {unavailable && (
-            <span className="dish-detail__availability">{t('common.unavailable')}</span>
+            <span className="dish-detail__availability">{t('customer.temporarilyUnavailable')}</span>
           )}
         </div>
 
@@ -421,7 +421,7 @@ function DishDetailDialog({ item, pending, onClose, onAdd }) {
                 <span className="button-loader" aria-hidden="true" />
               ) : (
                 <>
-                  <span>{unavailable ? t('common.unavailable') : t('customer.addToCart')}</span>
+                  <span>{unavailable ? t('customer.temporarilyUnavailable') : t('customer.addToCart')}</span>
                   {!unavailable && <strong>{money(Number(item.price) * quantity)}</strong>}
                 </>
               )}
@@ -695,15 +695,20 @@ export function OrderHistory({ orders, tableNumber, onBackToMenu }) {
   )
 }
 
+function cartItemIsUnavailable(cartItem, menuItem) {
+  return cartItem.is_available === false || !menuItem || menuItem.is_available === false
+}
+
 function CartReviewItem({ cartItem, menuItem, pending, onIncrease, onDecrease, onRemove }) {
   const { language, t } = useLanguage()
   const [imageFailed, setImageFailed] = useState(false)
   const imageUrl = resolveImageUrl(menuItem?.image)
   const itemName = getLocalizedField(menuItem, 'name', language) || getLocalizedField(cartItem, 'menu_item_name', language)
   const unitPrice = menuItem?.price ?? Number(cartItem.line_total) / cartItem.quantity
+  const unavailable = cartItemIsUnavailable(cartItem, menuItem)
 
   return (
-    <article className="cart-sheet-item">
+    <article className={`cart-sheet-item ${unavailable ? 'is-unavailable' : ''}`}>
       <div className="cart-sheet-item__media">
         {imageUrl && !imageFailed ? (
           <img
@@ -721,6 +726,7 @@ function CartReviewItem({ cartItem, menuItem, pending, onIncrease, onDecrease, o
           <div>
             <h3>{itemName}</h3>
             <p>{money(unitPrice)}</p>
+            {unavailable && <small className="cart-item-unavailable">{t('customer.temporarilyUnavailable')}</small>}
             {cartItem.comment && (
               <small className="cart-sheet-item__comment">
                 {t('customer.kitchenNote')}: {cartItem.comment}
@@ -743,7 +749,7 @@ function CartReviewItem({ cartItem, menuItem, pending, onIncrease, onDecrease, o
             <button
               type="button"
               onClick={onDecrease}
-              disabled={pending}
+              disabled={pending || unavailable}
               aria-label={t('customer.decreaseQuantity')}
             >
               −
@@ -754,7 +760,7 @@ function CartReviewItem({ cartItem, menuItem, pending, onIncrease, onDecrease, o
             <button
               type="button"
               onClick={onIncrease}
-              disabled={pending}
+              disabled={pending || unavailable}
               aria-label={t('customer.increaseQuantity')}
             >
               +
@@ -782,9 +788,10 @@ function CheckoutReviewItem({
   const itemName = getLocalizedField(menuItem, 'name', language)
     || getLocalizedField(cartItem, 'menu_item_name', language)
   const unitPrice = Number(cartItem.line_total) / cartItem.quantity
+  const unavailable = cartItemIsUnavailable(cartItem, menuItem)
 
   return (
-    <article className="checkout-item" aria-busy={pending}>
+    <article className={`checkout-item ${unavailable ? 'is-unavailable' : ''}`} aria-busy={pending}>
       <div className="checkout-item__media">
         {imageUrl && !imageFailed ? (
           <img src={imageUrl} alt="" onError={() => setImageFailed(true)} />
@@ -797,6 +804,7 @@ function CheckoutReviewItem({
           <div className="checkout-item__copy">
             <h3>{itemName}</h3>
             <p>{money(unitPrice)}</p>
+            {unavailable && <small className="cart-item-unavailable">{t('customer.temporarilyUnavailable')}</small>}
             {cartItem.comment && (
               <small>{t('customer.kitchenNote')}: {cartItem.comment}</small>
             )}
@@ -808,7 +816,7 @@ function CheckoutReviewItem({
             <button
               type="button"
               onClick={onDecrease}
-              disabled={disabled}
+              disabled={disabled || unavailable}
               title={t('customer.decreaseQuantity')}
               aria-label={t('customer.decreaseQuantity')}
             >
@@ -820,7 +828,7 @@ function CheckoutReviewItem({
             <button
               type="button"
               onClick={onIncrease}
-              disabled={disabled}
+              disabled={disabled || unavailable}
               title={t('customer.increaseQuantity')}
               aria-label={t('customer.increaseQuantity')}
             >
@@ -872,6 +880,9 @@ function CartReviewSheet({
   const { language, t } = useLanguage()
   if (!open) return null
   const checkout = stage === 'checkout'
+  const hasUnavailableItems = cart.items.some((cartItem) => (
+    cartItemIsUnavailable(cartItem, menuItemsById.get(cartItem.menu_item))
+  ))
 
   return (
     <div
@@ -922,6 +933,9 @@ function CartReviewSheet({
         </header>
 
         {error && <div className="notice notice--error" role="alert">{error}</div>}
+        {hasUnavailableItems && error !== t('errors.menuItemUnavailable') && (
+          <div className="notice notice--error" role="alert">{t('errors.menuItemUnavailable')}</div>
+        )}
 
         {cart.items.length === 0 ? (
           <div className="cart-sheet-empty">
@@ -997,7 +1011,7 @@ function CartReviewSheet({
                 className="order-button"
                 type="button"
                 onClick={onSubmit}
-                disabled={submitting || pendingItemId !== null || cart.items.length === 0}
+                disabled={submitting || pendingItemId !== null || cart.items.length === 0 || hasUnavailableItems}
               >
                 {submitting ? t('customer.placingOrder') : t('customer.sendOrderToKitchen')}
                 {!submitting && <span aria-hidden="true">→</span>}
@@ -1050,7 +1064,7 @@ function CartReviewSheet({
                   className="order-button"
                   type="button"
                   onClick={onCheckout}
-                  disabled={pendingItemId !== null}
+                  disabled={pendingItemId !== null || hasUnavailableItems}
                 >
                   {t('customer.proceedToCheckout')}
                   <span aria-hidden="true">→</span>
@@ -1370,7 +1384,14 @@ function CustomerMenuPage() {
 
   async function refreshCart() {
     const response = await apiClient.get(`${basePath}/cart/`)
-    setCart(response.data)
+    setCart(normalizeCart(response.data))
+  }
+
+  async function refreshMenu() {
+    const response = await apiClient.get(`${basePath}/menu/`)
+    const nextMenu = normalizeMenu(response.data)
+    if (!nextMenu) throw new Error('Invalid customer menu response')
+    setMenu(nextMenu)
   }
 
   async function refreshOrders() {
@@ -1381,6 +1402,7 @@ function CustomerMenuPage() {
   function openCartSheet(stage = 'cart') {
     setCartStage(stage)
     setCartSheetOpen(true)
+    Promise.allSettled([refreshMenu(), refreshCart()])
   }
 
   function closeCartSheet() {
@@ -1471,6 +1493,13 @@ function CustomerMenuPage() {
 
   async function submitOrder() {
     if (orderSubmitInFlightRef.current || cart.items.length === 0) return
+    if (cart.items.some((cartItem) => (
+      cartItemIsUnavailable(cartItem, menuItemsById.get(cartItem.menu_item))
+    ))) {
+      setError(t('errors.menuItemUnavailable'))
+      setCartSheetOpen(true)
+      return
+    }
 
     orderSubmitInFlightRef.current = true
     setSubmittingOrder(true)
@@ -1506,7 +1535,11 @@ function CustomerMenuPage() {
       window.scrollTo({ top: 0, behavior: 'smooth' })
       await Promise.allSettled([refreshCart(), refreshOrders()])
     } catch (requestError) {
-      setError(getBackendErrorMessage(requestError, language))
+      const message = getBackendErrorMessage(requestError, language)
+      if (message === t('errors.menuItemUnavailable')) {
+        await Promise.allSettled([refreshMenu(), refreshCart()])
+      }
+      setError(message)
     } finally {
       orderSubmitInFlightRef.current = false
       setSubmittingOrder(false)

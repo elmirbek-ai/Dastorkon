@@ -187,6 +187,16 @@ class AdminMenuApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(self.menu_item.price, Decimal("275.00"))
 
+    def test_admin_can_change_menu_item_availability(self):
+        self.authenticate(self.admin)
+        url = reverse("admin-menu-item-detail", args=(self.menu_item.pk,))
+
+        response = self.client.patch(url, {"is_available": False})
+
+        self.menu_item.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(self.menu_item.is_available)
+
     def test_menu_item_image_is_preserved_when_patch_omits_image(self):
         self.authenticate(self.admin)
         self.menu_item.image.save(

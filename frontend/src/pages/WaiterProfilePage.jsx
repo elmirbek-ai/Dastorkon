@@ -175,7 +175,7 @@ export default function WaiterProfilePage() {
         </section>
 
         <section className="waiter-profile-section waiter-profile-settings-section">
-          <header><div><small>{t('waiterProfile.profile')}</small><h2>{t('waiterProfile.interfaceLanguage')}</h2></div></header>
+          <header><div><small>{t('waiterProfile.profile')}</small><h2>{t('waiterProfile.interfaceLanguage')}</h2></div><button type="button" onClick={() => navigate('/waiter/menu-availability')}>{t('waiter.menuAvailability')}</button></header>
           <div className="waiter-profile-language-setting">
             <p>{t('waiterProfile.interfaceLanguageDescription')}</p>
             <LanguageSwitch />
