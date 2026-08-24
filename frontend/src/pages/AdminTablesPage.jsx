@@ -42,9 +42,64 @@ function roundedRect(context, x, y, width, height, radius) {
   context.closePath()
 }
 
-async function createPrintableQrCard(table, translate) {
+function brandName(restaurant) {
+  return restaurant?.name?.trim() || 'Dastorkon'
+}
+
+function brandInitial(name) {
+  return Array.from(name)[0]?.toLocaleUpperCase() || 'D'
+}
+
+function drawFittedText(context, text, x, y, maxWidth, maxFontSize, minFontSize, fontWeight) {
+  let fontSize = maxFontSize
+  do {
+    context.font = `${fontWeight} ${fontSize}px ${CANVAS_FONT_STACK}`
+    fontSize -= 1
+  } while (fontSize >= minFontSize && context.measureText(text).width > maxWidth)
+  context.fillText(text, x, y)
+}
+
+function canvasToPngBlob(canvas) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob)
+      else reject(new Error('Could not create a PNG image.'))
+    }, 'image/png')
+  })
+}
+
+async function copyToClipboard(value) {
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(value)
+      return
+    } catch {
+      // Fall back for browsers that expose the API but deny clipboard access.
+    }
+  }
+
+  const activeElement = document.activeElement
+  const textArea = document.createElement('textarea')
+  textArea.value = value
+  textArea.setAttribute('readonly', '')
+  textArea.style.position = 'fixed'
+  textArea.style.opacity = '0'
+  document.body.appendChild(textArea)
+  let copied
+  try {
+    textArea.select()
+    copied = document.execCommand('copy')
+  } finally {
+    textArea.remove()
+    activeElement?.focus()
+  }
+  if (!copied) throw new Error('Could not copy the menu URL.')
+}
+
+async function createPrintableQrCard(table, restaurant, translate) {
   if (document.fonts?.ready) await document.fonts.ready
 
+  const restaurantName = brandName(restaurant)
   const cardCanvas = document.createElement('canvas')
   cardCanvas.width = 1080
   cardCanvas.height = 1500
@@ -67,15 +122,14 @@ async function createPrintableQrCard(table, translate) {
   context.font = `900 54px ${CANVAS_FONT_STACK}`
   context.textAlign = 'center'
   context.textBaseline = 'middle'
-  context.fillText('D', 153, 155)
+  context.fillText(brandInitial(restaurantName), 153, 155)
 
   context.textAlign = 'left'
   context.fillStyle = '#0f172a'
-  context.font = `800 47px ${CANVAS_FONT_STACK}`
-  context.fillText('Dastorkon', 230, 139)
+  drawFittedText(context, restaurantName, 230, 139, 745, 47, 28, 800)
   context.fillStyle = '#0f8a3a'
   context.font = `700 25px ${CANVAS_FONT_STACK}`
-  context.fillText(translate('admin.qrMenu'), 232, 183)
+  context.fillText(`Dastorkon · ${translate('admin.qrMenu')}`, 232, 183)
 
   context.beginPath()
   context.moveTo(105, 245)
@@ -100,51 +154,72 @@ async function createPrintableQrCard(table, translate) {
   const qrCanvas = document.createElement('canvas')
   await QRCode.toCanvas(qrCanvas, publicMenuUrl(table), {
     width: 700,
-    margin: 3,
+    margin: 4,
     errorCorrectionLevel: 'H',
-    color: { dark: '#0f172a', light: '#ffffff' },
+    color: { dark: '#000000', light: '#ffffff' },
   })
   context.drawImage(qrCanvas, 190, 465, 700, 700)
 
   context.fillStyle = '#0f172a'
-  context.font = `800 36px ${CANVAS_FONT_STACK}`
-  context.fillText(translate('admin.qrScanHelp'), 540, 1290)
+  drawFittedText(context, translate('admin.qrScanHelp'), 540, 1290, 870, 36, 25, 800)
   context.fillStyle = '#667085'
   context.font = `500 28px ${CANVAS_FONT_STACK}`
   context.fillText(translate('admin.qrOrderHere'), 540, 1342)
 
-  return cardCanvas.toDataURL('image/png')
+  return cardCanvas
 }
 
-function QrPreviewModal({ table, onClose }) {
+function QrPreviewModal({ table, restaurant, onClose }) {
   const { t } = useLanguage()
   const canvasRef = useRef(null)
+  const copyResetTimerRef = useRef(null)
   const [qrError, setQrError] = useState('')
   const [exporting, setExporting] = useState('')
+  const [urlCopied, setUrlCopied] = useState(false)
+  const menuUrl = publicMenuUrl(table)
+  const restaurantName = brandName(restaurant)
 
   useEffect(() => {
     if (!canvasRef.current) return
-    QRCode.toCanvas(canvasRef.current, publicMenuUrl(table), {
+    QRCode.toCanvas(canvasRef.current, menuUrl, {
       width: 320,
-      margin: 2,
+      margin: 4,
       errorCorrectionLevel: 'H',
-      color: { dark: '#0f172a', light: '#ffffff' },
+      color: { dark: '#000000', light: '#ffffff' },
     }).then(() => setQrError(''))
       .catch(() => setQrError(t('admin.qrCreateError')))
-  }, [table, t])
+  }, [menuUrl, t])
+
+  useEffect(() => () => window.clearTimeout(copyResetTimerRef.current), [])
+
+  async function copyMenuUrl() {
+    setQrError('')
+    try {
+      await copyToClipboard(menuUrl)
+      setUrlCopied(true)
+      window.clearTimeout(copyResetTimerRef.current)
+      copyResetTimerRef.current = window.setTimeout(() => setUrlCopied(false), 2400)
+    } catch {
+      setUrlCopied(false)
+      setQrError(t('admin.qrCopyError'))
+    }
+  }
 
   async function downloadQr() {
     if (exporting) return
     setExporting('download')
     setQrError('')
     try {
-      const image = await createPrintableQrCard(table, t)
+      const cardCanvas = await createPrintableQrCard(table, restaurant, t)
+      const imageBlob = await canvasToPngBlob(cardCanvas)
+      const imageUrl = URL.createObjectURL(imageBlob)
       const link = document.createElement('a')
-      link.download = `dastorkon-table-${table.number}-qr.png`
-      link.href = image
+      link.download = `dastorkon-table-${table.number}-qr-card.png`
+      link.href = imageUrl
       document.body.appendChild(link)
       link.click()
       link.remove()
+      window.setTimeout(() => URL.revokeObjectURL(imageUrl), 0)
     } catch {
       setQrError(t('admin.qrDownloadError'))
     } finally {
@@ -162,9 +237,23 @@ function QrPreviewModal({ table, onClose }) {
     setExporting('print')
     setQrError('')
     try {
-      const image = await createPrintableQrCard(table, t)
-      printWindow.document.write(`<!doctype html><html><head><title>${t('admin.qrCardLabel', { number: table.number })} — Dastorkon</title><style>@page{margin:8mm}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#fff}img{display:block;width:auto;max-width:180mm;max-height:270mm;object-fit:contain}</style></head><body><img src="${image}" alt="${t('admin.qrCardLabel', { number: table.number })}"><script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}</script></body></html>`)
+      const cardCanvas = await createPrintableQrCard(table, restaurant, t)
+      const image = cardCanvas.toDataURL('image/png')
+      printWindow.document.write('<!doctype html><html><head><title></title><style>@page{margin:10mm}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}html,body{margin:0;background:#fff}body{display:flex;justify-content:center}main{width:180mm;max-width:100%;break-inside:avoid;page-break-inside:avoid}img{display:block;width:100%;height:auto}</style></head><body><main><img></main></body></html>')
       printWindow.document.close()
+      printWindow.document.title = `${t('admin.qrCardLabel', { number: table.number })} — ${restaurantName}`
+      const printImage = printWindow.document.querySelector('img')
+      printImage.alt = t('admin.qrCardLabel', { number: table.number })
+      const imageReady = new Promise((resolve, reject) => {
+        printImage.addEventListener('load', resolve, { once: true })
+        printImage.addEventListener('error', reject, { once: true })
+        printImage.src = image
+        if (printImage.complete && printImage.naturalWidth) resolve()
+      })
+      await imageReady
+      printWindow.addEventListener('afterprint', () => printWindow.close(), { once: true })
+      printWindow.focus()
+      printWindow.print()
     } catch {
       printWindow.close()
       setQrError(t('admin.qrPrintError'))
@@ -176,22 +265,28 @@ function QrPreviewModal({ table, onClose }) {
   return (
     <AdminModal title={t('customer.tableLabel', { number: table.number })} onClose={onClose} busy={Boolean(exporting)}>
       <div className="admin-qr-preview">
-        <div className="admin-qr-preview-brand"><span>D</span><div><strong>Dastorkon</strong><small>{t('admin.qrMenu')}</small></div></div>
+        <div className="admin-qr-preview-brand"><span>{brandInitial(restaurantName)}</span><div><strong>{restaurantName}</strong><small>Dastorkon · {t('admin.qrMenu')}</small></div></div>
         <div className="admin-qr-frame"><canvas ref={canvasRef} aria-label={t('admin.qrCodeLabel', { number: table.number })} /></div>
         <p>{t('admin.qrScanHelp')}</p>
+        <div className="admin-qr-url" title={menuUrl}>
+          <AdminIcon name="qr" />
+          <div><small>{t('admin.qrCustomerUrl')}</small><span>{menuUrl}</span></div>
+        </div>
         {qrError && <div className="admin-error-banner" role="alert">{qrError}</div>}
         <div className="admin-qr-actions">
+          <button className={urlCopied ? 'is-success' : ''} type="button" onClick={copyMenuUrl} disabled={Boolean(exporting)}><AdminIcon name="copy" />{urlCopied ? t('admin.qrCopied') : t('admin.qrCopyUrl')}</button>
           <button className="is-primary" type="button" onClick={downloadQr} disabled={Boolean(exporting)}><AdminIcon name="download" />{exporting === 'download' ? t('admin.preparingDownload') : t('admin.qrDownload')}</button>
           <button type="button" onClick={printQr} disabled={Boolean(exporting)}><AdminIcon name="print" />{exporting === 'print' ? t('admin.preparingDownload') : t('admin.qrPrint')}</button>
           <button type="button" onClick={onClose} disabled={Boolean(exporting)}>{t('common.close')}</button>
         </div>
+        <p className="admin-qr-print-note">{t('admin.qrPrintCheck')}</p>
       </div>
     </AdminModal>
   )
 }
 
 export default function AdminTablesPage() {
-  const { restaurantId, loadingRestaurant, layoutError, refreshKey, handleApiError } = useAdminContext()
+  const { restaurant, restaurantId, loadingRestaurant, layoutError, refreshKey, handleApiError } = useAdminContext()
   const { t } = useLanguage()
   const [searchParams, setSearchParams] = useSearchParams()
   const [tables, setTables] = useState([])
@@ -287,7 +382,7 @@ export default function AdminTablesPage() {
       ) : <EmptyState title={t('waiter.noTables')} description={t('admin.noTablesHelp')} />}
 
       {editing && <AdminModal title={editing.id ? t('customer.tableLabel', { number: editing.number }) : t('admin.addTable')} onClose={() => setEditing(null)} busy={saving}><form className="admin-form" onSubmit={save} aria-busy={saving}><ErrorBanner message={formError} /><label>{t('common.tableNumber')}<input type="number" min="1" value={editing.number} onChange={(event) => setEditing((value) => ({ ...value, number: event.target.value }))} required /></label>{editing.id && <Toggle checked={editing.is_active} onChange={(checked) => setEditing((value) => ({ ...value, is_active: checked }))} label={t('admin.active')} disabled={saving} />}<div className="admin-form-actions"><button type="button" onClick={() => setEditing(null)} disabled={saving}>{t('common.cancel')}</button><button className="is-primary" type="submit" disabled={saving}>{saving ? <><span className="admin-button-spinner" />{t('common.saving')}</> : t('common.save')}</button></div></form></AdminModal>}
-      {qrTable && <QrPreviewModal table={qrTable} onClose={() => setQrTable(null)} />}
+      {qrTable && <QrPreviewModal table={qrTable} restaurant={restaurant} onClose={() => setQrTable(null)} />}
     </>
   )
 }

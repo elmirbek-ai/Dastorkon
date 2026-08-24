@@ -983,6 +983,7 @@
 
 .admin-qr-preview-brand {
   display: flex;
+  max-width: 100%;
   align-items: center;
   gap: 9px;
   justify-self: start;
@@ -1001,12 +1002,16 @@
 
 .admin-qr-preview-brand > div {
   display: grid;
+  min-width: 0;
   text-align: left;
 }
 
 .admin-qr-preview-brand strong {
+  overflow: hidden;
   color: #08712f;
   font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .admin-qr-preview-brand small {
@@ -1040,6 +1045,45 @@
   font-weight: 700;
 }
 
+.admin-qr-url {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #dce5df;
+  border-radius: 11px;
+  color: #667085;
+  background: #f8faf9;
+  text-align: left;
+}
+
+.admin-qr-url > svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+
+.admin-qr-url > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.admin-qr-url small {
+  font-size: 0.58rem;
+  font-weight: 800;
+}
+
+.admin-qr-url span {
+  overflow: hidden;
+  color: #344054;
+  font-size: 0.64rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .admin-qr-preview > .admin-error-banner {
   width: 100%;
   margin: 0;
@@ -1047,7 +1091,7 @@
 
 .admin-qr-actions {
   display: grid;
-  grid-template-columns: 1.25fr 1.25fr 0.8fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   width: 100%;
   gap: 8px;
   padding-top: 2px;
@@ -1075,9 +1119,27 @@
   background: #0f8a3a;
 }
 
+.admin-qr-actions button.is-success {
+  border-color: #9fd1ac;
+  color: #08712f;
+  background: #e9f8ee;
+}
+
 .admin-qr-actions svg {
   width: 17px;
   height: 17px;
+}
+
+.admin-qr-preview > .admin-qr-print-note {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: #475467;
+  background: #f5f8f6;
+  font-size: 0.64rem;
+  font-weight: 650;
+  line-height: 1.45;
+  text-align: left;
 }
 
 .admin-filter-tabs {
@@ -2430,10 +2492,21 @@
   color: var(--text-secondary);
 }
 
-.admin-qr-frame {
+.admin-qr-frame,
+.admin-qr-url {
   border-color: var(--border);
   background: var(--surface);
   box-shadow: var(--shadow-sm);
+}
+
+.admin-qr-url,
+.admin-qr-preview > .admin-qr-print-note {
+  color: var(--text-secondary);
+  background: var(--surface-secondary);
+}
+
+.admin-qr-url span {
+  color: var(--text-primary);
 }
 
 .admin-filter-tabs button {

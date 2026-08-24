@@ -502,3 +502,21 @@ Object.assign(translations.ru.admin, {
   changeImage: 'Изменить фото',
   removeImage: 'Удалить фото',
 })
+
+Object.assign(translations.ky.admin, {
+  qrScanHelp: 'Менюну ачуу үчүн QR кодду сканерлеңиз',
+  qrCustomerUrl: 'Кардар менюсунун шилтемеси',
+  qrCopyUrl: 'Меню шилтемесин көчүрүү',
+  qrCopied: 'Шилтеме көчүрүлдү',
+  qrCopyError: 'Меню шилтемесин көчүрүү мүмкүн болгон жок.',
+  qrPrintCheck: 'Басып чыгаргандан кийин QR кодду телефон менен текшерип алыңыз.',
+})
+
+Object.assign(translations.ru.admin, {
+  qrScanHelp: 'Отсканируйте QR-код, чтобы открыть меню',
+  qrCustomerUrl: 'Ссылка на меню для гостя',
+  qrCopyUrl: 'Скопировать ссылку на меню',
+  qrCopied: 'Ссылка скопирована',
+  qrCopyError: 'Не удалось скопировать ссылку на меню.',
+  qrPrintCheck: 'После печати проверьте QR-код камерой телефона.',
+})
