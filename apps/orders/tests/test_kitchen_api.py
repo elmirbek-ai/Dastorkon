@@ -154,6 +154,7 @@ class KitchenOrdersApiTests(APITestCase):
 
         order_data = next(item for item in response.data if item["id"] == order.pk)
         self.assertEqual(order_data["table_number"], self.table.number)
+        self.assertEqual(order_data["source"], Order.Source.CUSTOMER_QR)
         self.assertEqual(order_data["items"][0]["comment"], "Пиязсыз")
 
     def test_kitchen_can_mark_new_order_preparing(self):

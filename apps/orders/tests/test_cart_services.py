@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from apps.menu.models import Category, MenuItem
-from apps.orders.models import CartItem
+from apps.orders.models import CartItem, Order
 from apps.orders.services import (
     add_cart_item,
     calculate_cart_total,
@@ -55,7 +55,7 @@ class CartServicesTests(TestCase):
             self.customer_session,
             self.menu_item,
             quantity=2,
-            comment="Пиязсыз",
+            comment="  Пиязсыз  ",
         )
 
         self.assertEqual(cart_item.customer_session, self.customer_session)
@@ -155,9 +155,15 @@ class CartServicesTests(TestCase):
     def test_update_cart_item_changes_comment(self):
         cart_item = add_cart_item(self.customer_session, self.menu_item)
 
-        cart_item = update_cart_item(cart_item, comment="Пиязсыз")
+        cart_item = update_cart_item(cart_item, comment="  Пиязсыз  ")
 
         self.assertEqual(cart_item.comment, "Пиязсыз")
+
+    def test_update_cart_item_rejects_overlong_comment(self):
+        cart_item = add_cart_item(self.customer_session, self.menu_item)
+
+        with self.assertRaises(ValidationError):
+            update_cart_item(cart_item, comment="a" * 301)
 
     def test_update_cart_item_rejects_non_positive_quantity(self):
         cart_item = add_cart_item(self.customer_session, self.menu_item)
@@ -202,9 +208,15 @@ class CartServicesTests(TestCase):
 
         self.assertEqual(order.total_amount, Decimal("650.00"))
         self.assertEqual(order.items.count(), 2)
+        self.assertEqual(order.source, Order.Source.CUSTOMER_QR)
 
     def test_create_order_from_cart_creates_snapshot_fields(self):
-        add_cart_item(self.customer_session, self.menu_item, quantity=2)
+        add_cart_item(
+            self.customer_session,
+            self.menu_item,
+            quantity=2,
+            comment="Пиязсыз",
+        )
 
         order = create_order_from_cart(self.customer_session)
 
@@ -212,6 +224,7 @@ class CartServicesTests(TestCase):
         self.assertEqual(order_item.name_ky_at_order, "Палоо")
         self.assertEqual(order_item.name_ru_at_order, "Плов")
         self.assertEqual(order_item.price_at_order, Decimal("250.00"))
+        self.assertEqual(order_item.comment, "Пиязсыз")
 
     def test_create_order_from_cart_clears_cart(self):
         add_cart_item(self.customer_session, self.menu_item)

@@ -4,6 +4,7 @@ export const SUPPORTED_LANGUAGES = ['ky', 'ru']
 export const DEFAULT_LANGUAGE = 'ky'
 export const LANGUAGE_STORAGE_KEY = 'dastorkon_language'
 const LEGACY_LANGUAGE_STORAGE_KEY = 'dastorkon_customer_language'
+const DEFAULT_ORDER_SOURCE = 'CUSTOMER_QR'
 
 export function normalizeLanguage(language) {
   const normalized = String(language || '').trim().toLowerCase()
@@ -84,6 +85,13 @@ export function getRoleLabel(role, language) {
   return label === key ? normalizedRole : label
 }
 
+export function getOrderSourceLabel(source, language) {
+  const normalizedSource = String(source || DEFAULT_ORDER_SOURCE).toUpperCase()
+  const key = `orderSource.${normalizedSource}`
+  const label = t(language, key)
+  return label === key ? normalizedSource : label
+}
+
 function firstErrorText(value) {
   if (typeof value === 'string') return value
   if (Array.isArray(value)) {
@@ -112,6 +120,9 @@ export function getBackendErrorMessage(error, language) {
   const message = errorText(error)
   const lowered = message.toLowerCase()
   if (lowered.includes('table session has unfinished orders')) return t(language, 'errors.unfinishedOrders')
+  if (lowered.includes('table session is assigned to another waiter')) return t(language, 'errors.tableAssignedToAnotherWaiter')
+  if (lowered.includes('active waiter shift is required') || lowered.includes('waiter has no active shift')) return t(language, 'errors.activeWaiterShiftRequired')
+  if (lowered.includes('table not found or inactive')) return t(language, 'errors.manualOrderTableUnavailable')
   if (lowered.includes('customer session cookie is required')) return t(language, 'errors.customerSessionRequired')
   if (lowered.includes('menu item is unavailable')) return t(language, 'errors.menuItemUnavailable')
   if (!error?.response) return t(language, 'errors.network')

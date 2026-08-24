@@ -9,12 +9,13 @@ class OrderAdmin(admin.ModelAdmin):
         "order_number",
         "restaurant",
         "table_session",
+        "source",
         "responsible_waiter",
         "status",
         "total_amount",
         "created_at",
     )
-    list_filter = ("restaurant", "status")
+    list_filter = ("restaurant", "source", "status")
 
 
 @admin.register(OrderItem)

@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db.models import Count, DecimalField, Q, Sum, Value
+from django.db.models import Count, DecimalField, Prefetch, Q, Sum, Value
 from django.db.models.functions import Coalesce
 from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
 from rest_framework import serializers as drf_serializers
@@ -11,7 +11,12 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.tables.models import ActiveTableSession, CustomerSession
+from apps.menu.models import MenuItem
+from apps.tables.models import (
+    ActiveTableSession,
+    CustomerSession,
+    RestaurantTable,
+)
 from apps.tables.services import get_table_by_qr_token
 from apps.users.permissions import IsKitchenRole, IsWaiterRole
 from apps.users.permissions import IsAdminRole
@@ -26,6 +31,10 @@ from .serializers import (
     AdminOrderFilterSerializer,
     AdminOrderListSerializer,
     KitchenOrderSerializer,
+    ManualOrderCreateSerializer,
+    ManualOrderMenuItemSerializer,
+    ManualOrderMenuQuerySerializer,
+    ManualOrderTableSerializer,
     PublicOrderSerializer,
     PublicWaiterCallSerializer,
     WaiterCallCreateSerializer,
@@ -40,6 +49,7 @@ from .services import (
     calculate_cart_total,
     complete_table_session,
     complete_waiter_call,
+    create_manual_order,
     create_waiter_call,
     create_order_from_cart,
     get_cart_items,
@@ -243,6 +253,128 @@ class ActiveWaiterShiftMixin:
 
     def raise_service_error(self, exc):
         raise ValidationError(exc.messages) from exc
+
+
+class ManualOrderTablesView(ActiveWaiterShiftMixin, APIView):
+    @extend_schema(responses=ManualOrderTableSerializer(many=True))
+    def get(self, request):
+        tables = (
+            RestaurantTable.objects.filter(is_active=True)
+            .select_related("restaurant")
+            .prefetch_related(
+                Prefetch(
+                    "sessions",
+                    queryset=ActiveTableSession.objects.filter(
+                        status=ActiveTableSession.Status.ACTIVE,
+                    ).select_related("assigned_waiter"),
+                    to_attr="active_sessions",
+                )
+            )
+            .order_by("restaurant__name", "number")
+        )
+        response_data = []
+        for table in tables:
+            active_session = table.active_sessions[0] if table.active_sessions else None
+            assigned_waiter = (
+                active_session.assigned_waiter if active_session else None
+            )
+            assigned_to_current_waiter = (
+                assigned_waiter is not None
+                and assigned_waiter.pk == request.user.pk
+            )
+            can_use = assigned_waiter is None or assigned_to_current_waiter
+            response_data.append(
+                {
+                    "id": table.pk,
+                    "number": table.number,
+                    "restaurant": table.restaurant_id,
+                    "restaurant_name": table.restaurant.name,
+                    "status": table.status,
+                    "active_session_id": (
+                        active_session.pk if active_session else None
+                    ),
+                    "assigned_waiter": (
+                        assigned_waiter.pk if assigned_waiter else None
+                    ),
+                    "assigned_waiter_username": (
+                        assigned_waiter.username if assigned_waiter else None
+                    ),
+                    "is_assigned_to_current_waiter": assigned_to_current_waiter,
+                    "can_use": can_use,
+                    "unavailable_reason": (
+                        "ASSIGNED_TO_ANOTHER_WAITER" if not can_use else ""
+                    ),
+                }
+            )
+        return Response(ManualOrderTableSerializer(response_data, many=True).data)
+
+
+class ManualOrderMenuItemsView(ActiveWaiterShiftMixin, APIView):
+    @extend_schema(
+        parameters=[ManualOrderMenuQuerySerializer],
+        responses=ManualOrderMenuItemSerializer(many=True),
+    )
+    def get(self, request):
+        query_serializer = ManualOrderMenuQuerySerializer(
+            data=request.query_params,
+        )
+        query_serializer.is_valid(raise_exception=True)
+        try:
+            table = RestaurantTable.objects.get(
+                pk=query_serializer.validated_data["table_id"],
+                is_active=True,
+            )
+        except RestaurantTable.DoesNotExist as exc:
+            raise NotFound("Table not found or inactive.") from exc
+
+        menu_items = (
+            MenuItem.objects.filter(
+                restaurant=table.restaurant,
+                is_deleted=False,
+                is_visible=True,
+                category__is_deleted=False,
+                category__is_visible=True,
+            )
+            .select_related("category")
+            .order_by("category__sort_order", "category__name_ky", "name_ky")
+        )
+        return Response(
+            ManualOrderMenuItemSerializer(
+                menu_items,
+                many=True,
+                context={"request": request},
+            ).data
+        )
+
+
+class ManualOrderCreateView(ActiveWaiterShiftMixin, APIView):
+    @extend_schema(
+        request=ManualOrderCreateSerializer,
+        responses={201: WaiterOrderSerializer},
+    )
+    def post(self, request):
+        serializer = ManualOrderCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            order = create_manual_order(
+                request.user,
+                serializer.validated_data["table_id"],
+                serializer.validated_data["items"],
+            )
+        except DjangoValidationError as exc:
+            self.raise_service_error(exc)
+        order = (
+            Order.objects.select_related(
+                "table_session__table",
+                "responsible_waiter",
+            )
+            .prefetch_related("items")
+            .get(pk=order.pk)
+        )
+        return Response(
+            WaiterOrderSerializer(order).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class AvailableTableSessionsView(ActiveWaiterShiftMixin, APIView):

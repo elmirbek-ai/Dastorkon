@@ -13,6 +13,7 @@ from apps.orders.services import (
     change_order_status,
     complete_waiter_call,
     complete_table_session,
+    create_manual_order,
     create_order,
     create_waiter_call,
     mark_order_delivered,
@@ -103,6 +104,20 @@ class NotificationEventTests(TestCase):
 
         payload = self.assert_event(channel, "order_created")
         self.assertEqual(payload["id"], order.pk)
+        self.assertEqual(payload["source"], Order.Source.CUSTOMER_QR)
+
+    def test_manual_order_notifies_kitchen_with_manual_source(self):
+        channel = self.subscribe("kitchen")
+        with self.captureOnCommitCallbacks(execute=True):
+            order = create_manual_order(
+                self.waiter,
+                self.table.pk,
+                [{"menu_item_id": self.menu_item.pk, "quantity": 1}],
+            )
+
+        payload = self.assert_event(channel, "order_created")
+        self.assertEqual(payload["id"], order.pk)
+        self.assertEqual(payload["source"], Order.Source.WAITER_MANUAL)
 
     def test_mark_order_preparing_notifies_kitchen(self):
         order = self.create_test_order()

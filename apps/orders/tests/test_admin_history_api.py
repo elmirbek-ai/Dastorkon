@@ -142,6 +142,9 @@ class AdminOrderHistoryApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 2)
+        self.assertTrue(
+            all(item["source"] == Order.Source.CUSTOMER_QR for item in response.data)
+        )
 
     def test_delivered_order_history_shows_responsible_waiter(self):
         self.order.responsible_waiter = None

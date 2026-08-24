@@ -5,7 +5,7 @@ import { AdminModal, EmptyState, ErrorBanner, LoadingState, PageIntro, RequestEr
 import { formatAdminDate, formatAdminMoney } from '../components/admin/adminUtils.js'
 import { useAdminContext } from '../components/admin/AdminContext.js'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
-import { getLocalizedField, getStatusLabel } from '../i18n/index.js'
+import { getLocalizedField, getOrderSourceLabel, getStatusLabel } from '../i18n/index.js'
 
 const statuses = ['NEW', 'PREPARING', 'READY', 'DELIVERED', 'COMPLETED', 'CANCELLED']
 
@@ -115,7 +115,7 @@ export default function AdminOrdersPage() {
           <div className="admin-table-wrap">
             <table className="admin-table admin-orders-table">
               <thead>
-                <tr><th>{t('common.order')}</th><th>{t('common.table')}</th><th>{t('common.status')}</th><th>{t('common.waiter')}</th><th>{t('common.items')}</th><th>{t('common.time')}</th><th>{t('common.amount')}</th></tr>
+                <tr><th>{t('common.order')}</th><th>{t('common.table')}</th><th>{t('common.status')}</th><th>{t('admin.orderSource')}</th><th>{t('common.waiter')}</th><th>{t('common.items')}</th><th>{t('common.time')}</th><th>{t('common.amount')}</th></tr>
               </thead>
               <tbody>
                 {orders.map((order) => (
@@ -130,6 +130,7 @@ export default function AdminOrdersPage() {
                     <td><strong className="admin-order-number">{order.order_number}</strong></td>
                     <td>{t('customer.tableLabel', { number: order.table_number })}</td>
                     <td><StatusBadge status={order.status} /></td>
+                    <td><span className={`admin-order-source is-${String(order.source).toLowerCase()}`}>{getOrderSourceLabel(order.source, language)}</span></td>
                     <td>{order.responsible_waiter_username || t('common.notAssigned')}</td>
                     <td>{order.items_count}</td>
                     <td>{formatAdminDate(order.created_at)}</td>
@@ -155,6 +156,7 @@ export default function AdminOrdersPage() {
               <div className="admin-order-detail-head">
                 <div><small>{t('common.table')}</small><strong>№{detail.table_number}</strong></div>
                 <div><small>{t('common.status')}</small><StatusBadge status={detail.status} /></div>
+                <div><small>{t('admin.orderSource')}</small><strong>{getOrderSourceLabel(detail.source, language)}</strong></div>
                 <div><small>{t('common.waiter')}</small><strong>{detail.responsible_waiter_username || '—'}</strong></div>
                 <div><small>{t('common.total')}</small><strong>{formatAdminMoney(detail.total_amount)}</strong></div>
               </div>

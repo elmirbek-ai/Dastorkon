@@ -4,7 +4,7 @@ import { kitchenApiClient, KITCHEN_TOKEN_KEY } from '../api/client.js'
 import ConnectionStatus from '../components/ConnectionStatus.jsx'
 import LanguageSwitch from '../components/LanguageSwitch.jsx'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
-import { getBackendErrorMessage, getLocalizedField, getStatusLabel } from '../i18n/index.js'
+import { getBackendErrorMessage, getLocalizedField, getOrderSourceLabel, getStatusLabel } from '../i18n/index.js'
 import useNotificationsSocket from '../realtime/useNotificationsSocket.js'
 
 const ACTIVE_STATUSES = ['NEW', 'PREPARING', 'READY']
@@ -138,6 +138,7 @@ function KitchenOrderCard({ order, pending, actionsLocked, referenceTime, onAdva
         <div>
           <strong>{t('customer.tableLabel', { number: order.table_number })}</strong>
           <span>{t('kitchen.orderNumber')}: №{order.order_number}</span>
+          <em className={`kitchen-order-source is-${String(order.source).toLowerCase()}`}>{getOrderSourceLabel(order.source, language)}</em>
         </div>
         <span className={`kitchen-status kitchen-status--${status.toLowerCase()}`} role="status">
           {getStatusLabel(status, language)}

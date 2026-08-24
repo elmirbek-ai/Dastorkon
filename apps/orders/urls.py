@@ -9,6 +9,9 @@ from .views import (
     CloseTableSessionView,
     CompleteWaiterCallView,
     KitchenOrdersView,
+    ManualOrderCreateView,
+    ManualOrderMenuItemsView,
+    ManualOrderTablesView,
     MarkOrderDeliveredView,
     MarkOrderPreparingView,
     MarkOrderReadyView,
@@ -52,6 +55,21 @@ public_urlpatterns = [
 ]
 
 waiter_urlpatterns = [
+    path(
+        "manual-order/tables/",
+        ManualOrderTablesView.as_view(),
+        name="waiter-manual-order-tables",
+    ),
+    path(
+        "manual-order/menu-items/",
+        ManualOrderMenuItemsView.as_view(),
+        name="waiter-manual-order-menu-items",
+    ),
+    path(
+        "manual-order/orders/",
+        ManualOrderCreateView.as_view(),
+        name="waiter-manual-order-create",
+    ),
     path(
         "table-sessions/available/",
         AvailableTableSessionsView.as_view(),

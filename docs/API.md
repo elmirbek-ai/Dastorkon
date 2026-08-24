@@ -80,6 +80,9 @@ operations also require an active waiter shift.
 | `POST` | `/api/waiter/shifts/start/` | Start or return the current active shift. |
 | `POST` | `/api/waiter/shifts/end/` | End the current active shift. |
 | `GET` | `/api/waiter/shifts/current/` | Get the active shift or `null`. |
+| `GET` | `/api/waiter/manual-order/tables/` | List active tables and whether the current waiter may use them for a manual order. |
+| `GET` | `/api/waiter/manual-order/menu-items/?table_id=<id>` | List visible menu items for the selected table's restaurant, including current availability. |
+| `POST` | `/api/waiter/manual-order/orders/` | Create a kitchen-visible `WAITER_MANUAL` order and assign its table session to the current waiter. |
 | `GET` | `/api/waiter/table-sessions/available/` | List unassigned active table sessions that have orders. |
 | `GET` | `/api/waiter/table-sessions/my/` | List active table sessions assigned to the waiter. |
 | `POST` | `/api/waiter/table-sessions/<id>/accept/` | Accept an available table session. |

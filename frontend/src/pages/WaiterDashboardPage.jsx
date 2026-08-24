@@ -629,6 +629,14 @@ function WaiterDashboardPage() {
         )}
 
         {activeView === 'overview' && (
+          <button className="waiter-manual-order-launch" type="button" onClick={() => navigate('/waiter/manual-order')} disabled={!shift}>
+            <span aria-hidden="true"><AppIcon name="orders" /></span>
+            <span><strong>{t('waiter.manualOrder')}</strong><small>{shift ? t('waiter.manualOrderShortHelp') : t('waiter.startShiftFirst')}</small></span>
+            <AppIcon name="chevron" />
+          </button>
+        )}
+
+        {activeView === 'overview' && (
           <div className="waiter-overview-grid">
             <OverviewSection icon="orders" tone="info" title={t('waiter.newOrders')} count={counts.available} onViewAll={() => navigateView('new')} emptyText={t('waiter.noNewOrders')}>
               {newCards(true, 3)}

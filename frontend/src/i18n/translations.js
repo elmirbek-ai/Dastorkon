@@ -523,14 +523,26 @@ Object.assign(translations.ru.admin, {
 
 Object.assign(translations.ky.customer, {
   temporarilyUnavailable: 'Убактылуу жок',
+  itemNote: 'Тамакка эскертүү',
+  itemNotePlaceholder: 'Мисалы: пиязсыз',
 })
 
 Object.assign(translations.ru.customer, {
   temporarilyUnavailable: 'Временно нет',
+  itemNote: 'Комментарий к блюду',
+  itemNotePlaceholder: 'Например: без лука',
 })
 
 Object.assign(translations.ky.errors, {
   menuItemUnavailable: 'Бул тамак убактылуу жок. Аны себеттен чыгарып, заказды кайра ырастап көрүңүз.',
+})
+
+Object.assign(translations.ky.admin, {
+  orderSource: 'Заказ булагы',
+})
+
+Object.assign(translations.ru.admin, {
+  orderSource: 'Источник заказа',
 })
 
 Object.assign(translations.ru.errors, {
@@ -579,4 +591,106 @@ Object.assign(translations.ky.waiterProfile, {
 
 Object.assign(translations.ru.waiterProfile, {
   interfaceLanguage: 'Язык',
+})
+
+translations.ky.orderSource = {
+  CUSTOMER_QR: 'Кардар QR',
+  WAITER_MANUAL: 'Официант',
+}
+
+translations.ru.orderSource = {
+  CUSTOMER_QR: 'QR гостя',
+  WAITER_MANUAL: 'Официант',
+}
+
+Object.assign(translations.ky.waiter, {
+  manualOrder: 'Кол менен заказ',
+  manualOrderShortHelp: 'QR сканерлей албаган кардар үчүн заказ түзүү',
+  manualOrderHelp: 'Столду тандап, тамактарды кошуп, заказды ашканага жөнөтүңүз.',
+  selectTable: 'Столду тандаңыз',
+  selectTableHelp: 'Бош, дайындалбаган же сизге дайындалган столду тандасаңыз болот.',
+  freeTable: 'Бош',
+  occupiedTable: 'Бош эмес',
+  assignedToYou: 'Сизге дайындалган',
+  assignedToAnother: 'Башка официантта',
+  availableToTake: 'Кабыл алууга болот',
+  changeTable: 'Столду өзгөртүү',
+  selectMenuItems: 'Тамактарды тандаңыз',
+  searchManualMenu: 'Тамак издөө...',
+  allMenuCategories: 'Бардык категориялар',
+  addItem: 'Кошуу',
+  selectedItems: 'Тандалган тамактар',
+  reviewOrder: 'Заказды текшерүү',
+  cartEmpty: 'Азырынча тамак тандала элек',
+  cartEmptyHelp: 'Заказга жок дегенде бир тамак кошуңуз.',
+  confirmManualOrder: 'Ашканага жөнөтүү',
+  sendingManualOrder: 'Жөнөтүлүүдө...',
+  manualOrderCreated: 'Заказ ашканага жөнөтүлдү',
+  manualOrderCreatedHelp: '{number} заказы стол №{table} үчүн түзүлдү.',
+  addAnotherOrder: 'Дагы заказ кошуу',
+  backToDashboard: 'Башкы бетке кайтуу',
+  selectedTable: 'Тандалган стол',
+  manualOrderTotal: 'Заказдын суммасы',
+  manualOrderItemCount: '{count} позиция',
+  itemNote: 'Тамакка эскертүү',
+  itemNotePlaceholder: 'Мисалы: пиязсыз',
+  noManualOrderTables: 'Жеткиликтүү столдор жок',
+  noManualOrderTablesHelp: 'Администратор активдүү стол кошкондо бул жерде көрүнөт.',
+  noManualMenuItems: 'Менюда тамак жок',
+  noManualMenuItemsHelp: 'Бул ресторан үчүн меню позициялары табылган жок.',
+  stepTable: 'Стол',
+  stepMenu: 'Меню',
+  stepConfirm: 'Ырастоо',
+})
+
+Object.assign(translations.ru.waiter, {
+  manualOrder: 'Ручной заказ',
+  manualOrderShortHelp: 'Создать заказ для гостя без QR',
+  manualOrderHelp: 'Выберите стол, добавьте блюда и отправьте заказ на кухню.',
+  selectTable: 'Выберите стол',
+  selectTableHelp: 'Можно выбрать свободный, неназначенный или закреплённый за вами стол.',
+  freeTable: 'Свободен',
+  occupiedTable: 'Занят',
+  assignedToYou: 'Назначен вам',
+  assignedToAnother: 'У другого официанта',
+  availableToTake: 'Можно принять',
+  changeTable: 'Изменить стол',
+  selectMenuItems: 'Выберите блюда',
+  searchManualMenu: 'Поиск блюда...',
+  allMenuCategories: 'Все категории',
+  addItem: 'Добавить',
+  selectedItems: 'Выбранные блюда',
+  reviewOrder: 'Проверить заказ',
+  cartEmpty: 'Блюда пока не выбраны',
+  cartEmptyHelp: 'Добавьте в заказ хотя бы одно блюдо.',
+  confirmManualOrder: 'Отправить на кухню',
+  sendingManualOrder: 'Отправка...',
+  manualOrderCreated: 'Заказ отправлен на кухню',
+  manualOrderCreatedHelp: 'Заказ {number} создан для стола №{table}.',
+  addAnotherOrder: 'Добавить ещё заказ',
+  backToDashboard: 'Вернуться на главную',
+  selectedTable: 'Выбранный стол',
+  manualOrderTotal: 'Сумма заказа',
+  manualOrderItemCount: '{count} позиций',
+  itemNote: 'Примечание к блюду',
+  itemNotePlaceholder: 'Например: без лука',
+  noManualOrderTables: 'Нет доступных столов',
+  noManualOrderTablesHelp: 'Столы появятся здесь после добавления администратором.',
+  noManualMenuItems: 'В меню нет блюд',
+  noManualMenuItemsHelp: 'Для этого ресторана не найдено позиций меню.',
+  stepTable: 'Стол',
+  stepMenu: 'Меню',
+  stepConfirm: 'Подтверждение',
+})
+
+Object.assign(translations.ky.errors, {
+  tableAssignedToAnotherWaiter: 'Бул стол башка официантка дайындалган.',
+  activeWaiterShiftRequired: 'Кол менен заказ түзүү үчүн адегенде сменаны баштаңыз.',
+  manualOrderTableUnavailable: 'Бул стол жеткиликтүү эмес. Столдордун тизмесин жаңыртыңыз.',
+})
+
+Object.assign(translations.ru.errors, {
+  tableAssignedToAnotherWaiter: 'Этот стол назначен другому официанту.',
+  activeWaiterShiftRequired: 'Сначала начните смену, чтобы создать ручной заказ.',
+  manualOrderTableUnavailable: 'Этот стол недоступен. Обновите список столов.',
 })

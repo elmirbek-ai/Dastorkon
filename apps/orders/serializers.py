@@ -5,7 +5,14 @@ from apps.menu.models import MenuItem
 from apps.restaurants.models import Restaurant
 from apps.tables.models import ActiveTableSession, RestaurantTable
 
-from .models import CartItem, Order, OrderItem, OrderStatusHistory, WaiterCall
+from .models import (
+    ITEM_COMMENT_MAX_LENGTH,
+    CartItem,
+    Order,
+    OrderItem,
+    OrderStatusHistory,
+    WaiterCall,
+)
 
 
 class CartItemSerializer(serializers.ModelSerializer):
@@ -53,12 +60,23 @@ class CartItemCreateSerializer(serializers.Serializer):
         queryset=MenuItem.objects.all(),
     )
     quantity = serializers.IntegerField(default=1)
-    comment = serializers.CharField(required=False, allow_blank=True, default="")
+    comment = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        max_length=ITEM_COMMENT_MAX_LENGTH,
+        trim_whitespace=True,
+    )
 
 
 class CartItemUpdateSerializer(serializers.Serializer):
     quantity = serializers.IntegerField(required=False)
-    comment = serializers.CharField(required=False, allow_blank=True)
+    comment = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=ITEM_COMMENT_MAX_LENGTH,
+        trim_whitespace=True,
+    )
 
 
 class PublicOrderItemSerializer(serializers.ModelSerializer):
@@ -83,6 +101,7 @@ class PublicOrderSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "order_number",
+            "source",
             "status",
             "total_amount",
             "created_at",
@@ -141,6 +160,8 @@ class WaiterOrderSerializer(serializers.ModelSerializer):
             "order_number",
             "table_session",
             "table_number",
+            "source",
+            "responsible_waiter",
             "status",
             "total_amount",
             "created_at",
@@ -151,6 +172,81 @@ class WaiterOrderSerializer(serializers.ModelSerializer):
 
 class KitchenOrderSerializer(WaiterOrderSerializer):
     pass
+
+
+class ManualOrderTableSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    number = serializers.IntegerField(read_only=True)
+    restaurant = serializers.IntegerField(read_only=True)
+    restaurant_name = serializers.CharField(read_only=True)
+    status = serializers.ChoiceField(
+        choices=RestaurantTable.Status.choices,
+        read_only=True,
+    )
+    active_session_id = serializers.IntegerField(read_only=True, allow_null=True)
+    assigned_waiter = serializers.IntegerField(read_only=True, allow_null=True)
+    assigned_waiter_username = serializers.CharField(
+        read_only=True,
+        allow_null=True,
+    )
+    is_assigned_to_current_waiter = serializers.BooleanField(read_only=True)
+    can_use = serializers.BooleanField(read_only=True)
+    unavailable_reason = serializers.CharField(read_only=True, allow_blank=True)
+
+
+class ManualOrderMenuItemSerializer(serializers.ModelSerializer):
+    category_name_ky = serializers.CharField(
+        source="category.name_ky",
+        read_only=True,
+    )
+    category_name_ru = serializers.CharField(
+        source="category.name_ru",
+        read_only=True,
+    )
+
+    class Meta:
+        model = MenuItem
+        fields = (
+            "id",
+            "category",
+            "category_name_ky",
+            "category_name_ru",
+            "name_ky",
+            "name_ru",
+            "image",
+            "price",
+            "is_available",
+        )
+        read_only_fields = fields
+
+
+class ManualOrderMenuQuerySerializer(serializers.Serializer):
+    table_id = serializers.IntegerField(min_value=1)
+
+
+class ManualOrderItemCreateSerializer(serializers.Serializer):
+    menu_item_id = serializers.IntegerField(min_value=1)
+    quantity = serializers.IntegerField(min_value=1)
+    comment = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        max_length=ITEM_COMMENT_MAX_LENGTH,
+        trim_whitespace=True,
+    )
+
+
+class ManualOrderCreateSerializer(serializers.Serializer):
+    table_id = serializers.IntegerField(min_value=1)
+    items = ManualOrderItemCreateSerializer(many=True, allow_empty=False)
+
+    def validate_items(self, items):
+        menu_item_ids = [item["menu_item_id"] for item in items]
+        if len(menu_item_ids) != len(set(menu_item_ids)):
+            raise serializers.ValidationError(
+                "Each menu item can appear only once."
+            )
+        return items
 
 
 class WaiterCallCreateSerializer(serializers.Serializer):
@@ -237,6 +333,7 @@ class AdminOrderListSerializer(serializers.ModelSerializer):
             "table",
             "table_number",
             "customer_session",
+            "source",
             "responsible_waiter",
             "responsible_waiter_username",
             "status",

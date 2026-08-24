@@ -781,6 +781,7 @@ function CheckoutReviewItem({
   onIncrease,
   onDecrease,
   onRemove,
+  onCommentChange,
 }) {
   const { language, t } = useLanguage()
   const [imageFailed, setImageFailed] = useState(false)
@@ -805,9 +806,6 @@ function CheckoutReviewItem({
             <h3>{itemName}</h3>
             <p>{money(unitPrice)}</p>
             {unavailable && <small className="cart-item-unavailable">{t('customer.temporarilyUnavailable')}</small>}
-            {cartItem.comment && (
-              <small>{t('customer.kitchenNote')}: {cartItem.comment}</small>
-            )}
           </div>
           <strong className="checkout-item__subtotal">{money(cartItem.line_total)}</strong>
         </div>
@@ -852,6 +850,17 @@ function CheckoutReviewItem({
             <small>{t('customer.removeItem')}</small>
           </button>
         </div>
+        <label className="checkout-item__comment">
+          <span>{t('customer.itemNote')}</span>
+          <textarea
+            rows="2"
+            maxLength={300}
+            value={cartItem.comment || ''}
+            onChange={(event) => onCommentChange(event.target.value)}
+            placeholder={t('customer.itemNotePlaceholder')}
+            disabled={disabled}
+          />
+        </label>
       </div>
     </article>
   )
@@ -871,6 +880,7 @@ function CartReviewSheet({
   onIncrease,
   onDecrease,
   onRemove,
+  onCommentChange,
   onRequestRemoval,
   onContinueOrdering,
   onCheckout,
@@ -982,6 +992,7 @@ function CartReviewSheet({
                           : onDecrease(item, cartItem)
                       )}
                       onRemove={() => onRemove(item, cartItem)}
+                      onCommentChange={(comment) => onCommentChange(cartItem, comment)}
                     />
                   )
                 })}
@@ -1448,7 +1459,10 @@ function CustomerMenuPage() {
       const itemPath = `${basePath}/cart/items/${cartItem.id}/`
       let updatedItem = null
       if (quantity > 0) {
-        const response = await apiClient.patch(itemPath, { quantity })
+        const response = await apiClient.patch(itemPath, {
+          quantity,
+          comment: cartItem.comment || '',
+        })
         updatedItem = response.data
       } else {
         await apiClient.delete(itemPath)
@@ -1475,6 +1489,17 @@ function CustomerMenuPage() {
 
   function removeCartItem(item, cartItem) {
     return changeCartItemQuantity(item, cartItem, 0)
+  }
+
+  function changeCartItemComment(cartItem, comment) {
+    setCart((current) => {
+      const currentItem = current.items.find((item) => item.id === cartItem.id)
+      if (!currentItem) return current
+      return applyCartItemMutation(current, cartItem.id, {
+        ...currentItem,
+        comment,
+      })
+    })
   }
 
   function requestCartItemRemoval(item, cartItem, itemName) {
@@ -1508,6 +1533,13 @@ function CustomerMenuPage() {
     setShowOrdersSuccessAction(false)
 
     try {
+      await Promise.all(
+        cart.items.map((cartItem) => (
+          apiClient.patch(`${basePath}/cart/items/${cartItem.id}/`, {
+            comment: cartItem.comment || '',
+          })
+        )),
+      )
       const response = await apiClient.post(`${basePath}/orders/`)
       const createdOrder = response.data
 
@@ -1714,6 +1746,7 @@ function CustomerMenuPage() {
         onIncrease={increaseCartItem}
         onDecrease={decreaseCartItem}
         onRemove={removeCartItem}
+        onCommentChange={changeCartItemComment}
         onRequestRemoval={requestCartItemRemoval}
         onContinueOrdering={closeCartSheet}
         onCheckout={() => setCartStage('checkout')}

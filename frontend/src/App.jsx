@@ -20,6 +20,7 @@ import LoginHubPage from './pages/LoginHubPage.jsx'
 import WaiterDashboardPage from './pages/WaiterDashboardPage.jsx'
 import WaiterLoginPage from './pages/WaiterLoginPage.jsx'
 import WaiterMenuAvailabilityPage from './pages/WaiterMenuAvailabilityPage.jsx'
+import WaiterManualOrderPage from './pages/WaiterManualOrderPage.jsx'
 import WaiterProfileEditPage from './pages/WaiterProfileEditPage.jsx'
 import WaiterProfilePage from './pages/WaiterProfilePage.jsx'
 import { useLanguage } from './i18n/LanguageContext.jsx'
@@ -74,6 +75,7 @@ function App() {
         <Route path="/waiter/login" element={<RoleLoginRoute tokenKey={WAITER_TOKEN_KEY} expectedRole="WAITER"><WaiterLoginPage /></RoleLoginRoute>} />
         <Route path="/waiter/dashboard" element={<ProtectedRoleRoute tokenKey={WAITER_TOKEN_KEY} expectedRole="WAITER"><WaiterDashboardPage /></ProtectedRoleRoute>} />
         <Route path="/waiter/menu-availability" element={<ProtectedRoleRoute tokenKey={WAITER_TOKEN_KEY} expectedRole="WAITER"><WaiterMenuAvailabilityPage /></ProtectedRoleRoute>} />
+        <Route path="/waiter/manual-order" element={<ProtectedRoleRoute tokenKey={WAITER_TOKEN_KEY} expectedRole="WAITER"><WaiterManualOrderPage /></ProtectedRoleRoute>} />
         <Route path="/waiter/profile" element={<ProtectedRoleRoute tokenKey={WAITER_TOKEN_KEY} expectedRole="WAITER"><WaiterProfilePage /></ProtectedRoleRoute>} />
         <Route path="/waiter/profile/edit" element={<ProtectedRoleRoute tokenKey={WAITER_TOKEN_KEY} expectedRole="WAITER"><WaiterProfileEditPage /></ProtectedRoleRoute>} />
         <Route path="/admin/login" element={<RoleLoginRoute tokenKey={ADMIN_TOKEN_KEY} expectedRole="ADMIN"><AdminLoginPage /></RoleLoginRoute>} />

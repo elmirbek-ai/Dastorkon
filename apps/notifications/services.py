@@ -38,6 +38,7 @@ def build_order_notification_payload(order):
         "order_number": order.order_number,
         "table_session": order.table_session_id,
         "table_number": order.table_session.table.number,
+        "source": order.source,
         "status": order.status,
         "total_amount": str(order.total_amount),
         "created_at": order.created_at.isoformat(),

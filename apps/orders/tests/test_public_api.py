@@ -169,11 +169,25 @@ class PublicCartOrderApiTests(APITestCase):
             args=(self.table.qr_token, cart_item.pk),
         )
 
-        response = self.client.patch(url, {"comment": "Пиязсыз"})
+        response = self.client.patch(url, {"comment": "  Пиязсыз  "})
 
         cart_item.refresh_from_db()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(cart_item.comment, "Пиязсыз")
+        self.assertEqual(response.data["comment"], "Пиязсыз")
+
+    def test_patch_cart_item_rejects_overlong_comment(self):
+        cart_item = add_cart_item(self.customer_session, self.menu_item)
+        url = reverse(
+            "public-cart-item-detail",
+            args=(self.table.qr_token, cart_item.pk),
+        )
+
+        response = self.client.patch(url, {"comment": "a" * 301})
+
+        cart_item.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(cart_item.comment, "")
 
     def test_delete_cart_item_removes_item(self):
         cart_item = add_cart_item(self.customer_session, self.menu_item)
@@ -273,7 +287,12 @@ class PublicCartOrderApiTests(APITestCase):
         )
 
     def test_post_orders_creates_order_from_cart(self):
-        add_cart_item(self.customer_session, self.menu_item, quantity=2)
+        add_cart_item(
+            self.customer_session,
+            self.menu_item,
+            quantity=2,
+            comment="Пиязсыз",
+        )
 
         response = self.client.post(self.orders_url)
 
@@ -284,6 +303,7 @@ class PublicCartOrderApiTests(APITestCase):
             response.data["items"][0]["name_ky_at_order"],
             self.menu_item.name_ky,
         )
+        self.assertEqual(response.data["items"][0]["comment"], "Пиязсыз")
 
     def test_post_orders_clears_cart_after_success(self):
         add_cart_item(self.customer_session, self.menu_item)

@@ -1263,11 +1263,13 @@
 .admin-table-stats b { font-size: 0.68rem; }
 
 .admin-order-detail { display: grid; gap: 18px; }
-.admin-order-detail-head { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; overflow: hidden; border: 1px solid #e2e8e4; border-radius: 13px; background: #e2e8e4; }
+.admin-order-detail-head { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1px; overflow: hidden; border: 1px solid #e2e8e4; border-radius: 13px; background: #e2e8e4; }
 .admin-order-detail-head > div { display: grid; gap: 5px; padding: 12px; background: #f8faf9; }
 .admin-order-detail-head small { color: #667085; font-size: 0.55rem; font-weight: 900; }
 .admin-order-detail-head strong { font-size: 0.75rem; }
 .admin-order-detail section h3 { margin: 0 0 10px; font-size: 0.84rem; }
+.admin-order-source { display: inline-flex; width: fit-content; padding: 4px 8px; border-radius: 999px; color: #475467; background: #f2f4f7; font-size: 0.62rem; font-weight: 900; white-space: nowrap; }
+.admin-order-source.is-waiter_manual { color: #067647; background: #ecfdf3; }
 .admin-order-items { overflow: hidden; border: 1px solid #e2e8e4; border-radius: 13px; }
 .admin-order-items > div { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 10px 12px; border-bottom: 1px solid #edf1ee; font-size: 0.72rem; }
 .admin-order-items > div:last-child { border-bottom: 0; }
@@ -1931,7 +1933,7 @@
   .admin-toolbar > span { align-self: center; }
   .admin-menu-table { min-width: 650px; }
   .admin-categories-table { min-width: 560px; }
-  .admin-orders-table { min-width: 780px; }
+  .admin-orders-table { min-width: 900px; }
   .admin-filter-tabs { width: 100%; }
   .login-hub-grid { grid-template-columns: 1fr; }
   .admin-menu-general-grid,

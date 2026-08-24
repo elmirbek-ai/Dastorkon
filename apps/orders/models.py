@@ -7,7 +7,14 @@ from apps.restaurants.models import Restaurant
 from apps.tables.models import ActiveTableSession, CustomerSession
 
 
+ITEM_COMMENT_MAX_LENGTH = 300
+
+
 class Order(TimeStampedModel):
+    class Source(models.TextChoices):
+        CUSTOMER_QR = "CUSTOMER_QR", "Customer QR"
+        WAITER_MANUAL = "WAITER_MANUAL", "Waiter manual"
+
     class Status(models.TextChoices):
         NEW = "NEW", "New"
         PREPARING = "PREPARING", "Preparing"
@@ -29,7 +36,14 @@ class Order(TimeStampedModel):
     customer_session = models.ForeignKey(
         CustomerSession,
         on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name="orders",
+    )
+    source = models.CharField(
+        max_length=20,
+        choices=Source.choices,
+        default=Source.CUSTOMER_QR,
     )
     order_number = models.CharField(max_length=30, unique=True)
     responsible_waiter = models.ForeignKey(

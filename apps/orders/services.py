@@ -14,12 +14,31 @@ from apps.notifications.services import (
     notify_waiters,
     send_notification_to_user,
 )
-from apps.tables.models import ActiveTableSession, CustomerSession
-from apps.tables.services import close_active_table_session
+from apps.tables.models import ActiveTableSession, CustomerSession, RestaurantTable
+from apps.tables.services import (
+    close_active_table_session,
+    get_or_create_active_table_session,
+)
 from apps.users.models import User
 from apps.users.services import get_active_waiter_shift
 
-from .models import CartItem, Order, OrderItem, OrderStatusHistory, WaiterCall
+from .models import (
+    ITEM_COMMENT_MAX_LENGTH,
+    CartItem,
+    Order,
+    OrderItem,
+    OrderStatusHistory,
+    WaiterCall,
+)
+
+
+def normalize_item_comment(comment):
+    normalized_comment = str(comment or "").strip()
+    if len(normalized_comment) > ITEM_COMMENT_MAX_LENGTH:
+        raise ValidationError(
+            f"Item comment cannot exceed {ITEM_COMMENT_MAX_LENGTH} characters."
+        )
+    return normalized_comment
 
 
 def validate_menu_item_for_customer_session(customer_session, menu_item):
@@ -34,6 +53,8 @@ def validate_menu_item_for_customer_session(customer_session, menu_item):
         or menu_item.is_deleted
         or not menu_item.is_visible
         or not menu_item.is_available
+        or menu_item.category.is_deleted
+        or not menu_item.category.is_visible
     ):
         raise ValidationError("Menu item is unavailable.")
 
@@ -49,6 +70,7 @@ def add_cart_item(customer_session, menu_item, quantity=1, comment=""):
     validate_menu_item_for_customer_session(customer_session, menu_item)
     if quantity <= 0:
         raise ValidationError("Quantity must be greater than zero.")
+    comment = normalize_item_comment(comment)
 
     cart_item = (
         CartItem.objects.select_for_update()
@@ -93,7 +115,7 @@ def update_cart_item(cart_item, quantity=None, comment=None):
         cart_item.quantity = quantity
         update_fields.append("quantity")
     if comment is not None:
-        cart_item.comment = comment
+        cart_item.comment = normalize_item_comment(comment)
         update_fields.append("comment")
     if update_fields:
         cart_item.save(update_fields=(*update_fields, "updated_at"))
@@ -258,44 +280,51 @@ def generate_order_number():
     return f"ORD-{next_number:06d}"
 
 
-@transaction.atomic
-def create_order(customer_session, items_data):
-    table_session = (
-        ActiveTableSession.objects.select_for_update()
-        .select_related("restaurant", "assigned_waiter")
-        .get(pk=customer_session.active_table_session_id)
-    )
-    customer_session = CustomerSession.objects.select_for_update().get(
-        pk=customer_session.pk,
-        active_table_session=table_session,
-    )
-
-    if not customer_session.is_active:
-        raise ValidationError("Customer session is inactive.")
-    if table_session.status != ActiveTableSession.Status.ACTIVE:
-        raise ValidationError("Table session is not active.")
-
+def _create_order_record(
+    table_session,
+    items_data,
+    *,
+    customer_session,
+    source,
+    responsible_waiter,
+):
+    if not items_data:
+        raise ValidationError("Order items cannot be empty.")
     validated_items = []
     total_amount = Decimal("0")
     for item_data in items_data:
-        menu_item = MenuItem.objects.filter(pk=item_data["menu_item"].pk).first()
+        menu_item_value = item_data.get("menu_item")
+        menu_item_id = getattr(
+            menu_item_value,
+            "pk",
+            item_data.get("menu_item_id"),
+        )
+        menu_item = (
+            MenuItem.objects.select_related("category")
+            .filter(pk=menu_item_id)
+            .first()
+        )
         if (
             menu_item is None
             or menu_item.is_deleted
             or not menu_item.is_visible
             or not menu_item.is_available
+            or menu_item.category.is_deleted
+            or not menu_item.category.is_visible
             or menu_item.restaurant_id != table_session.restaurant_id
         ):
             raise ValidationError("Menu item is unavailable.")
 
         quantity = item_data["quantity"]
+        if quantity <= 0:
+            raise ValidationError("Quantity must be greater than zero.")
         total_price = menu_item.price * quantity
         total_amount += total_price
         validated_items.append(
             {
                 "menu_item": menu_item,
                 "quantity": quantity,
-                "comment": item_data.get("comment", ""),
+                "comment": normalize_item_comment(item_data.get("comment", "")),
                 "total_price": total_price,
             }
         )
@@ -304,8 +333,9 @@ def create_order(customer_session, items_data):
         restaurant=table_session.restaurant,
         table_session=table_session,
         customer_session=customer_session,
+        source=source,
         order_number=generate_order_number(),
-        responsible_waiter=table_session.assigned_waiter,
+        responsible_waiter=responsible_waiter,
         status=Order.Status.NEW,
         total_amount=total_amount,
     )
@@ -345,6 +375,59 @@ def create_order(customer_session, items_data):
             lambda: notify_waiters("order_available", payload)
         )
     return order
+
+
+@transaction.atomic
+def create_order(customer_session, items_data):
+    table_session = (
+        ActiveTableSession.objects.select_for_update()
+        .select_related("restaurant", "assigned_waiter")
+        .get(pk=customer_session.active_table_session_id)
+    )
+    customer_session = CustomerSession.objects.select_for_update().get(
+        pk=customer_session.pk,
+        active_table_session=table_session,
+    )
+
+    if not customer_session.is_active:
+        raise ValidationError("Customer session is inactive.")
+    if table_session.status != ActiveTableSession.Status.ACTIVE:
+        raise ValidationError("Table session is not active.")
+
+    return _create_order_record(
+        table_session,
+        items_data,
+        customer_session=customer_session,
+        source=Order.Source.CUSTOMER_QR,
+        responsible_waiter=table_session.assigned_waiter,
+    )
+
+
+@transaction.atomic
+def create_manual_order(waiter, table_id, items_data):
+    validate_active_waiter(waiter)
+    try:
+        table = (
+            RestaurantTable.objects.select_for_update()
+            .select_related("restaurant")
+            .get(pk=table_id, is_active=True)
+        )
+    except RestaurantTable.DoesNotExist as exc:
+        raise ValidationError("Table not found or inactive.") from exc
+
+    table_session = get_or_create_active_table_session(table)
+    if table_session.assigned_waiter_id not in (None, waiter.pk):
+        raise ValidationError("Table session is assigned to another waiter.")
+    if table_session.assigned_waiter_id is None:
+        table_session = assign_waiter_to_table_session(table_session, waiter)
+
+    return _create_order_record(
+        table_session,
+        items_data,
+        customer_session=None,
+        source=Order.Source.WAITER_MANUAL,
+        responsible_waiter=waiter,
+    )
 
 
 @transaction.atomic
