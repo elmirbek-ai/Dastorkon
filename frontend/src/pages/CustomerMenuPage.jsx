@@ -3,6 +3,16 @@ import { useNavigate, useParams } from 'react-router-dom'
 import apiClient, { resolveApiAssetUrl } from '../api/client.js'
 import LanguageSwitch from '../components/LanguageSwitch.jsx'
 import MenuItemBadges from '../components/MenuItemBadges.jsx'
+import {
+  CartItemModifiers,
+  ModifierGroupsPicker,
+  OrderItemModifiers,
+} from '../components/ItemModifiers.jsx'
+import {
+  modifierSelectionPayload,
+  modifierSelectionTotal,
+  validateModifierSelection,
+} from '../components/modifierUtils.js'
 import { useConfirm } from '../components/confirmation/useConfirm.js'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getBackendErrorMessage, getLocalizedField, getStatusLabel } from '../i18n/index.js'
@@ -291,6 +301,8 @@ function DishDetailDialog({ item, pending, onClose, onAdd }) {
   const [quantity, setQuantity] = useState(1)
   const [comment, setComment] = useState('')
   const [imageFailed, setImageFailed] = useState(false)
+  const [modifierSelections, setModifierSelections] = useState({})
+  const [modifierError, setModifierError] = useState(null)
   const itemName = getLocalizedField(item, 'name', language)
   const description = getLocalizedField(item, 'description', language)
   const ingredients = getLocalizedField(item, 'ingredients', language)
@@ -299,8 +311,20 @@ function DishDetailDialog({ item, pending, onClose, onAdd }) {
   const unavailable = item.is_available === false
 
   async function handleAdd() {
-    const added = await onAdd(item, { quantity, comment: comment.trim() })
+    const validationError = validateModifierSelection(item, modifierSelections, t)
+    setModifierError(validationError)
+    if (validationError) return
+    const added = await onAdd(item, {
+      quantity,
+      comment: comment.trim(),
+      selectedModifiers: modifierSelectionPayload(item, modifierSelections),
+    })
     if (added) onClose()
+  }
+
+  function changeModifierSelections(value) {
+    setModifierSelections(value)
+    setModifierError(null)
   }
 
   return (
@@ -371,6 +395,25 @@ function DishDetailDialog({ item, pending, onClose, onAdd }) {
             </div>
           )}
 
+          {(item.modifier_groups || []).length > 0 && (
+            <section className="dish-detail__modifiers" aria-labelledby="dish-modifiers-title">
+              <div className="dish-detail__section-heading">
+                <h3 id="dish-modifiers-title">{t('modifiers.chooseOptions')}</h3>
+                <small>{t('modifiers.chooseOptionsHelp')}</small>
+              </div>
+              {modifierError && (
+                <p className="modifier-picker__error" role="alert">{modifierError.message}</p>
+              )}
+              <ModifierGroupsPicker
+                item={item}
+                selections={modifierSelections}
+                onChange={changeModifierSelections}
+                invalidGroupId={modifierError?.groupId}
+                disabled={pending || unavailable}
+              />
+            </section>
+          )}
+
           <label className="dish-detail__comment">
             <span>
               <strong>{t('customer.specialInstructions')}</strong>
@@ -420,7 +463,11 @@ function DishDetailDialog({ item, pending, onClose, onAdd }) {
               ) : (
                 <>
                   <span>{unavailable ? t('customer.temporarilyUnavailable') : t('customer.addToCart')}</span>
-                  {!unavailable && <strong>{money(Number(item.price) * quantity)}</strong>}
+                  {!unavailable && (
+                    <strong>
+                      {money((Number(item.price) + modifierSelectionTotal(item, modifierSelections)) * quantity)}
+                    </strong>
+                  )}
                 </>
               )}
             </button>
@@ -456,6 +503,7 @@ function CartPanel({ cart, itemCount, onCheckout }) {
                 <div className="cart-item__quantity">{item.quantity}×</div>
                 <div className="cart-item__details">
                   <h3>{getLocalizedField(item, 'menu_item_name', language)}</h3>
+                  <CartItemModifiers groups={item.selected_modifiers} />
                   {item.comment && <small>{t('common.comments')}: {item.comment}</small>}
                 </div>
                 <strong>{money(item.line_total)}</strong>
@@ -610,6 +658,7 @@ function CustomerOrderCard({ order, tableNumber }) {
                   {getLocalizedField(item, 'name_at_order', language)}
                 </span>
                 <strong>{money(item.total_price)}</strong>
+                <OrderItemModifiers modifiers={item.modifiers} />
                 {item.comment && (
                   <small>{t('customer.kitchenNote')}: {item.comment}</small>
                 )}
@@ -693,8 +742,19 @@ export function OrderHistory({ orders, tableNumber, onBackToMenu }) {
   )
 }
 
+function cartItemHasUnavailableModifier(cartItem) {
+  return (cartItem.selected_modifiers || []).some((group) => (
+    group.is_active === false || (group.options || []).some((option) => (
+      option.is_available === false || option.is_active === false
+    ))
+  ))
+}
+
 function cartItemIsUnavailable(cartItem, menuItem) {
-  return cartItem.is_available === false || !menuItem || menuItem.is_available === false
+  return cartItem.is_available === false
+    || !menuItem
+    || menuItem.is_available === false
+    || cartItemHasUnavailableModifier(cartItem)
 }
 
 function CartReviewItem({ cartItem, menuItem, pending, onIncrease, onDecrease, onRemove }) {
@@ -702,7 +762,7 @@ function CartReviewItem({ cartItem, menuItem, pending, onIncrease, onDecrease, o
   const [imageFailed, setImageFailed] = useState(false)
   const imageUrl = resolveImageUrl(menuItem?.image)
   const itemName = getLocalizedField(menuItem, 'name', language) || getLocalizedField(cartItem, 'menu_item_name', language)
-  const unitPrice = menuItem?.price ?? Number(cartItem.line_total) / cartItem.quantity
+  const unitPrice = cartItem.unit_price ?? Number(cartItem.line_total) / cartItem.quantity
   const unavailable = cartItemIsUnavailable(cartItem, menuItem)
 
   return (
@@ -724,6 +784,7 @@ function CartReviewItem({ cartItem, menuItem, pending, onIncrease, onDecrease, o
           <div>
             <h3>{itemName}</h3>
             <p>{money(unitPrice)}</p>
+            <CartItemModifiers groups={cartItem.selected_modifiers} />
             {unavailable && <small className="cart-item-unavailable">{t('customer.temporarilyUnavailable')}</small>}
             {cartItem.comment && (
               <small className="cart-sheet-item__comment">
@@ -786,7 +847,7 @@ function CheckoutReviewItem({
   const imageUrl = resolveImageUrl(menuItem?.image)
   const itemName = getLocalizedField(menuItem, 'name', language)
     || getLocalizedField(cartItem, 'menu_item_name', language)
-  const unitPrice = Number(cartItem.line_total) / cartItem.quantity
+  const unitPrice = cartItem.unit_price ?? Number(cartItem.line_total) / cartItem.quantity
   const unavailable = cartItemIsUnavailable(cartItem, menuItem)
 
   return (
@@ -803,6 +864,7 @@ function CheckoutReviewItem({
           <div className="checkout-item__copy">
             <h3>{itemName}</h3>
             <p>{money(unitPrice)}</p>
+            <CartItemModifiers groups={cartItem.selected_modifiers} />
             {unavailable && <small className="cart-item-unavailable">{t('customer.temporarilyUnavailable')}</small>}
           </div>
           <strong className="checkout-item__subtotal">{money(cartItem.line_total)}</strong>
@@ -890,6 +952,10 @@ function CartReviewSheet({
   const hasUnavailableItems = cart.items.some((cartItem) => (
     cartItemIsUnavailable(cartItem, menuItemsById.get(cartItem.menu_item))
   ))
+  const hasUnavailableModifiers = cart.items.some(cartItemHasUnavailableModifier)
+  const unavailableMessage = hasUnavailableModifiers
+    ? t('errors.modifierUnavailable')
+    : t('errors.menuItemUnavailable')
 
   return (
     <div
@@ -940,8 +1006,8 @@ function CartReviewSheet({
         </header>
 
         {error && <div className="notice notice--error" role="alert">{error}</div>}
-        {hasUnavailableItems && error !== t('errors.menuItemUnavailable') && (
-          <div className="notice notice--error" role="alert">{t('errors.menuItemUnavailable')}</div>
+        {hasUnavailableItems && error !== unavailableMessage && (
+          <div className="notice notice--error" role="alert">{unavailableMessage}</div>
         )}
 
         {cart.items.length === 0 ? (
@@ -1385,6 +1451,7 @@ function CustomerMenuPage() {
   async function addToCart(item, options = {}) {
     const quantity = options.quantity ?? 1
     const comment = options.comment ?? ''
+    const selectedModifiers = options.selectedModifiers ?? []
     setPendingMenuItemId(item.id)
     setError('')
     setSuccess('')
@@ -1395,6 +1462,7 @@ function CustomerMenuPage() {
         menu_item: item.id,
         quantity,
         comment,
+        selected_modifiers: selectedModifiers,
       })
       await refreshCart()
       return true
@@ -1404,6 +1472,14 @@ function CustomerMenuPage() {
     } finally {
       setPendingMenuItemId(null)
     }
+  }
+
+  function addMenuItem(item) {
+    if ((item.modifier_groups || []).length > 0) {
+      setSelectedDish(item)
+      return
+    }
+    addToCart(item)
   }
 
   async function changeCartItemQuantity(item, cartItem, quantity) {
@@ -1486,7 +1562,11 @@ function CustomerMenuPage() {
     if (cart.items.some((cartItem) => (
       cartItemIsUnavailable(cartItem, menuItemsById.get(cartItem.menu_item))
     ))) {
-      setError(t('errors.menuItemUnavailable'))
+      setError(
+        cart.items.some(cartItemHasUnavailableModifier)
+          ? t('errors.modifierUnavailable')
+          : t('errors.menuItemUnavailable'),
+      )
       setCartSheetOpen(true)
       return
     }
@@ -1533,7 +1613,10 @@ function CustomerMenuPage() {
       await Promise.allSettled([refreshCart(), refreshOrders()])
     } catch (requestError) {
       const message = getBackendErrorMessage(requestError, language)
-      if (message === t('errors.menuItemUnavailable')) {
+      if (
+        message === t('errors.menuItemUnavailable')
+        || message === t('errors.modifierUnavailable')
+      ) {
         await Promise.allSettled([refreshMenu(), refreshCart()])
       }
       setError(message)
@@ -1661,9 +1744,11 @@ function CustomerMenuPage() {
                   {category.items.map((item) => (
                     <MenuItemCard
                       item={item}
-                      cartItem={cartItemsByMenuItem.get(item.id)}
+                      cartItem={(item.modifier_groups || []).length > 0
+                        ? null
+                        : cartItemsByMenuItem.get(item.id)}
                       pendingItemId={pendingMenuItemId}
-                      onAdd={addToCart}
+                      onAdd={addMenuItem}
                       onIncrease={increaseCartItem}
                       onDecrease={decreaseCartItemSafely}
                       onOpenDetail={setSelectedDish}

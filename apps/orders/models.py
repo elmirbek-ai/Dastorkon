@@ -2,7 +2,11 @@ from django.conf import settings
 from django.db import models
 
 from apps.common.models import TimeStampedModel
-from apps.menu.models import MenuItem
+from apps.menu.models import (
+    MenuItem,
+    MenuItemModifierGroup,
+    MenuItemModifierOption,
+)
 from apps.restaurants.models import Restaurant
 from apps.tables.models import ActiveTableSession, CustomerSession
 
@@ -94,6 +98,27 @@ class OrderItem(models.Model):
         return f"{self.name_ky_at_order} x{self.quantity}"
 
 
+class OrderItemModifierSnapshot(models.Model):
+    order_item = models.ForeignKey(
+        OrderItem,
+        on_delete=models.CASCADE,
+        related_name="modifiers",
+    )
+    group_name_ky = models.CharField(max_length=255)
+    group_name_ru = models.CharField(max_length=255)
+    option_name_ky = models.CharField(max_length=255)
+    option_name_ru = models.CharField(max_length=255)
+    price_delta = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    group_sort_order = models.PositiveIntegerField(default=0)
+    option_sort_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ("group_sort_order", "option_sort_order", "id")
+
+    def __str__(self):
+        return f"{self.group_name_ky}: {self.option_name_ky}"
+
+
 class CartItem(TimeStampedModel):
     customer_session = models.ForeignKey(
         CustomerSession,
@@ -110,6 +135,40 @@ class CartItem(TimeStampedModel):
 
     def __str__(self):
         return f"{self.menu_item} x{self.quantity}"
+
+
+class CartItemModifierSelection(models.Model):
+    cart_item = models.ForeignKey(
+        CartItem,
+        on_delete=models.CASCADE,
+        related_name="modifier_selections",
+    )
+    group = models.ForeignKey(
+        MenuItemModifierGroup,
+        on_delete=models.CASCADE,
+        related_name="cart_selections",
+    )
+    option = models.ForeignKey(
+        MenuItemModifierOption,
+        on_delete=models.CASCADE,
+        related_name="cart_selections",
+    )
+
+    class Meta:
+        ordering = (
+            "group__sort_order",
+            "option__sort_order",
+            "id",
+        )
+        constraints = (
+            models.UniqueConstraint(
+                fields=("cart_item", "option"),
+                name="unique_cart_item_modifier_option",
+            ),
+        )
+
+    def __str__(self):
+        return f"{self.cart_item}: {self.option}"
 
 
 class OrderStatusHistory(TimeStampedModel):

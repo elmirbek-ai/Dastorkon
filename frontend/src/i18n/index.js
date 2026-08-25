@@ -125,6 +125,8 @@ export function getBackendErrorMessage(error, language) {
   if (lowered.includes('table not found or inactive')) return t(language, 'errors.manualOrderTableUnavailable')
   if (lowered.includes('customer session cookie is required')) return t(language, 'errors.customerSessionRequired')
   if (lowered.includes('menu item is unavailable')) return t(language, 'errors.menuItemUnavailable')
+  if (lowered.includes('modifier option is unavailable') || lowered.includes('modifier group is unavailable')) return t(language, 'errors.modifierUnavailable')
+  if (lowered.includes('modifier') || lowered.includes('required modifier group')) return t(language, 'errors.modifierInvalid')
   if (!error?.response) return t(language, 'errors.network')
   if (error.response.status === 401 || error.response.status === 403) return t(language, 'errors.unauthorized')
   return t(language, 'errors.generic')

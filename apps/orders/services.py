@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from apps.menu.models import MenuItem
+from apps.menu.models import MenuItem, MenuItemModifierGroup
 from apps.notifications.services import (
     build_order_notification_payload,
     build_table_session_notification_payload,
@@ -25,8 +25,10 @@ from apps.users.services import get_active_waiter_shift
 from .models import (
     ITEM_COMMENT_MAX_LENGTH,
     CartItem,
+    CartItemModifierSelection,
     Order,
     OrderItem,
+    OrderItemModifierSnapshot,
     OrderStatusHistory,
     WaiterCall,
 )
@@ -59,8 +61,113 @@ def validate_menu_item_for_customer_session(customer_session, menu_item):
         raise ValidationError("Menu item is unavailable.")
 
 
+def validate_selected_modifiers(menu_item, selected_modifiers=None):
+    selected_modifiers = selected_modifiers or []
+    groups = list(
+        MenuItemModifierGroup.objects.filter(menu_item=menu_item)
+        .prefetch_related("options")
+        .order_by("sort_order", "id")
+    )
+    groups_by_id = {group.pk: group for group in groups}
+    selections_by_group = {}
+
+    for selection in selected_modifiers:
+        group_id = selection.get("group_id")
+        option_ids = selection.get("option_ids", [])
+        if group_id in selections_by_group:
+            raise ValidationError("A modifier group can be selected only once.")
+        if len(option_ids) != len(set(option_ids)):
+            raise ValidationError("Duplicate modifier options are not allowed.")
+
+        group = groups_by_id.get(group_id)
+        if group is None or not group.is_active:
+            raise ValidationError("Modifier group is unavailable.")
+        options_by_id = {option.pk: option for option in group.options.all()}
+        selected_options = []
+        for option_id in option_ids:
+            option = options_by_id.get(option_id)
+            if option is None:
+                raise ValidationError(
+                    "Modifier option does not belong to the selected group."
+                )
+            if not option.is_active or not option.is_available:
+                raise ValidationError("Modifier option is unavailable.")
+            selected_options.append(option)
+        selections_by_group[group_id] = selected_options
+
+    validated = []
+    for group in groups:
+        if not group.is_active:
+            continue
+        options = selections_by_group.get(group.pk, [])
+        count = len(options)
+        if group.is_required and count == 0:
+            raise ValidationError("A required modifier group is missing.")
+        if group.selection_type == MenuItemModifierGroup.SelectionType.SINGLE:
+            if count > 1:
+                raise ValidationError(
+                    "Single-selection modifier groups allow only one option."
+                )
+        elif count:
+            if count < group.min_selected:
+                raise ValidationError(
+                    "Too few options were selected for a modifier group."
+                )
+            if group.max_selected is not None and count > group.max_selected:
+                raise ValidationError(
+                    "Too many options were selected for a modifier group."
+                )
+        if count:
+            validated.append(
+                {
+                    "group": group,
+                    "options": sorted(
+                        options,
+                        key=lambda option: (option.sort_order, option.pk),
+                    ),
+                }
+            )
+    return validated
+
+
+def modifier_selection_signature(validated_modifiers):
+    return tuple(
+        sorted(
+            option.pk
+            for selection in validated_modifiers
+            for option in selection["options"]
+        )
+    )
+
+
+def cart_item_selection_signature(cart_item):
+    return tuple(
+        sorted(
+            selection.option_id
+            for selection in cart_item.modifier_selections.all()
+        )
+    )
+
+
+def cart_item_unit_price(cart_item):
+    modifier_total = sum(
+        (
+            selection.option.price_delta
+            for selection in cart_item.modifier_selections.all()
+        ),
+        Decimal("0"),
+    )
+    return cart_item.menu_item.price + modifier_total
+
+
 @transaction.atomic
-def add_cart_item(customer_session, menu_item, quantity=1, comment=""):
+def add_cart_item(
+    customer_session,
+    menu_item,
+    quantity=1,
+    comment="",
+    selected_modifiers=None,
+):
     customer_session = (
         CustomerSession.objects.select_for_update()
         .select_related("active_table_session")
@@ -71,26 +178,45 @@ def add_cart_item(customer_session, menu_item, quantity=1, comment=""):
     if quantity <= 0:
         raise ValidationError("Quantity must be greater than zero.")
     comment = normalize_item_comment(comment)
+    validated_modifiers = validate_selected_modifiers(
+        menu_item,
+        selected_modifiers,
+    )
+    requested_signature = modifier_selection_signature(validated_modifiers)
 
-    cart_item = (
+    cart_items = list(
         CartItem.objects.select_for_update()
         .filter(
             customer_session=customer_session,
             menu_item=menu_item,
             comment=comment,
         )
-        .first()
+        .prefetch_related("modifier_selections__option")
     )
-    if cart_item:
-        cart_item.quantity += quantity
-        cart_item.save(update_fields=("quantity", "updated_at"))
-        return cart_item
-    return CartItem.objects.create(
+    for cart_item in cart_items:
+        if cart_item_selection_signature(cart_item) == requested_signature:
+            cart_item.quantity += quantity
+            cart_item.save(update_fields=("quantity", "updated_at"))
+            return cart_item
+
+    cart_item = CartItem.objects.create(
         customer_session=customer_session,
         menu_item=menu_item,
         quantity=quantity,
         comment=comment,
     )
+    CartItemModifierSelection.objects.bulk_create(
+        [
+            CartItemModifierSelection(
+                cart_item=cart_item,
+                group=selection["group"],
+                option=option,
+            )
+            for selection in validated_modifiers
+            for option in selection["options"]
+        ]
+    )
+    return cart_item
 
 
 @transaction.atomic
@@ -137,13 +263,16 @@ def get_cart_items(customer_session):
         raise ValidationError("Table session is not active.")
     return CartItem.objects.filter(
         customer_session=customer_session,
-    ).select_related("menu_item")
+    ).select_related("menu_item").prefetch_related(
+        "modifier_selections__group",
+        "modifier_selections__option",
+    )
 
 
 def calculate_cart_total(customer_session):
     return sum(
         (
-            cart_item.menu_item.price * cart_item.quantity
+            cart_item_unit_price(cart_item) * cart_item.quantity
             for cart_item in get_cart_items(customer_session)
         ),
         Decimal("0"),
@@ -318,7 +447,19 @@ def _create_order_record(
         quantity = item_data["quantity"]
         if quantity <= 0:
             raise ValidationError("Quantity must be greater than zero.")
-        total_price = menu_item.price * quantity
+        validated_modifiers = validate_selected_modifiers(
+            menu_item,
+            item_data.get("selected_modifiers"),
+        )
+        modifier_total = sum(
+            (
+                option.price_delta
+                for selection in validated_modifiers
+                for option in selection["options"]
+            ),
+            Decimal("0"),
+        )
+        total_price = (menu_item.price + modifier_total) * quantity
         total_amount += total_price
         validated_items.append(
             {
@@ -326,6 +467,7 @@ def _create_order_record(
                 "quantity": quantity,
                 "comment": normalize_item_comment(item_data.get("comment", "")),
                 "total_price": total_price,
+                "modifiers": validated_modifiers,
             }
         )
 
@@ -339,21 +481,33 @@ def _create_order_record(
         status=Order.Status.NEW,
         total_amount=total_amount,
     )
-    OrderItem.objects.bulk_create(
-        [
-            OrderItem(
-                order=order,
-                menu_item=item["menu_item"],
-                name_ky_at_order=item["menu_item"].name_ky,
-                name_ru_at_order=item["menu_item"].name_ru,
-                price_at_order=item["menu_item"].price,
-                quantity=item["quantity"],
-                comment=item["comment"],
-                total_price=item["total_price"],
-            )
-            for item in validated_items
-        ]
-    )
+    for item in validated_items:
+        order_item = OrderItem.objects.create(
+            order=order,
+            menu_item=item["menu_item"],
+            name_ky_at_order=item["menu_item"].name_ky,
+            name_ru_at_order=item["menu_item"].name_ru,
+            price_at_order=item["menu_item"].price,
+            quantity=item["quantity"],
+            comment=item["comment"],
+            total_price=item["total_price"],
+        )
+        OrderItemModifierSnapshot.objects.bulk_create(
+            [
+                OrderItemModifierSnapshot(
+                    order_item=order_item,
+                    group_name_ky=selection["group"].name_ky,
+                    group_name_ru=selection["group"].name_ru,
+                    option_name_ky=option.name_ky,
+                    option_name_ru=option.name_ru,
+                    price_delta=option.price_delta,
+                    group_sort_order=selection["group"].sort_order,
+                    option_sort_order=option.sort_order,
+                )
+                for selection in item["modifiers"]
+                for option in selection["options"]
+            ]
+        )
     OrderStatusHistory.objects.create(
         order=order,
         from_status="",
@@ -443,6 +597,7 @@ def create_order_from_cart(customer_session):
     cart_items = list(
         CartItem.objects.select_for_update()
         .select_related("menu_item")
+        .prefetch_related("modifier_selections__option")
         .filter(customer_session=customer_session)
     )
     if not cart_items:
@@ -455,6 +610,22 @@ def create_order_from_cart(customer_session):
                 "menu_item": cart_item.menu_item,
                 "quantity": cart_item.quantity,
                 "comment": cart_item.comment,
+                "selected_modifiers": [
+                    {
+                        "group_id": group_id,
+                        "option_ids": [
+                            selection.option_id
+                            for selection in cart_item.modifier_selections.all()
+                            if selection.group_id == group_id
+                        ],
+                    }
+                    for group_id in sorted(
+                        {
+                            selection.group_id
+                            for selection in cart_item.modifier_selections.all()
+                        }
+                    )
+                ],
             }
             for cart_item in cart_items
         ],

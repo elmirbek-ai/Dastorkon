@@ -157,9 +157,16 @@ class PublicCartItemCreateView(CustomerSessionMixin, APIView):
 class PublicCartItemDetailView(CustomerSessionMixin, APIView):
     def get_cart_item(self, customer_session, item_id):
         try:
-            return CartItem.objects.select_related("menu_item").get(
-                pk=item_id,
-                customer_session=customer_session,
+            return (
+                CartItem.objects.select_related("menu_item")
+                .prefetch_related(
+                    "modifier_selections__group",
+                    "modifier_selections__option",
+                )
+                .get(
+                    pk=item_id,
+                    customer_session=customer_session,
+                )
             )
         except CartItem.DoesNotExist as exc:
             raise NotFound("Cart item not found.") from exc
@@ -199,7 +206,7 @@ class PublicOrderView(CustomerSessionMixin, APIView):
         customer_session = self.get_customer_session(request, qr_token)
         orders = Order.objects.filter(
             customer_session=customer_session,
-        ).prefetch_related("items")
+        ).prefetch_related("items__modifiers")
         total_amount = (
             orders.exclude(status=Order.Status.CANCELLED).aggregate(
                 total=Sum("total_amount")
@@ -370,7 +377,7 @@ class ManualOrderCreateView(ActiveWaiterShiftMixin, APIView):
                 "table_session__table",
                 "responsible_waiter",
             )
-            .prefetch_related("items")
+            .prefetch_related("items__modifiers")
             .get(pk=order.pk)
         )
         return Response(
@@ -437,7 +444,7 @@ class MyOrdersView(ActiveWaiterShiftMixin, APIView):
             Order.objects.filter(table_session__assigned_waiter=request.user)
             .exclude(status__in=(Order.Status.COMPLETED, Order.Status.CANCELLED))
             .select_related("table_session__table")
-            .prefetch_related("items")
+            .prefetch_related("items__modifiers")
             .order_by("-created_at")
         )
         return Response(WaiterOrderSerializer(orders, many=True).data)
@@ -456,7 +463,7 @@ class MarkOrderDeliveredView(ActiveWaiterShiftMixin, APIView):
             self.raise_service_error(exc)
         order = (
             Order.objects.select_related("table_session__table")
-            .prefetch_related("items")
+            .prefetch_related("items__modifiers")
             .get(pk=order.pk)
         )
         return Response(WaiterOrderSerializer(order).data)
@@ -492,7 +499,7 @@ class KitchenOrdersView(APIView):
                 status__in=(Order.Status.NEW, Order.Status.PREPARING),
             )
             .select_related("table_session__table")
-            .prefetch_related("items")
+            .prefetch_related("items__modifiers")
             .order_by("created_at")
         )
         return Response(KitchenOrderSerializer(orders, many=True).data)
@@ -513,7 +520,7 @@ class MarkOrderPreparingView(APIView):
             raise ValidationError(exc.messages) from exc
         order = (
             Order.objects.select_related("table_session__table")
-            .prefetch_related("items")
+            .prefetch_related("items__modifiers")
             .get(pk=order.pk)
         )
         return Response(KitchenOrderSerializer(order).data)
@@ -534,7 +541,7 @@ class MarkOrderReadyView(APIView):
             raise ValidationError(exc.messages) from exc
         order = (
             Order.objects.select_related("table_session__table")
-            .prefetch_related("items")
+            .prefetch_related("items__modifiers")
             .get(pk=order.pk)
         )
         return Response(KitchenOrderSerializer(order).data)
@@ -676,7 +683,10 @@ class AdminOrderDetailView(APIView):
                     "customer_session",
                     "responsible_waiter",
                 )
-                .prefetch_related("items", "status_history__changed_by")
+                .prefetch_related(
+                    "items__modifiers",
+                    "status_history__changed_by",
+                )
                 .get(pk=order_id)
             )
         except Order.DoesNotExist as exc:

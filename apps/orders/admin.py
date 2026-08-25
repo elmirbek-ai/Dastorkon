@@ -1,6 +1,14 @@
 from django.contrib import admin
 
-from .models import CartItem, Order, OrderItem, OrderStatusHistory, WaiterCall
+from .models import (
+    CartItem,
+    CartItemModifierSelection,
+    Order,
+    OrderItem,
+    OrderItemModifierSnapshot,
+    OrderStatusHistory,
+    WaiterCall,
+)
 
 
 @admin.register(Order)
@@ -41,6 +49,23 @@ class CartItemAdmin(admin.ModelAdmin):
         "updated_at",
     )
     list_filter = ("menu_item__restaurant",)
+
+
+@admin.register(CartItemModifierSelection)
+class CartItemModifierSelectionAdmin(admin.ModelAdmin):
+    list_display = ("cart_item", "group", "option")
+    list_filter = ("cart_item__menu_item__restaurant",)
+
+
+@admin.register(OrderItemModifierSnapshot)
+class OrderItemModifierSnapshotAdmin(admin.ModelAdmin):
+    list_display = (
+        "order_item",
+        "group_name_ky",
+        "option_name_ky",
+        "price_delta",
+    )
+    list_filter = ("order_item__order__restaurant",)
 
 
 @admin.register(OrderStatusHistory)

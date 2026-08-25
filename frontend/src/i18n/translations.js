@@ -860,3 +860,43 @@ Object.assign(translations.ru.confirmation, {
   modifierGroupMessage: 'Удалить группу «{name}»? Она станет неактивной.',
   modifierOptionMessage: 'Удалить вариант «{name}»? Он станет неактивным.',
 })
+
+translations.ky.modifiers = {
+  chooseOptions: 'Кошумчаларды тандаңыз',
+  chooseOptionsHelp: 'Тамакка керектүү варианттарды белгилеңиз.',
+  customizeItem: 'Тамакты тууралоо',
+  required: 'Милдеттүү',
+  optional: 'Кошумча',
+  included: 'Баага кирет',
+  requiredMissing: 'Милдеттүү вариантты тандаңыз.',
+  singleLimit: 'Бул топтон бир гана вариант тандаңыз.',
+  minimumRequired: 'Бул топтон кеминде {count} вариант тандаңыз.',
+  maximumAllowed: 'Бул топтон эң көп {count} вариант тандоого болот.',
+  selectionRange: '{min}–{max} вариант тандаңыз',
+  selectionMinimum: 'Кеминде {count} вариант тандаңыз',
+}
+
+translations.ru.modifiers = {
+  chooseOptions: 'Выберите модификаторы',
+  chooseOptionsHelp: 'Отметьте нужные варианты для блюда.',
+  customizeItem: 'Настройка блюда',
+  required: 'Обязательно',
+  optional: 'Необязательно',
+  included: 'Включено',
+  requiredMissing: 'Выберите обязательный вариант.',
+  singleLimit: 'Выберите только один вариант из этой группы.',
+  minimumRequired: 'Выберите не менее {count} вариантов из этой группы.',
+  maximumAllowed: 'В этой группе можно выбрать не более {count} вариантов.',
+  selectionRange: 'Выберите от {min} до {max} вариантов',
+  selectionMinimum: 'Выберите не менее {count} вариантов',
+}
+
+Object.assign(translations.ky.errors, {
+  modifierUnavailable: 'Тандалган кошумча жеткиликсиз болуп калды. Башка вариантты тандаңыз.',
+  modifierInvalid: 'Кошумчалардын тандоосун текшериңиз.',
+})
+
+Object.assign(translations.ru.errors, {
+  modifierUnavailable: 'Выбранный модификатор стал недоступен. Выберите другой вариант.',
+  modifierInvalid: 'Проверьте выбранные модификаторы.',
+})
