@@ -61,7 +61,7 @@ export function StatusBadge({ status }) {
   return <span className={`admin-status-badge admin-status-badge--${String(status).toLowerCase()}`}>{getStatusLabel(status, language)}</span>
 }
 
-export function AdminModal({ title, children, onClose, wide = false, busy = false }) {
+export function AdminModal({ title, children, onClose, wide = false, busy = false, className = '' }) {
   const { t } = useLanguage()
   useEffect(() => {
     function closeOnEscape(event) {
@@ -73,7 +73,7 @@ export function AdminModal({ title, children, onClose, wide = false, busy = fals
 
   return (
     <div className="admin-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !busy && onClose()}>
-      <section className={`admin-modal ${wide ? 'is-wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby="admin-modal-title" aria-busy={busy}>
+      <section className={`admin-modal ${wide ? 'is-wide' : ''} ${className}`.trim()} role="dialog" aria-modal="true" aria-labelledby="admin-modal-title" aria-busy={busy}>
         <header><h2 id="admin-modal-title">{title}</h2><button type="button" onClick={onClose} disabled={busy} aria-label={t('common.close')}><AdminIcon name="close" /></button></header>
         <div className="admin-modal-body">{children}</div>
       </section>

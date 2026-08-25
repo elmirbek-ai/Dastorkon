@@ -4,6 +4,7 @@ import { adminApiClient } from '../api/client.js'
 import { AdminIcon, AdminModal, EmptyState, ErrorBanner, LoadingState, PageIntro, Toggle } from '../components/admin/AdminComponents.jsx'
 import { adminImageUrl, formatAdminMoney } from '../components/admin/adminUtils.js'
 import { useAdminContext } from '../components/admin/AdminContext.js'
+import MenuModifiersManager from '../components/admin/MenuModifiersManager.jsx'
 import { useConfirm } from '../components/confirmation/useConfirm.js'
 import MenuItemBadges from '../components/MenuItemBadges.jsx'
 import { MENU_SALES_LABELS } from '../components/menuItemLabels.js'
@@ -210,6 +211,8 @@ export default function AdminMenuPage() {
   const [revision, setRevision] = useState(0)
   const [query, setQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
+  const [modifiersItem, setModifiersItem] = useState(null)
+  const [modifiersBusy, setModifiersBusy] = useState(false)
   const mutationInFlightRef = useRef(false)
 
   useEffect(() => {
@@ -369,7 +372,13 @@ export default function AdminMenuPage() {
                   <td>{getLocalizedField(categoryMap[item.category], 'name', language) || '—'}</td>
                   <td><strong>{formatAdminMoney(item.price)}</strong></td>
                   <td><Toggle checked={item.is_available} onChange={() => toggleMenuStatus(item)} label={item.is_available ? t('admin.available') : t('admin.unavailable')} disabled={busyId !== null} /></td>
-                  <td><div className="admin-row-actions"><button type="button" onClick={() => openEdit(item)} disabled={busyId !== null} aria-label={t('common.edit')}><AdminIcon name="edit" /></button><button className="is-danger" type="button" onClick={() => remove(item)} disabled={busyId !== null} aria-label={t('common.delete')}><AdminIcon name="trash" /></button></div></td>
+                  <td>
+                    <div className="admin-row-actions">
+                      <button className="admin-modifiers-trigger" type="button" onClick={() => setModifiersItem(item)} disabled={busyId !== null}><AdminIcon name="category" /><span>{t('admin.modifiers')}</span></button>
+                      <button type="button" onClick={() => openEdit(item)} disabled={busyId !== null} aria-label={t('common.edit')}><AdminIcon name="edit" /></button>
+                      <button className="is-danger" type="button" onClick={() => remove(item)} disabled={busyId !== null} aria-label={t('common.delete')}><AdminIcon name="trash" /></button>
+                    </div>
+                  </td>
                 </tr>
               ))}</tbody>
             </table>
@@ -385,6 +394,17 @@ export default function AdminMenuPage() {
       {editing && (
         <AdminModal title={editing.id ? t('common.edit') : t('admin.addMenuItem')} onClose={closeForm} wide busy={saving}>
           <MenuForm value={editing} categories={categories} imagePreview={imagePreview} saving={saving} error={formError} onChange={(field, value) => setEditing((current) => ({ ...current, [field]: value }))} onImageChange={selectImage} onClearImage={() => { setImageFile(null); setImageRemoved(false); setImagePreview(editing.image ? adminImageUrl(editing.image) : '') }} onRemoveImage={() => { setImageFile(null); setImagePreview(''); setImageRemoved(Boolean(editing.id && editing.image)) }} onSubmit={save} onCancel={closeForm} />
+        </AdminModal>
+      )}
+      {modifiersItem && (
+        <AdminModal
+          title={t('admin.modifiersFor', { name: getLocalizedField(modifiersItem, 'name', language) })}
+          onClose={() => { setModifiersItem(null); setModifiersBusy(false) }}
+          wide
+          busy={modifiersBusy}
+          className="admin-modal--modifiers"
+        >
+          <MenuModifiersManager menuItem={modifiersItem} handleApiError={handleApiError} onBusyChange={setModifiersBusy} />
         </AdminModal>
       )}
     </>
