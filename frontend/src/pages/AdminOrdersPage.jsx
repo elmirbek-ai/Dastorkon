@@ -167,7 +167,7 @@ export default function AdminOrdersPage() {
                   <div className="admin-order-items">
                     {detail.items.map((item) => (
                       <div key={item.id}>
-                        <span><b>{item.quantity}×</b><strong>{getLocalizedField(item, 'name_at_order', language)}</strong><OrderItemModifiers modifiers={item.modifiers} />{item.comment && <small>{t('common.comments')}: {item.comment}</small>}</span>
+                        <span><b>{item.quantity}×</b><strong>{getLocalizedField(item, 'name_at_order', language)}</strong><OrderItemModifiers modifiers={item.modifiers} showPriceDeltas />{item.comment && <small>{t('common.comments')}: {item.comment}</small>}</span>
                         <b>{formatAdminMoney(item.total_price)}</b>
                       </div>
                     ))}

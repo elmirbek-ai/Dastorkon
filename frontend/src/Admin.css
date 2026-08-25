@@ -4148,10 +4148,28 @@
 }
 
 .admin-order-items .selected-modifiers li {
+  display: grid;
+  gap: 1px;
   margin: 0;
   padding: 0;
   border: 0;
   color: #6f675e;
   font-size: 0.64rem;
   line-height: 1.4;
+}
+
+.admin-order-items .selected-modifiers li > b {
+  color: #4c463f;
+  font-size: 0.61rem;
+}
+
+.admin-order-items .selected-modifiers li > span {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 7px;
+}
+
+.admin-order-items .selected-modifiers__option em {
+  color: #8a4b12;
+  background: #fff0dc;
 }

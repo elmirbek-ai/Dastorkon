@@ -21,37 +21,27 @@ export function modifierSelectionTotal(item, selections) {
   }, 0)
 }
 
-export function validateModifierSelection(item, selections, t) {
+export function modifierSelectionErrors(item, selections, t) {
+  const errors = {}
   for (const group of item.modifier_groups || []) {
     const count = (selections[group.id] || []).length
     if (group.is_required && count === 0) {
-      return {
-        groupId: group.id,
-        message: t('modifiers.requiredMissing'),
-      }
+      errors[group.id] = t('modifiers.requiredMissing')
+      continue
     }
     if (group.selection_type === 'SINGLE' && count > 1) {
-      return {
-        groupId: group.id,
-        message: t('modifiers.singleLimit'),
-      }
+      errors[group.id] = t('modifiers.singleLimit')
+      continue
     }
     if (group.selection_type === 'MULTIPLE' && count > 0) {
       if (count < Number(group.min_selected || 0)) {
-        return {
-          groupId: group.id,
-          message: t('modifiers.minimumRequired', { count: group.min_selected }),
-        }
-      }
-      if (group.max_selected !== null && count > Number(group.max_selected)) {
-        return {
-          groupId: group.id,
-          message: t('modifiers.maximumAllowed', { count: group.max_selected }),
-        }
+        errors[group.id] = t('modifiers.minimumRequired', { count: group.min_selected })
+      } else if (group.max_selected !== null && count > Number(group.max_selected)) {
+        errors[group.id] = t('modifiers.maximumAllowed', { count: group.max_selected })
       }
     }
   }
-  return null
+  return errors
 }
 
 export function selectedModifierDetails(item, selections) {

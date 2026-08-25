@@ -8,9 +8,9 @@ import {
 } from '../components/ItemModifiers.jsx'
 import {
   modifierSelectionPayload,
+  modifierSelectionErrors,
   modifierSelectionTotal,
   selectedModifierDetails,
-  validateModifierSelection,
 } from '../components/modifierUtils.js'
 import { useConfirm } from '../components/confirmation/useConfirm.js'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
@@ -45,30 +45,45 @@ function TableStatus({ table, t }) {
 
 function WaiterModifierDialog({ item, onClose, onAdd }) {
   const { language, t } = useLanguage()
+  const modifierListRef = useRef(null)
   const [selections, setSelections] = useState({})
-  const [validationError, setValidationError] = useState(null)
+  const [showValidationErrors, setShowValidationErrors] = useState(false)
   const itemName = getLocalizedField(item, 'name', language)
-  const unitPrice = Number(item.price) + modifierSelectionTotal(item, selections)
+  const modifierPrice = modifierSelectionTotal(item, selections)
+  const unitPrice = Number(item.price) + modifierPrice
+  const selectionErrors = modifierSelectionErrors(item, selections, t)
+  const visibleSelectionErrors = showValidationErrors ? selectionErrors : {}
 
   useEffect(() => {
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
     function closeOnEscape(event) {
       if (event.key === 'Escape') onClose()
     }
     document.addEventListener('keydown', closeOnEscape)
-    return () => document.removeEventListener('keydown', closeOnEscape)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.removeEventListener('keydown', closeOnEscape)
+    }
   }, [onClose])
 
   function submit() {
-    const error = validateModifierSelection(item, selections, t)
-    setValidationError(error)
-    if (error) return
+    setShowValidationErrors(true)
+    const firstInvalidGroupId = Object.keys(selectionErrors)[0]
+    if (firstInvalidGroupId) {
+      requestAnimationFrame(() => {
+        const group = modifierListRef.current?.querySelector(`[data-modifier-group-id="${firstInvalidGroupId}"]`)
+        group?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        group?.querySelector('input:not(:disabled)')?.focus({ preventScroll: true })
+      })
+      return
+    }
     onAdd(item, selections)
     onClose()
   }
 
   function changeSelections(value) {
     setSelections(value)
-    setValidationError(null)
   }
 
   return (
@@ -78,30 +93,45 @@ function WaiterModifierDialog({ item, onClose, onAdd }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="waiter-modifier-title"
+        aria-describedby="waiter-modifier-helper"
         onMouseDown={(event) => event.stopPropagation()}
       >
+        <div className="waiter-modifier-dialog__handle" aria-hidden="true" />
         <header>
           <div>
             <small>{t('modifiers.customizeItem')}</small>
             <h2 id="waiter-modifier-title">{itemName}</h2>
+            <p id="waiter-modifier-helper">{t('modifiers.waiterCustomizeHelp')}</p>
             <MenuItemBadges item={item} className="waiter-manual-item-badges" />
+            <div className="waiter-modifier-dialog__price-summary">
+              <span>
+                <small>{t('modifiers.basePrice')}</small>
+                <strong>{formatMoney(item.price)}</strong>
+              </span>
+              <span className={modifierPrice > 0 ? 'is-delta' : 'is-delta is-zero'}>
+                <small>{t('modifiers.modifierPrice')}</small>
+                <strong>+{formatMoney(modifierPrice)}</strong>
+              </span>
+            </div>
           </div>
           <button type="button" onClick={onClose} aria-label={t('common.close')}>×</button>
         </header>
-        {validationError && (
-          <p className="modifier-picker__error" role="alert">{validationError.message}</p>
-        )}
-        <ModifierGroupsPicker
-          item={item}
-          selections={selections}
-          onChange={changeSelections}
-          invalidGroupId={validationError?.groupId}
-        />
+        <div ref={modifierListRef} className="waiter-modifier-dialog__body">
+          <ModifierGroupsPicker
+            item={item}
+            selections={selections}
+            onChange={changeSelections}
+            errors={visibleSelectionErrors}
+          />
+        </div>
         <footer>
           <button type="button" onClick={onClose}>{t('common.cancel')}</button>
           <button className="is-primary" type="button" onClick={submit}>
             <span>{t('waiter.addItem')}</span>
-            <strong>{formatMoney(unitPrice)}</strong>
+            <span className="waiter-modifier-dialog__final-price">
+              <small>{t('modifiers.finalPrice')}</small>
+              <strong>{formatMoney(unitPrice)}</strong>
+            </span>
           </button>
         </footer>
       </section>
@@ -474,28 +504,41 @@ export default function WaiterManualOrderPage() {
             <header><small>{t('waiter.selectedTable')}</small><h1>{t('customer.tableLabel', { number: selectedTable.number })}</h1><p>{t('waiter.reviewOrder')}</p></header>
             {cartItems.length ? (
               <div className="waiter-manual-cart-list">
-                {cartItems.map((line) => (
-                  <article key={line.lineKey}>
-                    <div className="waiter-manual-cart-item-info">
-                      <strong>{getLocalizedField(line.menuItem, 'name', language)}</strong>
-                      <DraftItemModifiers modifiers={line.modifierDetails} />
-                      <small>{formatMoney(line.unitPrice)} × {line.quantity}</small>
-                    </div>
-                    <div className="waiter-manual-line-controls">
-                      <button className="waiter-manual-remove-item" type="button" onClick={() => removeDraftItem(line)}>{t('common.delete')}</button>
-                      <span className="waiter-manual-quantity">
-                        <button type="button" onClick={() => decreaseDraftItem(line)} aria-label={t('customer.decreaseQuantity')}>−</button>
-                        <b>{line.quantity}</b>
-                        <button type="button" onClick={() => setQuantity(line.lineKey, line.quantity + 1)} aria-label={t('customer.increaseQuantity')}>+</button>
-                      </span>
-                      <strong>{formatMoney(line.unitPrice * line.quantity)}</strong>
-                    </div>
-                    <label className="waiter-manual-item-comment">
-                      <span>{t('waiter.itemNote')}</span>
-                      <textarea rows="2" maxLength={300} value={line.comment} onChange={(event) => setComment(line.lineKey, event.target.value)} placeholder={t('waiter.itemNotePlaceholder')} />
-                    </label>
-                  </article>
-                ))}
+                {cartItems.map((line) => {
+                  const basePrice = Number(line.menuItem.price)
+                  const modifierDelta = Math.max(0, Number(line.unitPrice) - basePrice)
+                  return (
+                    <article key={line.lineKey}>
+                      <div className="waiter-manual-cart-item-info">
+                        <strong>{getLocalizedField(line.menuItem, 'name', language)}</strong>
+                        <DraftItemModifiers modifiers={line.modifierDetails} showPriceDeltas />
+                        <div className="waiter-manual-line-price-breakdown">
+                          <span>{t('modifiers.basePrice')}: {formatMoney(basePrice)}</span>
+                          {modifierDelta > 0 && (
+                            <span>{t('modifiers.modifierPrice')}: +{formatMoney(modifierDelta)}</span>
+                          )}
+                          <span>{t('modifiers.unitPrice')}: {formatMoney(line.unitPrice)} × {line.quantity}</span>
+                        </div>
+                      </div>
+                      <div className="waiter-manual-line-controls">
+                        <button className="waiter-manual-remove-item" type="button" onClick={() => removeDraftItem(line)}>{t('common.delete')}</button>
+                        <span className="waiter-manual-quantity">
+                          <button type="button" onClick={() => decreaseDraftItem(line)} aria-label={t('customer.decreaseQuantity')}>−</button>
+                          <b>{line.quantity}</b>
+                          <button type="button" onClick={() => setQuantity(line.lineKey, line.quantity + 1)} aria-label={t('customer.increaseQuantity')}>+</button>
+                        </span>
+                        <span className="waiter-manual-line-total">
+                          <small>{t('modifiers.finalPrice')}</small>
+                          <strong>{formatMoney(line.unitPrice * line.quantity)}</strong>
+                        </span>
+                      </div>
+                      <label className="waiter-manual-item-comment">
+                        <span>{t('waiter.itemNote')}</span>
+                        <textarea rows="2" maxLength={300} value={line.comment} onChange={(event) => setComment(line.lineKey, event.target.value)} placeholder={t('waiter.itemNotePlaceholder')} />
+                      </label>
+                    </article>
+                  )
+                })}
               </div>
             ) : (
               <div className="waiter-manual-order-state"><strong>{t('waiter.cartEmpty')}</strong><p>{t('waiter.cartEmptyHelp')}</p></div>

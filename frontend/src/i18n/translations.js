@@ -907,6 +907,33 @@ translations.ru.modifiers = {
   selectionMinimum: 'Выберите не менее {count} вариантов',
 }
 
+Object.assign(translations.ky.modifiers, {
+  included: 'Камтылган',
+  chooseOne: 'Бир вариант тандаңыз',
+  chooseSeveral: 'Бир же бир нече вариант тандаңыз',
+  selectedCount: 'Тандалды: {count}',
+  customerCustomizeHelp: 'Керектүү варианттарды тандаңыз — баа автоматтык жаңыртылат.',
+  waiterCustomizeHelp: 'Керектүү варианттарды тез белгилеңиз.',
+  basePrice: 'Негизги баа',
+  modifierPrice: 'Кошумчалар',
+  unitPrice: 'Бир даана',
+  finalPrice: 'Жыйынтык баа',
+  addingToCart: 'Себетке кошулууда...',
+})
+
+Object.assign(translations.ru.modifiers, {
+  chooseOne: 'Выберите один вариант',
+  chooseSeveral: 'Выберите один или несколько вариантов',
+  selectedCount: 'Выбрано: {count}',
+  customerCustomizeHelp: 'Выберите нужные варианты — цена обновится автоматически.',
+  waiterCustomizeHelp: 'Быстро отметьте нужные варианты.',
+  basePrice: 'Базовая цена',
+  modifierPrice: 'Модификаторы',
+  unitPrice: 'За единицу',
+  finalPrice: 'Итоговая цена',
+  addingToCart: 'Добавление в корзину...',
+})
+
 Object.assign(translations.ky.errors, {
   modifierUnavailable: 'Тандалган кошумча жеткиликсиз болуп калды. Башка вариантты тандаңыз.',
   modifierInvalid: 'Кошумчалардын тандоосун текшериңиз.',
