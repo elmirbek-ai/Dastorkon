@@ -796,6 +796,17 @@
 .admin-menu-cell strong { overflow: hidden; color: #0f172a; text-overflow: ellipsis; white-space: nowrap; }
 .admin-menu-cell small { color: #667085; }
 
+.admin-menu-badges {
+  max-width: 250px;
+  margin-top: 2px;
+}
+
+.admin-menu-badges .menu-item-badge {
+  min-height: 17px;
+  padding-inline: 6px;
+  font-size: 0.52rem;
+}
+
 .admin-menu-table tr.is-unavailable td {
   background: #fafafa;
 }
@@ -1496,6 +1507,70 @@
   padding: 14px;
 }
 
+.admin-menu-sales-labels {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.35fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin: 0 14px 14px;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface-secondary);
+}
+
+.admin-menu-sales-labels > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.admin-menu-sales-labels strong {
+  color: var(--text-heading);
+  font-size: 0.68rem;
+}
+
+.admin-menu-sales-labels small {
+  color: var(--text-secondary);
+  font-size: 0.57rem;
+  line-height: 1.35;
+}
+
+.admin-menu-label-options {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.admin-menu-label-options button {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  background: var(--surface);
+  font: inherit;
+  font-size: 0.61rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.admin-menu-label-options button.is-active {
+  border-color: var(--secondary);
+  color: var(--secondary);
+  background: var(--secondary-light);
+}
+
+.admin-menu-label-options button:focus-visible {
+  outline: 3px solid var(--info-border);
+  outline-offset: 1px;
+}
+
+.admin-menu-label-options button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .admin-menu-form label:not(.admin-toggle) {
   display: grid;
   min-width: 0;
@@ -1943,6 +2018,8 @@
   .admin-menu-form-section > header p { max-width: none; text-align: left; }
   .admin-menu-image-status { align-items: flex-start; flex-direction: column; }
   .admin-menu-status-controls { align-items: flex-start; flex-direction: column; gap: 6px; }
+  .admin-menu-sales-labels { grid-template-columns: 1fr; }
+  .admin-menu-label-options { justify-content: flex-start; }
 }
 
 @media (max-width: 540px) {

@@ -215,6 +215,12 @@ class ManualOrderMenuItemSerializer(serializers.ModelSerializer):
             "name_ru",
             "image",
             "price",
+            "cooking_time_min",
+            "is_hit",
+            "is_new",
+            "is_spicy",
+            "is_vegetarian",
+            "is_recommended",
             "is_available",
         )
         read_only_fields = fields

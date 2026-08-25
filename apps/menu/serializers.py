@@ -38,6 +38,13 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 class MenuItemSerializer(serializers.ModelSerializer):
+    cooking_time_min = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        min_value=1,
+        max_value=300,
+    )
+
     class Meta:
         model = MenuItem
         fields = (
@@ -55,6 +62,11 @@ class MenuItemSerializer(serializers.ModelSerializer):
             "allergens_ky",
             "allergens_ru",
             "cooking_time_min",
+            "is_hit",
+            "is_new",
+            "is_spicy",
+            "is_vegetarian",
+            "is_recommended",
             "is_available",
             "is_visible",
             "is_deleted",
@@ -104,6 +116,11 @@ class PublicMenuItemSerializer(serializers.ModelSerializer):
             "allergens_ky",
             "allergens_ru",
             "cooking_time_min",
+            "is_hit",
+            "is_new",
+            "is_spicy",
+            "is_vegetarian",
+            "is_recommended",
             "is_available",
         )
 
@@ -128,6 +145,12 @@ class WaiterMenuItemSerializer(serializers.ModelSerializer):
             "name_ky",
             "name_ru",
             "price",
+            "cooking_time_min",
+            "is_hit",
+            "is_new",
+            "is_spicy",
+            "is_vegetarian",
+            "is_recommended",
             "is_available",
             "is_visible",
         )

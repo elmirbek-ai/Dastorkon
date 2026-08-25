@@ -1,3 +1,4 @@
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from apps.common.models import TimeStampedModel
@@ -48,7 +49,16 @@ class MenuItem(TimeStampedModel):
     ingredients_ru = models.TextField(blank=True)
     allergens_ky = models.TextField(blank=True)
     allergens_ru = models.TextField(blank=True)
-    cooking_time_min = models.PositiveIntegerField(default=0)
+    cooking_time_min = models.PositiveIntegerField(
+        blank=True,
+        null=True,
+        validators=(MinValueValidator(1), MaxValueValidator(300)),
+    )
+    is_hit = models.BooleanField(default=False)
+    is_new = models.BooleanField(default=False)
+    is_spicy = models.BooleanField(default=False)
+    is_vegetarian = models.BooleanField(default=False)
+    is_recommended = models.BooleanField(default=False)
     is_available = models.BooleanField(default=True)
     is_visible = models.BooleanField(default=True)
     is_deleted = models.BooleanField(default=False)

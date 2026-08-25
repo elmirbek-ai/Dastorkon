@@ -694,3 +694,35 @@ Object.assign(translations.ru.errors, {
   activeWaiterShiftRequired: 'Сначала начните смену, чтобы создать ручной заказ.',
   manualOrderTableUnavailable: 'Этот стол недоступен. Обновите список столов.',
 })
+
+translations.ky.menuLabels = {
+  hit: 'Хит',
+  new: 'Жаңы',
+  spicy: 'Ачуу',
+  vegetarian: 'Вегетариан',
+  recommended: 'Сунушталат',
+  prepMinutes: '{count} мүнөт',
+}
+
+translations.ru.menuLabels = {
+  hit: 'Хит',
+  new: 'Новое',
+  spicy: 'Острое',
+  vegetarian: 'Вегетарианское',
+  recommended: 'Рекомендуем',
+  prepMinutes: '{count} мин',
+}
+
+Object.assign(translations.ky.admin, {
+  salesLabels: 'Сатуу белгилери',
+  salesLabelsHelp: 'Кардарлардын көңүлүн бурган белгилерди тандаңыз.',
+  preparationTime: 'Даярдоо убактысы',
+  preparationTimePlaceholder: 'Мисалы: 15',
+})
+
+Object.assign(translations.ru.admin, {
+  salesLabels: 'Метки для продажи',
+  salesLabelsHelp: 'Выберите метки, которые помогут гостям заметить блюдо.',
+  preparationTime: 'Время приготовления',
+  preparationTimePlaceholder: 'Например: 15',
+})

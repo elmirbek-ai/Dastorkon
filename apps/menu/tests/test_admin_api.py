@@ -141,7 +141,7 @@ class AdminMenuApiTests(APITestCase):
         self.assertFalse(self.category.is_visible)
         self.assertTrue(Category.objects.filter(pk=self.category.pk).exists())
 
-    def test_admin_can_create_menu_item(self):
+    def test_admin_can_create_menu_item_with_sales_labels_and_prep_time(self):
         self.authenticate(self.admin)
         data = {
             "restaurant": self.restaurant.pk,
@@ -149,12 +149,24 @@ class AdminMenuApiTests(APITestCase):
             "name_ky": "Манты",
             "name_ru": "Манты",
             "price": "300.00",
+            "is_hit": True,
+            "is_new": True,
+            "is_spicy": True,
+            "is_vegetarian": False,
+            "is_recommended": True,
+            "cooking_time_min": 15,
         }
 
         response = self.client.post(self.menu_item_list_url, data)
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertTrue(MenuItem.objects.filter(name_ky="Манты").exists())
+        menu_item = MenuItem.objects.get(name_ky="Манты")
+        self.assertTrue(menu_item.is_hit)
+        self.assertTrue(menu_item.is_new)
+        self.assertTrue(menu_item.is_spicy)
+        self.assertFalse(menu_item.is_vegetarian)
+        self.assertTrue(menu_item.is_recommended)
+        self.assertEqual(menu_item.cooking_time_min, 15)
 
     def test_menu_item_rejects_category_from_another_restaurant(self):
         self.authenticate(self.admin)
@@ -177,15 +189,56 @@ class AdminMenuApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("category", response.data)
 
-    def test_admin_can_update_menu_item(self):
+    def test_admin_can_update_menu_item_labels_and_prep_time(self):
         self.authenticate(self.admin)
         url = reverse("admin-menu-item-detail", args=(self.menu_item.pk,))
 
-        response = self.client.patch(url, {"price": "275.00"})
+        response = self.client.patch(
+            url,
+            {
+                "price": "275.00",
+                "is_hit": True,
+                "is_vegetarian": True,
+                "cooking_time_min": 20,
+            },
+        )
 
         self.menu_item.refresh_from_db()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(self.menu_item.price, Decimal("275.00"))
+        self.assertTrue(self.menu_item.is_hit)
+        self.assertTrue(self.menu_item.is_vegetarian)
+        self.assertEqual(self.menu_item.cooking_time_min, 20)
+
+    def test_admin_can_clear_menu_item_prep_time(self):
+        self.authenticate(self.admin)
+        self.menu_item.cooking_time_min = 15
+        self.menu_item.save(update_fields=("cooking_time_min", "updated_at"))
+
+        response = self.client.patch(
+            reverse("admin-menu-item-detail", args=(self.menu_item.pk,)),
+            {"cooking_time_min": None},
+            format="json",
+        )
+
+        self.menu_item.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsNone(self.menu_item.cooking_time_min)
+
+    def test_menu_item_rejects_invalid_prep_time(self):
+        self.authenticate(self.admin)
+        url = reverse("admin-menu-item-detail", args=(self.menu_item.pk,))
+
+        for invalid_value in (0, -1, 301):
+            with self.subTest(cooking_time_min=invalid_value):
+                response = self.client.patch(
+                    url,
+                    {"cooking_time_min": invalid_value},
+                    format="json",
+                )
+
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+                self.assertIn("cooking_time_min", response.data)
 
     def test_admin_can_change_menu_item_availability(self):
         self.authenticate(self.admin)

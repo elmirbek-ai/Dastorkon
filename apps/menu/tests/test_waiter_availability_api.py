@@ -49,12 +49,17 @@ class WaiterMenuAvailabilityApiTests(APITestCase):
 
     def test_waiter_can_list_menu_items(self):
         self.authenticate(self.waiter)
+        self.menu_item.is_hit = True
+        self.menu_item.cooking_time_min = 15
+        self.menu_item.save(update_fields=("is_hit", "cooking_time_min", "updated_at"))
 
         response = self.client.get(self.list_url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual([item["id"] for item in response.data], [self.menu_item.pk])
         self.assertEqual(response.data[0]["category_name_ky"], self.category.name_ky)
+        self.assertTrue(response.data[0]["is_hit"])
+        self.assertEqual(response.data[0]["cooking_time_min"], 15)
 
     def test_waiter_can_change_availability(self):
         self.authenticate(self.waiter)
@@ -83,6 +88,12 @@ class WaiterMenuAvailabilityApiTests(APITestCase):
                 "category": 999,
                 "restaurant": 999,
                 "is_visible": False,
+                "is_hit": True,
+                "is_new": True,
+                "is_spicy": True,
+                "is_vegetarian": True,
+                "is_recommended": True,
+                "cooking_time_min": 15,
             },
         )
 
@@ -94,6 +105,12 @@ class WaiterMenuAvailabilityApiTests(APITestCase):
         self.assertEqual(self.menu_item.category_id, original_category_id)
         self.assertEqual(self.menu_item.restaurant_id, original_restaurant_id)
         self.assertTrue(self.menu_item.is_visible)
+        self.assertFalse(self.menu_item.is_hit)
+        self.assertFalse(self.menu_item.is_new)
+        self.assertFalse(self.menu_item.is_spicy)
+        self.assertFalse(self.menu_item.is_vegetarian)
+        self.assertFalse(self.menu_item.is_recommended)
+        self.assertIsNone(self.menu_item.cooking_time_min)
 
     def test_waiter_cannot_use_admin_menu_item_update(self):
         self.authenticate(self.waiter)

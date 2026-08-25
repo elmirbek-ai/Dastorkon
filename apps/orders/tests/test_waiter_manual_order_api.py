@@ -135,6 +135,31 @@ class WaiterManualOrderApiTests(APITestCase):
         self.assertFalse(items[self.unavailable_item.pk]["is_available"])
         self.assertNotIn(self.hidden_item.pk, items)
 
+    def test_menu_list_exposes_sales_labels_and_prep_time(self):
+        self.menu_item.is_hit = True
+        self.menu_item.is_new = True
+        self.menu_item.is_spicy = True
+        self.menu_item.is_vegetarian = True
+        self.menu_item.is_recommended = True
+        self.menu_item.cooking_time_min = 15
+        self.menu_item.save()
+        self.authenticate(self.waiter)
+
+        response = self.client.get(
+            self.menu_url,
+            {"table_id": self.free_table.pk},
+        )
+
+        item = next(
+            item for item in response.data if item["id"] == self.menu_item.pk
+        )
+        self.assertTrue(item["is_hit"])
+        self.assertTrue(item["is_new"])
+        self.assertTrue(item["is_spicy"])
+        self.assertTrue(item["is_vegetarian"])
+        self.assertTrue(item["is_recommended"])
+        self.assertEqual(item["cooking_time_min"], 15)
+
     def test_waiter_can_create_manual_order_for_free_table(self):
         self.authenticate(self.waiter)
 

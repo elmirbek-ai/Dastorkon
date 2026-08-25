@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { waiterApiClient, WAITER_TOKEN_KEY } from '../api/client.js'
+import MenuItemBadges from '../components/MenuItemBadges.jsx'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getBackendErrorMessage, getLocalizedField } from '../i18n/index.js'
 
@@ -310,7 +311,7 @@ export default function WaiterManualOrderPage() {
                   return (
                     <article className={!item.is_available ? 'is-unavailable' : ''} key={item.id}>
                       <span className="waiter-manual-item-mark" aria-hidden="true">{itemName.slice(0, 1)}</span>
-                      <div><small>{getLocalizedField(item, 'category_name', language)}</small><h2>{itemName}</h2><strong>{formatMoney(item.price)}</strong></div>
+                      <div><small>{getLocalizedField(item, 'category_name', language)}</small><h2>{itemName}</h2><MenuItemBadges item={item} className="waiter-manual-item-badges" /><strong>{formatMoney(item.price)}</strong></div>
                       {item.is_available ? (
                         quantity ? (
                           <span className="waiter-manual-menu-stepper">

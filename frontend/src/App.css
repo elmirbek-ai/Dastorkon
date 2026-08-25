@@ -352,9 +352,18 @@
 }
 
 .menu-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
   margin: 14px -14px 0;
   padding: 0 14px 12px;
   background: var(--bg);
+}
+
+.menu-tools__search-row,
+.menu-tools__categories-row {
+  width: 100%;
+  min-width: 0;
 }
 
 .search-box {
@@ -417,16 +426,32 @@
 
 .category-chips {
   display: flex;
+  flex-wrap: nowrap;
   gap: 10px;
-  margin: 10px -14px 0;
-  padding: 0 14px 1px;
+  margin: 0 -14px;
+  padding: 0 14px 5px;
   overflow-x: auto;
-  overscroll-behavior-inline: contain;
-  scrollbar-width: none;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-behavior: smooth;
+  scrollbar-color: var(--border-strong) transparent;
+  scrollbar-width: thin;
+  touch-action: pan-x;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
 }
 
 .category-chips::-webkit-scrollbar {
-  display: none;
+  height: 4px;
+}
+
+.category-chips::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.category-chips::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--border-strong);
 }
 
 .category-chips button {
@@ -673,6 +698,50 @@
   color: var(--text-muted);
   font-size: 0.65rem;
   white-space: nowrap;
+}
+
+.menu-item-badges {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.menu-item-badge {
+  display: inline-flex;
+  min-height: 20px;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: var(--text-secondary);
+  background: var(--surface-secondary);
+  font-size: 0.58rem;
+  font-weight: 850;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.menu-item-badge--hit,
+.menu-item-badge--recommended {
+  color: #9a3412;
+  background: #fff4ed;
+}
+
+.menu-item-badge--new,
+.menu-item-badge--vegetarian {
+  color: #166534;
+  background: #ecfdf3;
+}
+
+.menu-item-badge--spicy {
+  color: #b42318;
+  background: #fef3f2;
+}
+
+.menu-item-badge--prep {
+  color: #52525b;
+  background: #f1f1eb;
 }
 
 .add-button {
@@ -7250,6 +7319,16 @@ body:has(.customer-orders-page) {
   font-size: 0.76rem;
 }
 
+.waiter-manual-item-badges {
+  margin: 2px 0;
+}
+
+.waiter-manual-item-badges .menu-item-badge {
+  min-height: 19px;
+  padding-inline: 6px;
+  font-size: 0.55rem;
+}
+
 .waiter-manual-menu-grid article > button,
 .waiter-manual-menu-stepper,
 .waiter-manual-unavailable {
@@ -8000,6 +8079,11 @@ body:has(.customer-menu) {
   padding-bottom: 14px;
 }
 
+.customer-menu .menu-tools__search-row .search-box {
+  width: min(100%, 720px);
+  max-width: 720px;
+}
+
 .customer-menu .search-box {
   height: 52px;
   border-radius: 15px;
@@ -8014,7 +8098,6 @@ body:has(.customer-menu) {
 
 .customer-menu .category-chips {
   gap: 8px;
-  margin-top: 12px;
 }
 
 .customer-menu .category-chips button {
@@ -8091,7 +8174,8 @@ body:has(.customer-menu) {
 }
 
 .customer-menu .menu-card {
-  height: 156px;
+  height: auto;
+  min-height: 156px;
   grid-template-columns: 120px minmax(0, 1fr);
   border-radius: 18px;
   transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
@@ -8118,6 +8202,22 @@ body:has(.customer-menu) {
 .customer-menu .menu-card__body h4 {
   font-size: 1rem;
   line-height: 1.25;
+}
+
+.customer-menu .menu-card__badges {
+  position: relative;
+  z-index: 3;
+  margin-top: 6px;
+}
+
+.customer-menu .menu-card__badges .menu-item-badge {
+  min-height: 18px;
+  padding-inline: 6px;
+  font-size: 0.54rem;
+}
+
+.customer-menu .menu-card__badges + .menu-card__description {
+  -webkit-line-clamp: 1;
 }
 
 .customer-menu .menu-card__description {
@@ -8376,9 +8476,9 @@ body:has(.customer-menu) {
   .customer-menu .menu-tools {
     top: 0;
     display: grid;
-    grid-template-columns: minmax(280px, 0.72fr) minmax(0, 1.28fr);
-    align-items: center;
-    gap: 22px;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 12px;
     margin-top: 20px;
     padding: 14px 0;
     border-bottom: 1px solid var(--border);
@@ -8386,7 +8486,6 @@ body:has(.customer-menu) {
 
   .customer-menu .search-box {
     width: 100%;
-    max-width: none;
   }
 
   .customer-menu .category-chips {
@@ -9013,6 +9112,16 @@ body:has(.customer-menu) {
   font-size: clamp(1.65rem, 7vw, 2.15rem);
   line-height: 1.08;
   letter-spacing: -0.035em;
+}
+
+.dish-detail__badges {
+  margin-top: 12px;
+}
+
+.dish-detail__badges .menu-item-badge {
+  min-height: 25px;
+  padding-inline: 9px;
+  font-size: 0.66rem;
 }
 
 .dish-detail__summary {

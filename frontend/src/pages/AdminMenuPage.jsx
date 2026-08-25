@@ -4,6 +4,8 @@ import { adminApiClient } from '../api/client.js'
 import { AdminIcon, AdminModal, EmptyState, ErrorBanner, LoadingState, PageIntro, Toggle } from '../components/admin/AdminComponents.jsx'
 import { adminImageUrl, formatAdminMoney } from '../components/admin/adminUtils.js'
 import { useAdminContext } from '../components/admin/AdminContext.js'
+import MenuItemBadges from '../components/MenuItemBadges.jsx'
+import { MENU_SALES_LABELS } from '../components/menuItemLabels.js'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getLocalizedField } from '../i18n/index.js'
 
@@ -14,7 +16,12 @@ const emptyMenuItem = {
   description_ru: '',
   category: '',
   price: '',
-  cooking_time_min: 0,
+  cooking_time_min: '',
+  is_hit: false,
+  is_new: false,
+  is_spicy: false,
+  is_vegetarian: false,
+  is_recommended: false,
   ingredients_ky: '',
   ingredients_ru: '',
   allergens_ky: '',
@@ -26,7 +33,8 @@ const emptyMenuItem = {
 
 const editableFields = [
   'name_ky', 'name_ru', 'description_ky', 'description_ru', 'ingredients_ky', 'ingredients_ru',
-  'allergens_ky', 'allergens_ru', 'is_available', 'is_visible',
+  'allergens_ky', 'allergens_ru', 'is_hit', 'is_new', 'is_spicy', 'is_vegetarian',
+  'is_recommended', 'is_available', 'is_visible',
 ]
 
 function MenuForm({ value, categories, imagePreview, saving, error, onChange, onImageChange, onClearImage, onRemoveImage, onSubmit, onCancel }) {
@@ -71,8 +79,15 @@ function MenuForm({ value, categories, imagePreview, saving, error, onChange, on
             <input type="number" min="0" step="0.01" value={value.price} onChange={(event) => onChange('price', event.target.value)} required />
           </label>
           <label>
-            {t('customer.averageCookingTime')} ({t('common.minutes')})
-            <input type="number" min="0" value={value.cooking_time_min} onChange={(event) => onChange('cooking_time_min', event.target.value)} />
+            {t('admin.preparationTime')}
+            <input
+              type="number"
+              min="1"
+              max="300"
+              value={value.cooking_time_min ?? ''}
+              placeholder={t('admin.preparationTimePlaceholder')}
+              onChange={(event) => onChange('cooking_time_min', event.target.value)}
+            />
           </label>
           <div className="admin-menu-image-field">
             <span>{t('common.image')}</span>
@@ -95,6 +110,24 @@ function MenuForm({ value, categories, imagePreview, saving, error, onChange, on
               )}
               <input ref={fileInputRef} className="admin-image-file-input" type="file" accept="image/*" onChange={handleImageSelection} tabIndex="-1" />
             </div>
+          </div>
+        </div>
+
+        <div className="admin-menu-sales-labels">
+          <div><strong>{t('admin.salesLabels')}</strong><small>{t('admin.salesLabelsHelp')}</small></div>
+          <div className="admin-menu-label-options">
+            {MENU_SALES_LABELS.map(({ field, key }) => (
+              <button
+                className={value[field] ? 'is-active' : ''}
+                type="button"
+                aria-pressed={Boolean(value[field])}
+                onClick={() => onChange(field, !value[field])}
+                disabled={saving}
+                key={field}
+              >
+                {t(`menuLabels.${key}`)}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -237,7 +270,7 @@ export default function AdminMenuPage() {
       restaurant: restaurantId,
       category: Number(editing.category),
       price: Number(editing.price),
-      cooking_time_min: Number(editing.cooking_time_min || 0),
+      cooking_time_min: editing.cooking_time_min ? Number(editing.cooking_time_min) : null,
     }
     editableFields.forEach((field) => { payload[field] = editing[field] })
     if (imageRemoved) payload.image = null
@@ -247,7 +280,7 @@ export default function AdminMenuPage() {
   function buildMultipartPayload() {
     const formData = new FormData()
     const payload = buildJsonPayload()
-    Object.entries(payload).forEach(([field, value]) => formData.append(field, String(value)))
+    Object.entries(payload).forEach(([field, value]) => formData.append(field, value === null ? '' : String(value)))
     formData.append('image', imageFile)
     return formData
   }
@@ -322,7 +355,7 @@ export default function AdminMenuPage() {
               <thead><tr><th>{t('admin.food')}</th><th>{t('admin.category')}</th><th>{t('common.price')}</th><th>{t('common.status')}</th><th>{t('common.action')}</th></tr></thead>
               <tbody>{filteredItems.map((item) => (
                 <tr className={!item.is_available ? 'is-unavailable' : ''} key={item.id}>
-                  <td><div className="admin-menu-cell">{item.image ? <img src={adminImageUrl(item.image)} alt="" /> : <span>{getLocalizedField(item, 'name', language).slice(0, 1)}</span>}<div><strong>{getLocalizedField(item, 'name', language)}</strong>{!item.is_visible && <small>{t('admin.hidden')}</small>}</div></div></td>
+                  <td><div className="admin-menu-cell">{item.image ? <img src={adminImageUrl(item.image)} alt="" /> : <span>{getLocalizedField(item, 'name', language).slice(0, 1)}</span>}<div><strong>{getLocalizedField(item, 'name', language)}</strong>{!item.is_visible && <small>{t('admin.hidden')}</small>}<MenuItemBadges item={item} className="admin-menu-badges" /></div></div></td>
                   <td>{getLocalizedField(categoryMap[item.category], 'name', language) || '—'}</td>
                   <td><strong>{formatAdminMoney(item.price)}</strong></td>
                   <td><Toggle checked={item.is_available} onChange={() => toggleMenuStatus(item)} label={item.is_available ? t('admin.available') : t('admin.unavailable')} disabled={busyId !== null} /></td>

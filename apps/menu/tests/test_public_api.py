@@ -105,6 +105,25 @@ class PublicMenuApiTests(APITestCase):
         item = response.data["categories"][0]["items"][0]
         self.assertFalse(item["is_available"])
 
+    def test_public_menu_exposes_sales_labels_and_prep_time(self):
+        self.menu_item.is_hit = True
+        self.menu_item.is_new = True
+        self.menu_item.is_spicy = True
+        self.menu_item.is_vegetarian = True
+        self.menu_item.is_recommended = True
+        self.menu_item.cooking_time_min = 15
+        self.menu_item.save()
+
+        response = self.client.get(self.url)
+
+        item = response.data["categories"][0]["items"][0]
+        self.assertTrue(item["is_hit"])
+        self.assertTrue(item["is_new"])
+        self.assertTrue(item["is_spicy"])
+        self.assertTrue(item["is_vegetarian"])
+        self.assertTrue(item["is_recommended"])
+        self.assertEqual(item["cooking_time_min"], 15)
+
     def test_public_menu_groups_items_under_categories(self):
         drinks = Category.objects.create(
             restaurant=self.restaurant,

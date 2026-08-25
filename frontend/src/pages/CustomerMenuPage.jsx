@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import apiClient, { resolveApiAssetUrl } from '../api/client.js'
 import LanguageSwitch from '../components/LanguageSwitch.jsx'
+import MenuItemBadges from '../components/MenuItemBadges.jsx'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getBackendErrorMessage, getLocalizedField, getStatusLabel } from '../i18n/index.js'
 
@@ -233,6 +234,7 @@ function MenuItemCard({ item, cartItem, pendingItemId, onAdd, onIncrease, onDecr
       </div>
       <div className="menu-card__body">
         <h4>{itemName}</h4>
+        <MenuItemBadges item={item} className="menu-card__badges" />
         {(item.description_ky || item.description_ru) && (
           <p className="menu-card__description">
             {getLocalizedField(item, 'description', language)}
@@ -241,9 +243,6 @@ function MenuItemCard({ item, cartItem, pendingItemId, onAdd, onIncrease, onDecr
         <div className="menu-card__footer">
           <div className="menu-card__meta">
             <strong className="price">{money(item.price)}</strong>
-            {item.cooking_time_min > 0 && (
-              <span className="cooking-time">◷ {item.cooking_time_min} {t('common.minutes')}</span>
-            )}
           </div>
           {cartItem ? (
             <div className="quantity-stepper" aria-label={`${itemName}: ${cartItem.quantity}`}>
@@ -346,11 +345,9 @@ function DishDetailDialog({ item, pending, onClose, onAdd }) {
           <header className="dish-detail__heading">
             <p>{t('customer.dishDetails')}</p>
             <h2 id="dish-detail-title">{itemName}</h2>
+            <MenuItemBadges item={item} className="dish-detail__badges" />
             <div className="dish-detail__summary">
               <strong>{money(item.price)}</strong>
-              {item.cooking_time_min > 0 && (
-                <span>◷ {item.cooking_time_min} {t('common.minutes')}</span>
-              )}
             </div>
           </header>
 
@@ -1660,12 +1657,16 @@ function CustomerMenuPage() {
       )}
 
       <section className="menu-tools" aria-label={t('customer.searchAndCategories')}>
-        <SearchBar search={search} onSearchChange={setSearch} onClear={() => setSearch('')} />
-        <CategoryChips
-          categories={menu.categories}
-          activeCategory={activeCategory}
-          onCategoryChange={setActiveCategory}
-        />
+        <div className="menu-tools__search-row">
+          <SearchBar search={search} onSearchChange={setSearch} onClear={() => setSearch('')} />
+        </div>
+        <div className="menu-tools__categories-row">
+          <CategoryChips
+            categories={menu.categories}
+            activeCategory={activeCategory}
+            onCategoryChange={setActiveCategory}
+          />
+        </div>
       </section>
 
       <div className="menu-layout">
