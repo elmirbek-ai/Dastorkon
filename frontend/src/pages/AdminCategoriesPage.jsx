@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { adminApiClient } from '../api/client.js'
 import { AdminIcon, AdminModal, EmptyState, ErrorBanner, LoadingState, PageIntro, Toggle } from '../components/admin/AdminComponents.jsx'
 import { useAdminContext } from '../components/admin/AdminContext.js'
+import { useConfirm } from '../components/confirmation/useConfirm.js'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getLocalizedField } from '../i18n/index.js'
 
@@ -11,6 +12,7 @@ const emptyCategory = { name_ky: '', name_ru: '', is_visible: true }
 export default function AdminCategoriesPage() {
   const { restaurantId, loadingRestaurant, layoutError, refreshKey, handleApiError } = useAdminContext()
   const { language, t } = useLanguage()
+  const confirm = useConfirm()
   const [searchParams] = useSearchParams()
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
@@ -78,7 +80,12 @@ export default function AdminCategoriesPage() {
 
   async function remove(category) {
     if (mutationInFlightRef.current) return
-    if (!window.confirm(t('admin.categoryDeleteConfirm', { name: getLocalizedField(category, 'name', language) }))) return
+    const confirmed = await confirm({
+      message: t('confirmation.categoryMessage', {
+        name: getLocalizedField(category, 'name', language),
+      }),
+    })
+    if (!confirmed || mutationInFlightRef.current) return
     mutationInFlightRef.current = true
     setBusyId(category.id)
     try {

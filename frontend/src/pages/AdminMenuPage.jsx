@@ -4,6 +4,7 @@ import { adminApiClient } from '../api/client.js'
 import { AdminIcon, AdminModal, EmptyState, ErrorBanner, LoadingState, PageIntro, Toggle } from '../components/admin/AdminComponents.jsx'
 import { adminImageUrl, formatAdminMoney } from '../components/admin/adminUtils.js'
 import { useAdminContext } from '../components/admin/AdminContext.js'
+import { useConfirm } from '../components/confirmation/useConfirm.js'
 import MenuItemBadges from '../components/MenuItemBadges.jsx'
 import { MENU_SALES_LABELS } from '../components/menuItemLabels.js'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
@@ -39,6 +40,7 @@ const editableFields = [
 
 function MenuForm({ value, categories, imagePreview, saving, error, onChange, onImageChange, onClearImage, onRemoveImage, onSubmit, onCancel }) {
   const { language, t } = useLanguage()
+  const confirm = useConfirm()
   const fileInputRef = useRef(null)
   const [imageActionsOpen, setImageActionsOpen] = useState(false)
 
@@ -52,8 +54,10 @@ function MenuForm({ value, categories, imagePreview, saving, error, onChange, on
     event.target.value = ''
   }
 
-  function removeImage() {
+  async function removeImage() {
     setImageActionsOpen(false)
+    const confirmed = await confirm({ message: t('confirmation.imageMessage') })
+    if (!confirmed) return
     onRemoveImage()
   }
 
@@ -190,6 +194,7 @@ function MenuForm({ value, categories, imagePreview, saving, error, onChange, on
 export default function AdminMenuPage() {
   const { restaurantId, loadingRestaurant, layoutError, refreshKey, handleApiError } = useAdminContext()
   const { language, t } = useLanguage()
+  const confirm = useConfirm()
   const [searchParams] = useSearchParams()
   const [items, setItems] = useState([])
   const [categories, setCategories] = useState([])
@@ -323,7 +328,12 @@ export default function AdminMenuPage() {
 
   async function remove(item) {
     if (mutationInFlightRef.current) return
-    if (!window.confirm(t('admin.foodDeleteConfirm', { name: getLocalizedField(item, 'name', language) }))) return
+    const confirmed = await confirm({
+      message: t('confirmation.menuItemMessage', {
+        name: getLocalizedField(item, 'name', language),
+      }),
+    })
+    if (!confirmed || mutationInFlightRef.current) return
     mutationInFlightRef.current = true
     setBusyId(item.id)
     try {

@@ -4,6 +4,7 @@ import QRCode from 'qrcode'
 import { adminApiClient } from '../api/client.js'
 import { AdminIcon, AdminModal, EmptyState, ErrorBanner, LoadingState, PageIntro, Toggle } from '../components/admin/AdminComponents.jsx'
 import { useAdminContext } from '../components/admin/AdminContext.js'
+import { useConfirm } from '../components/confirmation/useConfirm.js'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 
 const emptyTable = { number: '', is_active: true }
@@ -288,6 +289,7 @@ function QrPreviewModal({ table, restaurant, onClose }) {
 export default function AdminTablesPage() {
   const { restaurant, restaurantId, loadingRestaurant, layoutError, refreshKey, handleApiError } = useAdminContext()
   const { t } = useLanguage()
+  const confirm = useConfirm()
   const [searchParams, setSearchParams] = useSearchParams()
   const [tables, setTables] = useState([])
   const [loading, setLoading] = useState(true)
@@ -341,7 +343,10 @@ export default function AdminTablesPage() {
 
   async function remove(table) {
     if (mutationInFlightRef.current) return
-    if (!window.confirm(t('admin.tableDeleteConfirm', { number: table.number }))) return
+    const confirmed = await confirm({
+      message: t('confirmation.tableMessage', { number: table.number }),
+    })
+    if (!confirmed || mutationInFlightRef.current) return
     mutationInFlightRef.current = true
     setBusyId(table.id)
     try {

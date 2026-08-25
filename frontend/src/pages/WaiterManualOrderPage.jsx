@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { waiterApiClient, WAITER_TOKEN_KEY } from '../api/client.js'
 import MenuItemBadges from '../components/MenuItemBadges.jsx'
+import { useConfirm } from '../components/confirmation/useConfirm.js'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getBackendErrorMessage, getLocalizedField } from '../i18n/index.js'
 
@@ -35,6 +36,7 @@ function TableStatus({ table, t }) {
 export default function WaiterManualOrderPage() {
   const navigate = useNavigate()
   const { language, t } = useLanguage()
+  const confirm = useConfirm()
   const submitInFlightRef = useRef(false)
   const [step, setStep] = useState('table')
   const [tables, setTables] = useState([])
@@ -194,6 +196,23 @@ export default function WaiterManualOrderPage() {
     })
   }
 
+  async function removeDraftItem(menuItem) {
+    const confirmed = await confirm({
+      message: t('confirmation.orderItemMessage', {
+        name: getLocalizedField(menuItem, 'name', language),
+      }),
+    })
+    if (confirmed) setQuantity(menuItem.id, 0)
+  }
+
+  function decreaseDraftItem(menuItem, quantity) {
+    if (quantity === 1) {
+      removeDraftItem(menuItem)
+      return
+    }
+    setQuantity(menuItem.id, quantity - 1)
+  }
+
   function setComment(menuItemId, comment) {
     setCart((current) => ({
       ...current,
@@ -315,7 +334,7 @@ export default function WaiterManualOrderPage() {
                       {item.is_available ? (
                         quantity ? (
                           <span className="waiter-manual-menu-stepper">
-                            <button type="button" onClick={() => setQuantity(item.id, quantity - 1)} aria-label={t('customer.decreaseQuantity')}>−</button>
+                            <button type="button" onClick={() => decreaseDraftItem(item, quantity)} aria-label={t('customer.decreaseQuantity')}>−</button>
                             <b aria-live="polite">{quantity}</b>
                             <button type="button" onClick={() => setQuantity(item.id, quantity + 1)} aria-label={t('customer.increaseQuantity')}>+</button>
                           </span>
@@ -353,9 +372,9 @@ export default function WaiterManualOrderPage() {
                       <small>{formatMoney(menuItem.price)} × {quantity}</small>
                     </div>
                     <div className="waiter-manual-line-controls">
-                      <button className="waiter-manual-remove-item" type="button" onClick={() => setQuantity(menuItem.id, 0)}>{t('common.delete')}</button>
+                      <button className="waiter-manual-remove-item" type="button" onClick={() => removeDraftItem(menuItem)}>{t('common.delete')}</button>
                       <span className="waiter-manual-quantity">
-                        <button type="button" onClick={() => setQuantity(menuItem.id, quantity - 1)} aria-label={t('customer.decreaseQuantity')}>−</button>
+                        <button type="button" onClick={() => decreaseDraftItem(menuItem, quantity)} aria-label={t('customer.decreaseQuantity')}>−</button>
                         <b>{quantity}</b>
                         <button type="button" onClick={() => setQuantity(menuItem.id, quantity + 1)} aria-label={t('customer.increaseQuantity')}>+</button>
                       </span>

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import apiClient, { resolveApiAssetUrl } from '../api/client.js'
 import LanguageSwitch from '../components/LanguageSwitch.jsx'
 import MenuItemBadges from '../components/MenuItemBadges.jsx'
+import { useConfirm } from '../components/confirmation/useConfirm.js'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getBackendErrorMessage, getLocalizedField, getStatusLabel } from '../i18n/index.js'
 
@@ -876,7 +877,6 @@ function CartReviewSheet({
   onClose,
   onIncrease,
   onDecrease,
-  onRemove,
   onCommentChange,
   onRequestRemoval,
   onContinueOrdering,
@@ -974,6 +974,8 @@ function CartReviewSheet({
                 {cart.items.map((cartItem) => {
                   const menuItem = menuItemsById.get(cartItem.menu_item)
                   const item = menuItem || { id: cartItem.menu_item }
+                  const itemName = getLocalizedField(menuItem, 'name', language)
+                    || getLocalizedField(cartItem, 'menu_item_name', language)
 
                   return (
                     <CheckoutReviewItem
@@ -985,10 +987,10 @@ function CartReviewSheet({
                       onIncrease={() => onIncrease(item, cartItem)}
                       onDecrease={() => (
                         cartItem.quantity === 1
-                          ? onRemove(item, cartItem)
+                          ? onRequestRemoval(item, cartItem, itemName)
                           : onDecrease(item, cartItem)
                       )}
-                      onRemove={() => onRemove(item, cartItem)}
+                      onRemove={() => onRequestRemoval(item, cartItem, itemName)}
                       onCommentChange={(comment) => onCommentChange(cartItem, comment)}
                     />
                   )
@@ -1081,40 +1083,6 @@ function CartReviewSheet({
             </footer>
           </div>
         )}
-      </section>
-    </div>
-  )
-}
-
-function DeleteConfirmation({ itemName, deleting, onCancel, onConfirm }) {
-  const { t } = useLanguage()
-  const message = t('customer.deleteCartItemConfirm', { itemName })
-
-  return (
-    <div
-      className="delete-confirmation-backdrop"
-      role="presentation"
-      onMouseDown={deleting ? undefined : onCancel}
-    >
-      <section
-        className="delete-confirmation"
-        role="alertdialog"
-        aria-modal="true"
-        aria-describedby="delete-confirmation-message"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <p id="delete-confirmation-message">{message}</p>
-        <div className="delete-confirmation__actions">
-          <button type="button" onClick={onCancel} disabled={deleting}>{t('customer.no')}</button>
-          <button
-            className="delete-confirmation__confirm"
-            type="button"
-            onClick={onConfirm}
-            disabled={deleting}
-          >
-            {deleting ? t('common.working') : t('customer.yesDelete')}
-          </button>
-        </div>
       </section>
     </div>
   )
@@ -1230,6 +1198,7 @@ function CustomerMenuPage() {
   const { qrToken } = useParams()
   const navigate = useNavigate()
   const { language, t } = useLanguage()
+  const confirm = useConfirm()
   const sessionRequestRef = useRef({ basePath: '', promise: null })
   const orderSubmitInFlightRef = useRef(false)
   const waiterCallInFlightRef = useRef(false)
@@ -1250,7 +1219,6 @@ function CustomerMenuPage() {
   const [selectedDish, setSelectedDish] = useState(null)
   const [cartSheetOpen, setCartSheetOpen] = useState(false)
   const [cartStage, setCartStage] = useState('cart')
-  const [deleteConfirmation, setDeleteConfirmation] = useState(null)
   const [waiterSheetOpen, setWaiterSheetOpen] = useState(false)
   const [sendingWaiterCall, setSendingWaiterCall] = useState(false)
 
@@ -1358,12 +1326,8 @@ function CustomerMenuPage() {
 
     function closeOnEscape(event) {
       if (event.key !== 'Escape') return
-      if (deleteConfirmation) {
-        if (pendingMenuItemId === null) setDeleteConfirmation(null)
-      } else {
-        setCartSheetOpen(false)
-        setCartStage('cart')
-      }
+      setCartSheetOpen(false)
+      setCartStage('cart')
     }
 
     document.addEventListener('keydown', closeOnEscape)
@@ -1371,7 +1335,7 @@ function CustomerMenuPage() {
       document.body.style.overflow = previousOverflow
       document.removeEventListener('keydown', closeOnEscape)
     }
-  }, [cartSheetOpen, deleteConfirmation, pendingMenuItemId])
+  }, [cartSheetOpen])
 
   useEffect(() => {
     if (!selectedDish) return undefined
@@ -1414,7 +1378,6 @@ function CustomerMenuPage() {
   }
 
   function closeCartSheet() {
-    setDeleteConfirmation(null)
     setCartSheetOpen(false)
     setCartStage('cart')
   }
@@ -1499,18 +1462,23 @@ function CustomerMenuPage() {
     })
   }
 
-  function requestCartItemRemoval(item, cartItem, itemName) {
-    setDeleteConfirmation({ item, cartItem, itemName })
+  async function requestCartItemRemoval(item, cartItem, itemName = '') {
+    if (cartUpdateInFlightRef.current) return false
+    const resolvedName = itemName
+      || getLocalizedField(item, 'name', language)
+      || getLocalizedField(cartItem, 'menu_item_name', language)
+    const confirmed = await confirm({
+      message: t('confirmation.cartItemMessage', { name: resolvedName }),
+    })
+    if (!confirmed || cartUpdateInFlightRef.current) return false
+    return removeCartItem(item, cartItem)
   }
 
-  async function confirmCartItemRemoval() {
-    if (!deleteConfirmation) return
-
-    const removed = await removeCartItem(
-      deleteConfirmation.item,
-      deleteConfirmation.cartItem,
-    )
-    if (removed) setDeleteConfirmation(null)
+  function decreaseCartItemSafely(item, cartItem) {
+    if (cartItem.quantity === 1) {
+      return requestCartItemRemoval(item, cartItem)
+    }
+    return decreaseCartItem(item, cartItem)
   }
 
   async function submitOrder() {
@@ -1697,7 +1665,7 @@ function CustomerMenuPage() {
                       pendingItemId={pendingMenuItemId}
                       onAdd={addToCart}
                       onIncrease={increaseCartItem}
-                      onDecrease={decreaseCartItem}
+                      onDecrease={decreaseCartItemSafely}
                       onOpenDetail={setSelectedDish}
                       key={item.id}
                     />
@@ -1746,7 +1714,6 @@ function CustomerMenuPage() {
         onClose={closeCartSheet}
         onIncrease={increaseCartItem}
         onDecrease={decreaseCartItem}
-        onRemove={removeCartItem}
         onCommentChange={changeCartItemComment}
         onRequestRemoval={requestCartItemRemoval}
         onContinueOrdering={closeCartSheet}
@@ -1754,15 +1721,6 @@ function CustomerMenuPage() {
         onBackToCart={() => setCartStage('cart')}
         onSubmit={submitOrder}
       />
-
-      {deleteConfirmation && (
-        <DeleteConfirmation
-          itemName={deleteConfirmation.itemName}
-          deleting={pendingMenuItemId === deleteConfirmation.item.id}
-          onCancel={() => setDeleteConfirmation(null)}
-          onConfirm={confirmCartItemRemoval}
-        />
-      )}
 
       <WaiterCallButton
         raised={cartItemCount > 0}

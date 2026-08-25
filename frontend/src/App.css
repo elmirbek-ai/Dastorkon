@@ -1587,20 +1587,20 @@ button:disabled {
   background: var(--surface-hover);
 }
 
-.delete-confirmation-backdrop {
+.confirm-dialog-backdrop {
   position: fixed;
-  z-index: 70;
+  z-index: 200;
   inset: 0;
   display: grid;
   place-items: center;
   padding: 20px;
-  background: rgba(31, 28, 24, 0.42);
-  backdrop-filter: blur(2px);
+  background: rgba(31, 28, 24, 0.52);
+  backdrop-filter: blur(4px);
 }
 
-.delete-confirmation {
-  width: min(360px, 100%);
-  padding: 20px 20px 18px;
+.confirm-dialog {
+  width: min(410px, 100%);
+  padding: 24px;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   color: var(--text-primary);
@@ -1610,25 +1610,45 @@ button:disabled {
   animation: confirmation-in 0.16s ease-out;
 }
 
-.delete-confirmation p {
+.confirm-dialog__icon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 13px;
+  border-radius: 50%;
+  color: var(--error-dark);
+  background: var(--error-bg);
+  font-size: 1.25rem;
+  font-weight: 900;
+}
+
+.confirm-dialog h2,
+.confirm-dialog p {
   margin: 0;
 }
 
-.delete-confirmation p {
-  color: var(--text-secondary);
-  font-size: 0.88rem;
-  font-weight: 700;
-  line-height: 1.45;
+.confirm-dialog h2 {
+  color: var(--text-heading);
+  font-size: 1.08rem;
+  line-height: 1.25;
 }
 
-.delete-confirmation__actions {
+.confirm-dialog p {
+  margin-top: 9px;
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.confirm-dialog__actions {
   display: grid;
   grid-template-columns: 1fr 1.35fr;
   gap: 9px;
-  margin-top: 16px;
+  margin-top: 20px;
 }
 
-.delete-confirmation__actions button {
+.confirm-dialog__actions button {
   min-height: 48px;
   padding: 0 12px;
   border: 1px solid var(--border);
@@ -1640,20 +1660,43 @@ button:disabled {
   cursor: pointer;
 }
 
-.delete-confirmation__actions button:hover:not(:disabled) {
+.confirm-dialog__actions button:hover:not(:disabled) {
   border-color: var(--border-strong);
   background: var(--surface-hover);
 }
 
-.delete-confirmation__actions .delete-confirmation__confirm {
+.confirm-dialog__actions .is-danger {
   border-color: var(--error-dark);
   color: var(--on-primary);
   background: var(--error-dark);
 }
 
-.delete-confirmation__actions .delete-confirmation__confirm:hover:not(:disabled) {
+.confirm-dialog__actions .is-danger:hover:not(:disabled) {
   border-color: var(--error);
   background: var(--error);
+}
+
+.confirm-dialog__actions button:focus-visible {
+  outline: 3px solid var(--info-border);
+  outline-offset: 2px;
+}
+
+.confirm-dialog__actions .is-danger:focus-visible {
+  outline-color: var(--error-border);
+}
+
+@media (max-width: 420px) {
+  .confirm-dialog-backdrop {
+    padding: 14px;
+  }
+
+  .confirm-dialog {
+    padding: 22px 18px 18px;
+  }
+
+  .confirm-dialog__actions {
+    grid-template-columns: 1fr;
+  }
 }
 
 @keyframes confirmation-in {
@@ -9416,10 +9459,6 @@ body:has(.customer-menu) {
   z-index: 75;
   background: rgba(24, 24, 27, 0.58);
   backdrop-filter: blur(4px);
-}
-
-.customer-menu .delete-confirmation-backdrop {
-  z-index: 95;
 }
 
 .customer-menu .cart-sheet {

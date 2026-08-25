@@ -6,6 +6,7 @@ import { AdminIcon, AdminModal, EmptyState, ErrorBanner, LoadingState, PageIntro
 import { formatAdminDate } from '../components/admin/adminUtils.js'
 import { useAdminContext } from '../components/admin/AdminContext.js'
 import PhoneNumberField from '../components/common/PhoneNumberField.jsx'
+import { useConfirm } from '../components/confirmation/useConfirm.js'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getRoleLabel } from '../i18n/index.js'
 
@@ -72,6 +73,7 @@ function UserForm({ value, allowedRoles, showRole, saving, error, onChange, onSu
 export default function AdminUsersPage({ mode = 'waiters' }) {
   const { loadingRestaurant, layoutError, refreshKey, handleApiError } = useAdminContext()
   const { language, t } = useLanguage()
+  const confirm = useConfirm()
   const [searchParams] = useSearchParams()
   const pageConfig = pageConfigs[mode] || pageConfigs.waiters
   const newUser = { ...emptyUser, role: pageConfig.defaultRole }
@@ -101,12 +103,20 @@ export default function AdminUsersPage({ mode = 'waiters' }) {
 
   function openEdit(user) {
     setFormError('')
-    setEditing({ id: user.id, username: user.username, role: user.role, phone: user.phone || '', is_active: user.is_active })
+    setEditing({ id: user.id, username: user.username, role: user.role, phone: user.phone || '', is_active: user.is_active, was_active: user.is_active })
   }
 
   async function save(event) {
     event.preventDefault()
     if (mutationInFlightRef.current) return
+    if (editing.id && editing.was_active && !editing.is_active) {
+      const confirmed = await confirm({
+        title: t('confirmation.deactivateTitle'),
+        message: t('confirmation.deactivateMessage', { name: editing.username }),
+        confirmLabel: t('confirmation.deactivateConfirm'),
+      })
+      if (!confirmed || mutationInFlightRef.current) return
+    }
     mutationInFlightRef.current = true
     setSaving(true)
     setFormError('')
@@ -145,6 +155,14 @@ export default function AdminUsersPage({ mode = 'waiters' }) {
 
   async function toggleActive(user) {
     if (mutationInFlightRef.current) return
+    if (user.is_active) {
+      const confirmed = await confirm({
+        title: t('confirmation.deactivateTitle'),
+        message: t('confirmation.deactivateMessage', { name: user.username }),
+        confirmLabel: t('confirmation.deactivateConfirm'),
+      })
+      if (!confirmed || mutationInFlightRef.current) return
+    }
     mutationInFlightRef.current = true
     setBusyId(user.id)
     setError('')
