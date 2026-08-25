@@ -12,6 +12,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.menu.models import MenuItem
+from apps.menu.querysets import active_modifier_groups_prefetch
 from apps.tables.models import (
     ActiveTableSession,
     CustomerSession,
@@ -336,6 +337,7 @@ class ManualOrderMenuItemsView(ActiveWaiterShiftMixin, APIView):
                 category__is_visible=True,
             )
             .select_related("category")
+            .prefetch_related(active_modifier_groups_prefetch())
             .order_by("category__sort_order", "category__name_ky", "name_ky")
         )
         return Response(

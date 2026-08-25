@@ -2,6 +2,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.menu.models import MenuItem
+from apps.menu.serializers import ActiveMenuItemModifierGroupSerializer
 from apps.restaurants.models import Restaurant
 from apps.tables.models import ActiveTableSession, RestaurantTable
 
@@ -203,6 +204,11 @@ class ManualOrderMenuItemSerializer(serializers.ModelSerializer):
         source="category.name_ru",
         read_only=True,
     )
+    modifier_groups = ActiveMenuItemModifierGroupSerializer(
+        source="public_modifier_groups",
+        many=True,
+        read_only=True,
+    )
 
     class Meta:
         model = MenuItem
@@ -222,6 +228,7 @@ class ManualOrderMenuItemSerializer(serializers.ModelSerializer):
             "is_vegetarian",
             "is_recommended",
             "is_available",
+            "modifier_groups",
         )
         read_only_fields = fields
 

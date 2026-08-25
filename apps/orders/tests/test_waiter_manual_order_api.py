@@ -4,7 +4,12 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.menu.models import Category, MenuItem
+from apps.menu.models import (
+    Category,
+    MenuItem,
+    MenuItemModifierGroup,
+    MenuItemModifierOption,
+)
 from apps.orders.models import Order
 from apps.orders.services import assign_waiter_to_table_session
 from apps.restaurants.models import Restaurant
@@ -159,6 +164,54 @@ class WaiterManualOrderApiTests(APITestCase):
         self.assertTrue(item["is_vegetarian"])
         self.assertTrue(item["is_recommended"])
         self.assertEqual(item["cooking_time_min"], 15)
+
+    def test_menu_list_exposes_only_active_available_modifiers_read_only(self):
+        group = MenuItemModifierGroup.objects.create(
+            menu_item=self.menu_item,
+            name_ky="Portion",
+            name_ru="Portion",
+            selection_type=MenuItemModifierGroup.SelectionType.SINGLE,
+        )
+        option = MenuItemModifierOption.objects.create(
+            group=group,
+            name_ky="Large",
+            name_ru="Large",
+            price_delta=Decimal("80.00"),
+        )
+        MenuItemModifierOption.objects.create(
+            group=group,
+            name_ky="Unavailable",
+            name_ru="Unavailable",
+            is_available=False,
+        )
+        MenuItemModifierGroup.objects.create(
+            menu_item=self.menu_item,
+            name_ky="Inactive",
+            name_ru="Inactive",
+            selection_type=MenuItemModifierGroup.SelectionType.MULTIPLE,
+            is_active=False,
+        )
+        self.authenticate(self.waiter)
+
+        response = self.client.get(
+            self.menu_url,
+            {"table_id": self.free_table.pk},
+        )
+
+        item = next(
+            item for item in response.data if item["id"] == self.menu_item.pk
+        )
+        self.assertEqual(
+            [modifier_group["id"] for modifier_group in item["modifier_groups"]],
+            [group.pk],
+        )
+        self.assertEqual(
+            [
+                modifier_option["id"]
+                for modifier_option in item["modifier_groups"][0]["options"]
+            ],
+            [option.pk],
+        )
 
     def test_waiter_can_create_manual_order_for_free_table(self):
         self.authenticate(self.waiter)
