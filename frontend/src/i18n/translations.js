@@ -245,6 +245,11 @@ Object.assign(translations.ru.kitchen, {
 
 Object.assign(translations.ky.customer, {
   categories: 'Тамак категориялары',
+  menuToolsLabel: 'Менюдан издөө, категория жана иреттөө',
+  sortLabel: 'Иреттөө',
+  sortDefault: 'Демейки',
+  sortPriceAscending: 'Арзандан кымбатка',
+  sortPriceDescending: 'Кымбаттан арзанга',
   restaurantMenu: 'Ресторан менюсу',
   chooseDishHelp: 'Жаккан тамагыңызды тандап, себетке дароо кошуңуз.',
   menuLoadingHelp: 'Тамактар даярдалып жатат, бир аз күтө туруңуз.',
@@ -293,6 +298,11 @@ Object.assign(translations.ky.customer, {
 
 Object.assign(translations.ru.customer, {
   categories: 'Категории блюд',
+  menuToolsLabel: 'Поиск, категории и сортировка меню',
+  sortLabel: 'Сортировка',
+  sortDefault: 'По умолчанию',
+  sortPriceAscending: 'От дешёвых к дорогим',
+  sortPriceDescending: 'От дорогих к дешёвым',
   restaurantMenu: 'Меню ресторана',
   chooseDishHelp: 'Выберите блюдо и сразу добавьте его в корзину.',
   menuLoadingHelp: 'Блюда уже загружаются, подождите немного.',

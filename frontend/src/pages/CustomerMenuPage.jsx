@@ -10,6 +10,11 @@ import { getBackendErrorMessage, getLocalizedField, getStatusLabel } from '../i1
 const emptyCart = { items: [], total: '0.00' }
 const emptyOrders = { orders: [], total_amount: '0.00' }
 const CUSTOMER_REQUEST_CONFIG = { timeout: 15000 }
+const PRICE_SORT_OPTIONS = [
+  { value: 'default', labelKey: 'customer.sortDefault' },
+  { value: 'price-asc', labelKey: 'customer.sortPriceAscending' },
+  { value: 'price-desc', labelKey: 'customer.sortPriceDescending' },
+]
 
 function normalizeMenu(data) {
   if (!data || typeof data !== 'object' || !data.table) return null
@@ -41,6 +46,33 @@ function applyCartItemMutation(cart, cartItemId, updatedItem = null) {
 function normalizeOrders(data) {
   if (!data || typeof data !== 'object') return emptyOrders
   return { ...data, orders: Array.isArray(data.orders) ? data.orders : [] }
+}
+
+function getSortablePrice(value) {
+  if (
+    value === null
+    || value === undefined
+    || (typeof value === 'string' && value.trim() === '')
+  ) return null
+  const price = Number(value)
+  return Number.isFinite(price) ? price : null
+}
+
+function sortMenuItemsByPrice(items, sortOrder) {
+  if (sortOrder === 'default') return items
+
+  const direction = sortOrder === 'price-desc' ? -1 : 1
+  return items
+    .map((item, index) => ({ item, index, price: getSortablePrice(item.price) }))
+    .sort((left, right) => {
+      if (left.price === null && right.price === null) return left.index - right.index
+      if (left.price === null) return 1
+      if (right.price === null) return -1
+
+      const priceDifference = (left.price - right.price) * direction
+      return priceDifference || left.index - right.index
+    })
+    .map(({ item }) => item)
 }
 
 function money(value) {
@@ -187,6 +219,93 @@ function CategoryChips({ categories, activeCategory, onCategoryChange }) {
           {getCategoryLabel(category, language)}
         </button>
       ))}
+    </div>
+  )
+}
+
+function SortIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M7 4v16M4 17l3 3 3-3M13 7h7M13 12h5M13 17h3" />
+    </svg>
+  )
+}
+
+function PriceSortControl({ value, onChange }) {
+  const { t } = useLanguage()
+  const [open, setOpen] = useState(false)
+  const containerRef = useRef(null)
+  const triggerRef = useRef(null)
+  const activeOption = PRICE_SORT_OPTIONS.find((option) => option.value === value)
+    || PRICE_SORT_OPTIONS[0]
+  const activeLabel = t(activeOption.labelKey)
+  const controlLabel = `${t('customer.sortLabel')}: ${activeLabel}`
+  const direction = value === 'price-asc' ? '↑' : value === 'price-desc' ? '↓' : '↕'
+
+  useEffect(() => {
+    if (!open) return undefined
+
+    function closeOnOutsidePress(event) {
+      if (!containerRef.current?.contains(event.target)) setOpen(false)
+    }
+
+    function closeOnEscape(event) {
+      if (event.key !== 'Escape') return
+      setOpen(false)
+      triggerRef.current?.focus()
+    }
+
+    document.addEventListener('pointerdown', closeOnOutsidePress)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsidePress)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [open])
+
+  function selectOption(nextValue) {
+    onChange(nextValue)
+    setOpen(false)
+    triggerRef.current?.focus()
+  }
+
+  return (
+    <div className="price-sort" ref={containerRef}>
+      <button
+        className={`price-sort__trigger ${value !== 'default' ? 'is-active' : ''}`}
+        type="button"
+        ref={triggerRef}
+        onClick={() => setOpen((current) => !current)}
+        aria-label={controlLabel}
+        aria-expanded={open}
+        aria-haspopup="true"
+        aria-controls="customer-price-sort-options"
+        title={controlLabel}
+      >
+        <SortIcon />
+        <span className="price-sort__state" aria-hidden="true">{direction}</span>
+      </button>
+      {open && (
+        <div
+          className="price-sort__popover"
+          id="customer-price-sort-options"
+          role="group"
+          aria-label={t('customer.sortLabel')}
+        >
+          {PRICE_SORT_OPTIONS.map((option) => (
+            <button
+              className={value === option.value ? 'is-active' : ''}
+              type="button"
+              key={option.value}
+              onClick={() => selectOption(option.value)}
+              aria-pressed={value === option.value}
+            >
+              <span>{t(option.labelKey)}</span>
+              <span className="price-sort__check" aria-hidden="true">✓</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -1245,6 +1364,7 @@ function CustomerMenuPage() {
   const [submittingOrder, setSubmittingOrder] = useState(false)
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState('all')
+  const [priceSort, setPriceSort] = useState('default')
   const [selectedDish, setSelectedDish] = useState(null)
   const [cartSheetOpen, setCartSheetOpen] = useState(false)
   const [cartStage, setCartStage] = useState('cart')
@@ -1274,18 +1394,21 @@ function CustomerMenuPage() {
       .filter((category) => activeCategory === 'all' || category.id === activeCategory)
       .map((category) => ({
         ...category,
-        items: category.items.filter((item) => {
-          if (!query) return true
-          return [
-            item.name_ky,
-            item.name_ru,
-            item.description_ky,
-            item.description_ru,
-          ].some((value) => value?.toLocaleLowerCase().includes(query))
-        }),
+        items: sortMenuItemsByPrice(
+          category.items.filter((item) => {
+            if (!query) return true
+            return [
+              item.name_ky,
+              item.name_ru,
+              item.description_ky,
+              item.description_ru,
+            ].some((value) => value?.toLocaleLowerCase().includes(query))
+          }),
+          priceSort,
+        ),
       }))
       .filter((category) => category.items.length > 0)
-  }, [activeCategory, menu, search])
+  }, [activeCategory, menu, priceSort, search])
 
   useEffect(() => {
     let active = true
@@ -1675,7 +1798,7 @@ function CustomerMenuPage() {
         </div>
       )}
 
-      <section className="menu-tools" aria-label={t('customer.searchAndCategories')}>
+      <section className="menu-tools" aria-label={t('customer.menuToolsLabel')}>
         <div className="menu-tools__search-row">
           <SearchBar search={search} onSearchChange={setSearch} onClear={() => setSearch('')} />
         </div>
@@ -1685,6 +1808,9 @@ function CustomerMenuPage() {
             activeCategory={activeCategory}
             onCategoryChange={setActiveCategory}
           />
+        </div>
+        <div className="menu-tools__sort-row">
+          <PriceSortControl value={priceSort} onChange={setPriceSort} />
         </div>
       </section>
 
