@@ -167,11 +167,12 @@ function getCategoryLabel(category, language) {
 function CategoryChips({ categories, activeCategory, onCategoryChange }) {
   const { language, t } = useLanguage()
   return (
-    <div className="category-chips" aria-label="Категориялар">
+    <div className="category-chips" role="group" aria-label={t('customer.categories')}>
       <button
         className={activeCategory === 'all' ? 'is-active' : ''}
         type="button"
         onClick={() => onCategoryChange('all')}
+        aria-pressed={activeCategory === 'all'}
       >
         {t('customer.allCategories')}
       </button>
@@ -181,6 +182,7 @@ function CategoryChips({ categories, activeCategory, onCategoryChange }) {
           type="button"
           key={category.id}
           onClick={() => onCategoryChange(category.id)}
+          aria-pressed={activeCategory === category.id}
         >
           {getCategoryLabel(category, language)}
         </button>
@@ -208,7 +210,10 @@ function MenuItemCard({ item, cartItem, pendingItemId, onAdd, onIncrease, onDecr
   const unavailable = item.is_available === false
 
   return (
-    <article className={`menu-card ${unavailable ? 'menu-card--unavailable' : ''}`}>
+    <article
+      className={`menu-card ${unavailable ? 'menu-card--unavailable' : ''}`}
+      aria-busy={actionPending}
+    >
       <button
         className="menu-card__details-trigger"
         type="button"
@@ -276,8 +281,10 @@ function MenuItemCard({ item, cartItem, pendingItemId, onAdd, onIncrease, onDecr
               onClick={() => onAdd(item)}
               disabled={actionPending || unavailable}
               aria-label={t('customer.addToCart')}
+              aria-busy={actionPending}
             >
               {actionPending ? <span className="button-loader" /> : <CartAddIcon />}
+              <span>{t('common.add')}</span>
             </button>
           )}
         </div>
@@ -1123,9 +1130,10 @@ function StickyCartBar({ itemCount, total, onOpen }) {
         <CartIcon />
         <b>{itemCount}</b>
       </span>
-      <strong className="mobile-cart-bar__summary">
-        {t('customer.cartSummary', { count: itemCount, total: Number(total) })}
-      </strong>
+      <span className="mobile-cart-bar__summary">
+        <small>{t('customer.itemCount', { count: itemCount })}</small>
+        <strong>{money(total)}</strong>
+      </span>
       <span className="mobile-cart-bar__review">
         {t('customer.viewCart')} <i aria-hidden="true">›</i>
       </span>
@@ -1594,7 +1602,10 @@ function CustomerMenuPage() {
     return (
       <main className="page-state customer-page-state">
         <span className="loader" aria-hidden="true" />
-        <span>{t('customer.menuLoading')}</span>
+        <span className="customer-page-state__copy">
+          <strong>{t('customer.menuLoading')}</strong>
+          <small>{t('customer.menuLoadingHelp')}</small>
+        </span>
       </main>
     )
   }
@@ -1603,7 +1614,10 @@ function CustomerMenuPage() {
     return (
       <main className="page-state page-state--error customer-page-state" role="alert">
         <span className="state-icon" aria-hidden="true">!</span>
-        <span>{loadFailed ? t('customer.menuLoadError') : t('customer.menuEmpty')}</span>
+        <span className="customer-page-state__copy">
+          <strong>{loadFailed ? t('customer.menuLoadError') : t('customer.menuEmpty')}</strong>
+          <small>{loadFailed ? t('customer.menuLoadErrorHelp') : t('customer.menuEmptyHelp')}</small>
+        </span>
         {loadFailed && (
           <button
             className="page-state__action"
@@ -1621,16 +1635,28 @@ function CustomerMenuPage() {
     (sum, category) => sum + category.items.length,
     0,
   )
+  const menuItemCount = menu.categories.reduce(
+    (sum, category) => sum + category.items.length,
+    0,
+  )
+  const filtersActive = Boolean(search.trim()) || activeCategory !== 'all'
 
   return (
     <main className={`customer-menu ${cartItemCount > 0 ? 'has-mobile-cart' : ''}`}>
       <CustomerHeader />
 
-      <CustomerContextBar
-        tableNumber={menu.table.number}
-        orderCount={orders.orders.length}
-        onOrdersClick={() => navigate(customerOrdersPath)}
-      />
+      <section className="customer-menu-hero">
+        <div className="customer-menu-hero__copy">
+          <p>{t('customer.restaurantMenu')}</p>
+          <h1>{menu.restaurant?.name || 'Dastorkon'}</h1>
+          <span>{t('customer.chooseDishHelp')}</span>
+        </div>
+        <CustomerContextBar
+          tableNumber={menu.table.number}
+          orderCount={orders.orders.length}
+          onOrdersClick={() => navigate(customerOrdersPath)}
+        />
+      </section>
 
       {error && <div className="notice notice--error" role="alert">{error}</div>}
       {success && (
@@ -1674,7 +1700,20 @@ function CustomerMenuPage() {
           {visibleCategories.length === 0 ? (
             <div className="empty-message empty-message--large">
               <span aria-hidden="true"><SearchIcon /></span>
-              <strong>{t('customer.noSearchResults')}</strong>
+              <strong>{menuItemCount === 0 ? t('customer.menuEmpty') : t('customer.noSearchResults')}</strong>
+              <p>{menuItemCount === 0 ? t('customer.menuEmptyHelp') : t('customer.noSearchResultsHelp')}</p>
+              {filtersActive && menuItemCount > 0 && (
+                <button
+                  className="empty-message__action"
+                  type="button"
+                  onClick={() => {
+                    setSearch('')
+                    setActiveCategory('all')
+                  }}
+                >
+                  {t('customer.clearFilters')}
+                </button>
+              )}
             </div>
           ) : (
             visibleCategories.map((category) => (

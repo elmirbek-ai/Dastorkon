@@ -244,6 +244,14 @@ Object.assign(translations.ru.kitchen, {
 })
 
 Object.assign(translations.ky.customer, {
+  categories: 'Тамак категориялары',
+  restaurantMenu: 'Ресторан менюсу',
+  chooseDishHelp: 'Жаккан тамагыңызды тандап, себетке дароо кошуңуз.',
+  menuLoadingHelp: 'Тамактар даярдалып жатат, бир аз күтө туруңуз.',
+  menuLoadErrorHelp: 'Интернет байланышын текшерип, кайра аракет кылыңыз.',
+  menuEmptyHelp: 'Ресторан менюну жакында толуктайт.',
+  noSearchResultsHelp: 'Издөөнү же категорияны өзгөртүп көрүңүз.',
+  clearFilters: 'Чыпкаларды тазалоо',
   menuLoadError: 'Менюну жүктөө мүмкүн болгон жок. Баракты жаңыртып кайра аракет кылыңыз.',
   dishDetails: 'Тамак тууралуу',
   ingredients: 'Курамы',
@@ -284,6 +292,14 @@ Object.assign(translations.ky.customer, {
 })
 
 Object.assign(translations.ru.customer, {
+  categories: 'Категории блюд',
+  restaurantMenu: 'Меню ресторана',
+  chooseDishHelp: 'Выберите блюдо и сразу добавьте его в корзину.',
+  menuLoadingHelp: 'Блюда уже загружаются, подождите немного.',
+  menuLoadErrorHelp: 'Проверьте подключение к интернету и попробуйте снова.',
+  menuEmptyHelp: 'Ресторан скоро наполнит меню.',
+  noSearchResultsHelp: 'Попробуйте изменить поиск или выбрать другую категорию.',
+  clearFilters: 'Сбросить фильтры',
   menuLoadError: 'Не удалось загрузить меню. Обновите страницу и попробуйте снова.',
   dishDetails: 'О блюде',
   ingredients: 'Состав',
