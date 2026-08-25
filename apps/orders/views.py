@@ -12,7 +12,6 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.menu.models import MenuItem
-from apps.menu.querysets import active_modifier_groups_prefetch
 from apps.tables.models import (
     ActiveTableSession,
     CustomerSession,
@@ -159,10 +158,6 @@ class PublicCartItemDetailView(CustomerSessionMixin, APIView):
         try:
             return (
                 CartItem.objects.select_related("menu_item")
-                .prefetch_related(
-                    "modifier_selections__group",
-                    "modifier_selections__option",
-                )
                 .get(
                     pk=item_id,
                     customer_session=customer_session,
@@ -206,7 +201,7 @@ class PublicOrderView(CustomerSessionMixin, APIView):
         customer_session = self.get_customer_session(request, qr_token)
         orders = Order.objects.filter(
             customer_session=customer_session,
-        ).prefetch_related("items__modifiers")
+        ).prefetch_related("items")
         total_amount = (
             orders.exclude(status=Order.Status.CANCELLED).aggregate(
                 total=Sum("total_amount")
@@ -344,7 +339,6 @@ class ManualOrderMenuItemsView(ActiveWaiterShiftMixin, APIView):
                 category__is_visible=True,
             )
             .select_related("category")
-            .prefetch_related(active_modifier_groups_prefetch())
             .order_by("category__sort_order", "category__name_ky", "name_ky")
         )
         return Response(
@@ -377,7 +371,7 @@ class ManualOrderCreateView(ActiveWaiterShiftMixin, APIView):
                 "table_session__table",
                 "responsible_waiter",
             )
-            .prefetch_related("items__modifiers")
+            .prefetch_related("items")
             .get(pk=order.pk)
         )
         return Response(
@@ -444,7 +438,7 @@ class MyOrdersView(ActiveWaiterShiftMixin, APIView):
             Order.objects.filter(table_session__assigned_waiter=request.user)
             .exclude(status__in=(Order.Status.COMPLETED, Order.Status.CANCELLED))
             .select_related("table_session__table")
-            .prefetch_related("items__modifiers")
+            .prefetch_related("items")
             .order_by("-created_at")
         )
         return Response(WaiterOrderSerializer(orders, many=True).data)
@@ -463,7 +457,7 @@ class MarkOrderDeliveredView(ActiveWaiterShiftMixin, APIView):
             self.raise_service_error(exc)
         order = (
             Order.objects.select_related("table_session__table")
-            .prefetch_related("items__modifiers")
+            .prefetch_related("items")
             .get(pk=order.pk)
         )
         return Response(WaiterOrderSerializer(order).data)
@@ -499,7 +493,7 @@ class KitchenOrdersView(APIView):
                 status__in=(Order.Status.NEW, Order.Status.PREPARING),
             )
             .select_related("table_session__table")
-            .prefetch_related("items__modifiers")
+            .prefetch_related("items")
             .order_by("created_at")
         )
         return Response(KitchenOrderSerializer(orders, many=True).data)
@@ -520,7 +514,7 @@ class MarkOrderPreparingView(APIView):
             raise ValidationError(exc.messages) from exc
         order = (
             Order.objects.select_related("table_session__table")
-            .prefetch_related("items__modifiers")
+            .prefetch_related("items")
             .get(pk=order.pk)
         )
         return Response(KitchenOrderSerializer(order).data)
@@ -541,7 +535,7 @@ class MarkOrderReadyView(APIView):
             raise ValidationError(exc.messages) from exc
         order = (
             Order.objects.select_related("table_session__table")
-            .prefetch_related("items__modifiers")
+            .prefetch_related("items")
             .get(pk=order.pk)
         )
         return Response(KitchenOrderSerializer(order).data)
@@ -684,7 +678,7 @@ class AdminOrderDetailView(APIView):
                     "responsible_waiter",
                 )
                 .prefetch_related(
-                    "items__modifiers",
+                    "items",
                     "status_history__changed_by",
                 )
                 .get(pk=order_id)

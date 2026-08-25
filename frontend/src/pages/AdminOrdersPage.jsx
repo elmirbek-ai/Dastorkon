@@ -4,7 +4,6 @@ import { adminApiClient } from '../api/client.js'
 import { AdminModal, EmptyState, ErrorBanner, LoadingState, PageIntro, RequestErrorState, StatusBadge } from '../components/admin/AdminComponents.jsx'
 import { formatAdminDate, formatAdminMoney } from '../components/admin/adminUtils.js'
 import { useAdminContext } from '../components/admin/AdminContext.js'
-import { OrderItemModifiers } from '../components/ItemModifiers.jsx'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getLocalizedField, getOrderSourceLabel, getStatusLabel } from '../i18n/index.js'
 
@@ -167,7 +166,7 @@ export default function AdminOrdersPage() {
                   <div className="admin-order-items">
                     {detail.items.map((item) => (
                       <div key={item.id}>
-                        <span><b>{item.quantity}×</b><strong>{getLocalizedField(item, 'name_at_order', language)}</strong><OrderItemModifiers modifiers={item.modifiers} showPriceDeltas />{item.comment && <small>{t('common.comments')}: {item.comment}</small>}</span>
+                        <span><b>{item.quantity}×</b><strong>{getLocalizedField(item, 'name_at_order', language)}</strong>{item.comment && <small>{t('common.comments')}: {item.comment}</small>}</span>
                         <b>{formatAdminMoney(item.total_price)}</b>
                       </div>
                     ))}

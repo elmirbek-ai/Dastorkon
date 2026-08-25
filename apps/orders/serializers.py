@@ -2,7 +2,6 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.menu.models import MenuItem
-from apps.menu.serializers import ActiveMenuItemModifierGroupSerializer
 from apps.restaurants.models import Restaurant
 from apps.tables.models import ActiveTableSession, RestaurantTable
 
@@ -11,51 +10,10 @@ from .models import (
     CartItem,
     Order,
     OrderItem,
-    OrderItemModifierSnapshot,
     OrderStatusHistory,
     WaiterCall,
 )
 from .services import cart_item_unit_price
-
-
-class SelectedModifierInputSerializer(serializers.Serializer):
-    group_id = serializers.IntegerField(min_value=1)
-    option_ids = serializers.ListField(
-        child=serializers.IntegerField(min_value=1),
-        allow_empty=False,
-    )
-
-    def validate_option_ids(self, option_ids):
-        if len(option_ids) != len(set(option_ids)):
-            raise serializers.ValidationError(
-                "Duplicate modifier options are not allowed."
-            )
-        return option_ids
-
-
-class CartSelectedModifierOptionSerializer(serializers.Serializer):
-    id = serializers.IntegerField(read_only=True)
-    name_ky = serializers.CharField(read_only=True)
-    name_ru = serializers.CharField(read_only=True)
-    price_delta = serializers.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        read_only=True,
-    )
-    is_available = serializers.BooleanField(read_only=True)
-    is_active = serializers.BooleanField(read_only=True)
-
-
-class CartSelectedModifierSerializer(serializers.Serializer):
-    group_id = serializers.IntegerField(read_only=True)
-    group_name_ky = serializers.CharField(read_only=True)
-    group_name_ru = serializers.CharField(read_only=True)
-    is_active = serializers.BooleanField(read_only=True)
-    option_ids = serializers.ListField(
-        child=serializers.IntegerField(),
-        read_only=True,
-    )
-    options = CartSelectedModifierOptionSerializer(many=True, read_only=True)
 
 
 class CartItemSerializer(serializers.ModelSerializer):
@@ -79,8 +37,6 @@ class CartItemSerializer(serializers.ModelSerializer):
     )
     line_total = serializers.SerializerMethodField()
     unit_price = serializers.SerializerMethodField()
-    modifier_price = serializers.SerializerMethodField()
-    selected_modifiers = serializers.SerializerMethodField()
 
     class Meta:
         model = CartItem
@@ -90,13 +46,11 @@ class CartItemSerializer(serializers.ModelSerializer):
             "menu_item_name_ky",
             "menu_item_name_ru",
             "price",
-            "modifier_price",
             "unit_price",
             "is_available",
             "quantity",
             "comment",
             "line_total",
-            "selected_modifiers",
         )
 
     def get_unit_price_value(self, obj):
@@ -107,42 +61,8 @@ class CartItemSerializer(serializers.ModelSerializer):
         return f"{self.get_unit_price_value(obj):.2f}"
 
     @extend_schema_field(str)
-    def get_modifier_price(self, obj):
-        return f"{self.get_unit_price_value(obj) - obj.menu_item.price:.2f}"
-
-    @extend_schema_field(str)
     def get_line_total(self, obj):
         return f"{self.get_unit_price_value(obj) * obj.quantity:.2f}"
-
-    @extend_schema_field(CartSelectedModifierSerializer(many=True))
-    def get_selected_modifiers(self, obj):
-        grouped = {}
-        for selection in obj.modifier_selections.all():
-            group = selection.group
-            entry = grouped.setdefault(
-                group.pk,
-                {
-                    "group_id": group.pk,
-                    "group_name_ky": group.name_ky,
-                    "group_name_ru": group.name_ru,
-                    "is_active": group.is_active,
-                    "option_ids": [],
-                    "options": [],
-                },
-            )
-            option = selection.option
-            entry["option_ids"].append(option.pk)
-            entry["options"].append(
-                {
-                    "id": option.pk,
-                    "name_ky": option.name_ky,
-                    "name_ru": option.name_ru,
-                    "price_delta": f"{option.price_delta:.2f}",
-                    "is_available": option.is_available,
-                    "is_active": option.is_active,
-                }
-            )
-        return list(grouped.values())
 
 
 class CartItemCreateSerializer(serializers.Serializer):
@@ -157,11 +77,6 @@ class CartItemCreateSerializer(serializers.Serializer):
         max_length=ITEM_COMMENT_MAX_LENGTH,
         trim_whitespace=True,
     )
-    selected_modifiers = SelectedModifierInputSerializer(
-        many=True,
-        required=False,
-        default=list,
-    )
 
 
 class CartItemUpdateSerializer(serializers.Serializer):
@@ -174,25 +89,7 @@ class CartItemUpdateSerializer(serializers.Serializer):
     )
 
 
-class OrderItemModifierSnapshotSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = OrderItemModifierSnapshot
-        fields = (
-            "id",
-            "group_name_ky",
-            "group_name_ru",
-            "option_name_ky",
-            "option_name_ru",
-            "price_delta",
-            "group_sort_order",
-            "option_sort_order",
-        )
-        read_only_fields = fields
-
-
 class PublicOrderItemSerializer(serializers.ModelSerializer):
-    modifiers = OrderItemModifierSnapshotSerializer(many=True, read_only=True)
-
     class Meta:
         model = OrderItem
         fields = (
@@ -203,7 +100,6 @@ class PublicOrderItemSerializer(serializers.ModelSerializer):
             "quantity",
             "comment",
             "total_price",
-            "modifiers",
         )
 
 
@@ -317,11 +213,6 @@ class ManualOrderMenuItemSerializer(serializers.ModelSerializer):
         source="category.name_ru",
         read_only=True,
     )
-    modifier_groups = ActiveMenuItemModifierGroupSerializer(
-        source="public_modifier_groups",
-        many=True,
-        read_only=True,
-    )
 
     class Meta:
         model = MenuItem
@@ -341,7 +232,6 @@ class ManualOrderMenuItemSerializer(serializers.ModelSerializer):
             "is_vegetarian",
             "is_recommended",
             "is_available",
-            "modifier_groups",
         )
         read_only_fields = fields
 
@@ -360,18 +250,11 @@ class ManualOrderItemCreateSerializer(serializers.Serializer):
         max_length=ITEM_COMMENT_MAX_LENGTH,
         trim_whitespace=True,
     )
-    selected_modifiers = SelectedModifierInputSerializer(
-        many=True,
-        required=False,
-        default=list,
-    )
 
 
 class ManualOrderCreateSerializer(serializers.Serializer):
     table_id = serializers.IntegerField(min_value=1)
     items = ManualOrderItemCreateSerializer(many=True, allow_empty=False)
-
-
 
 class WaiterCallCreateSerializer(serializers.Serializer):
     reason = serializers.ChoiceField(choices=WaiterCall.Reason.choices)

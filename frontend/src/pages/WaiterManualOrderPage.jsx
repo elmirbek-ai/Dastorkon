@@ -2,16 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { waiterApiClient, WAITER_TOKEN_KEY } from '../api/client.js'
 import MenuItemBadges from '../components/MenuItemBadges.jsx'
-import {
-  DraftItemModifiers,
-  ModifierGroupsPicker,
-} from '../components/ItemModifiers.jsx'
-import {
-  modifierSelectionPayload,
-  modifierSelectionErrors,
-  modifierSelectionTotal,
-  selectedModifierDetails,
-} from '../components/modifierUtils.js'
 import { useConfirm } from '../components/confirmation/useConfirm.js'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getBackendErrorMessage, getLocalizedField } from '../i18n/index.js'
@@ -43,102 +33,6 @@ function TableStatus({ table, t }) {
   )
 }
 
-function WaiterModifierDialog({ item, onClose, onAdd }) {
-  const { language, t } = useLanguage()
-  const modifierListRef = useRef(null)
-  const [selections, setSelections] = useState({})
-  const [showValidationErrors, setShowValidationErrors] = useState(false)
-  const itemName = getLocalizedField(item, 'name', language)
-  const modifierPrice = modifierSelectionTotal(item, selections)
-  const unitPrice = Number(item.price) + modifierPrice
-  const selectionErrors = modifierSelectionErrors(item, selections, t)
-  const visibleSelectionErrors = showValidationErrors ? selectionErrors : {}
-
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    function closeOnEscape(event) {
-      if (event.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', closeOnEscape)
-    return () => {
-      document.body.style.overflow = previousOverflow
-      document.removeEventListener('keydown', closeOnEscape)
-    }
-  }, [onClose])
-
-  function submit() {
-    setShowValidationErrors(true)
-    const firstInvalidGroupId = Object.keys(selectionErrors)[0]
-    if (firstInvalidGroupId) {
-      requestAnimationFrame(() => {
-        const group = modifierListRef.current?.querySelector(`[data-modifier-group-id="${firstInvalidGroupId}"]`)
-        group?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        group?.querySelector('input:not(:disabled)')?.focus({ preventScroll: true })
-      })
-      return
-    }
-    onAdd(item, selections)
-    onClose()
-  }
-
-  function changeSelections(value) {
-    setSelections(value)
-  }
-
-  return (
-    <div className="waiter-modifier-backdrop" role="presentation" onMouseDown={onClose}>
-      <section
-        className="waiter-modifier-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="waiter-modifier-title"
-        aria-describedby="waiter-modifier-helper"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <div className="waiter-modifier-dialog__handle" aria-hidden="true" />
-        <header>
-          <div>
-            <small>{t('modifiers.customizeItem')}</small>
-            <h2 id="waiter-modifier-title">{itemName}</h2>
-            <p id="waiter-modifier-helper">{t('modifiers.waiterCustomizeHelp')}</p>
-            <MenuItemBadges item={item} className="waiter-manual-item-badges" />
-            <div className="waiter-modifier-dialog__price-summary">
-              <span>
-                <small>{t('modifiers.basePrice')}</small>
-                <strong>{formatMoney(item.price)}</strong>
-              </span>
-              <span className={modifierPrice > 0 ? 'is-delta' : 'is-delta is-zero'}>
-                <small>{t('modifiers.modifierPrice')}</small>
-                <strong>+{formatMoney(modifierPrice)}</strong>
-              </span>
-            </div>
-          </div>
-          <button type="button" onClick={onClose} aria-label={t('common.close')}>×</button>
-        </header>
-        <div ref={modifierListRef} className="waiter-modifier-dialog__body">
-          <ModifierGroupsPicker
-            item={item}
-            selections={selections}
-            onChange={changeSelections}
-            errors={visibleSelectionErrors}
-          />
-        </div>
-        <footer>
-          <button type="button" onClick={onClose}>{t('common.cancel')}</button>
-          <button className="is-primary" type="button" onClick={submit}>
-            <span>{t('waiter.addItem')}</span>
-            <span className="waiter-modifier-dialog__final-price">
-              <small>{t('modifiers.finalPrice')}</small>
-              <strong>{formatMoney(unitPrice)}</strong>
-            </span>
-          </button>
-        </footer>
-      </section>
-    </div>
-  )
-}
-
 export default function WaiterManualOrderPage() {
   const navigate = useNavigate()
   const { language, t } = useLanguage()
@@ -156,7 +50,6 @@ export default function WaiterManualOrderPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [createdOrder, setCreatedOrder] = useState(null)
-  const [customizingItem, setCustomizingItem] = useState(null)
 
   const logoutExpired = useCallback(() => {
     localStorage.removeItem(WAITER_TOKEN_KEY)
@@ -250,11 +143,8 @@ export default function WaiterManualOrderPage() {
     0,
   )
 
-  function lineKeyFor(menuItem, selectedModifiers = []) {
-    const optionIds = selectedModifiers
-      .flatMap((selection) => selection.option_ids)
-      .sort((first, second) => first - second)
-    return `${menuItem.id}:${optionIds.join('-')}`
+  function lineKeyFor(menuItem) {
+    return String(menuItem.id)
   }
 
   function selectTable(table) {
@@ -265,7 +155,6 @@ export default function WaiterManualOrderPage() {
     setSelectedTable(table)
     setCart({})
     setMenuItems([])
-    setCustomizingItem(null)
     setQuery('')
     setCategoryFilter('')
     setError('')
@@ -282,11 +171,9 @@ export default function WaiterManualOrderPage() {
     loadTables()
   }
 
-  function addItem(menuItem, selections = {}) {
+  function addItem(menuItem) {
     if (!menuItem.is_available) return
-    const selectedModifiers = modifierSelectionPayload(menuItem, selections)
-    const lineKey = lineKeyFor(menuItem, selectedModifiers)
-    const unitPrice = Number(menuItem.price) + modifierSelectionTotal(menuItem, selections)
+    const lineKey = lineKeyFor(menuItem)
     setCart((current) => {
       const existing = current[lineKey]
       return {
@@ -296,20 +183,10 @@ export default function WaiterManualOrderPage() {
           menuItem,
           quantity: (existing?.quantity || 0) + 1,
           comment: existing?.comment || '',
-          selectedModifiers,
-          modifierDetails: selectedModifierDetails(menuItem, selections),
-          unitPrice,
+          unitPrice: Number(menuItem.price),
         },
       }
     })
-  }
-
-  function requestAddItem(menuItem) {
-    if ((menuItem.modifier_groups || []).length > 0) {
-      setCustomizingItem(menuItem)
-      return
-    }
-    addItem(menuItem)
   }
 
   function setQuantity(lineKey, quantity) {
@@ -364,7 +241,6 @@ export default function WaiterManualOrderPage() {
             menu_item_id: item.menuItem.id,
             quantity: item.quantity,
             comment: item.comment,
-            selected_modifiers: item.selectedModifiers,
           })),
         },
       )
@@ -457,27 +333,22 @@ export default function WaiterManualOrderPage() {
               <div className="waiter-manual-menu-grid">
                 {filteredMenuItems.map((item) => {
                   const itemName = getLocalizedField(item, 'name', language)
-                  const hasModifiers = (item.modifier_groups || []).length > 0
                   const simpleLine = cart[lineKeyFor(item)]
-                  const quantity = hasModifiers
-                    ? cartItems
-                        .filter((line) => line.menuItem.id === item.id)
-                        .reduce((total, line) => total + line.quantity, 0)
-                    : (simpleLine?.quantity || 0)
+                  const quantity = simpleLine?.quantity || 0
                   return (
                     <article className={!item.is_available ? 'is-unavailable' : ''} key={item.id}>
                       <span className="waiter-manual-item-mark" aria-hidden="true">{itemName.slice(0, 1)}</span>
                       <div><small>{getLocalizedField(item, 'category_name', language)}</small><h2>{itemName}</h2><MenuItemBadges item={item} className="waiter-manual-item-badges" /><strong>{formatMoney(item.price)}</strong></div>
                       {item.is_available ? (
-                        quantity && !hasModifiers ? (
+                        quantity ? (
                           <span className="waiter-manual-menu-stepper">
                             <button type="button" onClick={() => decreaseDraftItem(simpleLine)} aria-label={t('customer.decreaseQuantity')}>−</button>
                             <b aria-live="polite">{quantity}</b>
                             <button type="button" onClick={() => setQuantity(simpleLine.lineKey, quantity + 1)} aria-label={t('customer.increaseQuantity')}>+</button>
                           </span>
                         ) : (
-                          <button type="button" onClick={() => requestAddItem(item)}>
-                            {t('waiter.addItem')}{quantity > 0 ? ` · ${quantity}` : ''}
+                          <button type="button" onClick={() => addItem(item)}>
+                            {t('waiter.addItem')}
                           </button>
                         )
                       ) : <span className="waiter-manual-unavailable">{t('customer.temporarilyUnavailable')}</span>}
@@ -505,19 +376,12 @@ export default function WaiterManualOrderPage() {
             {cartItems.length ? (
               <div className="waiter-manual-cart-list">
                 {cartItems.map((line) => {
-                  const basePrice = Number(line.menuItem.price)
-                  const modifierDelta = Math.max(0, Number(line.unitPrice) - basePrice)
                   return (
                     <article key={line.lineKey}>
                       <div className="waiter-manual-cart-item-info">
                         <strong>{getLocalizedField(line.menuItem, 'name', language)}</strong>
-                        <DraftItemModifiers modifiers={line.modifierDetails} showPriceDeltas />
                         <div className="waiter-manual-line-price-breakdown">
-                          <span>{t('modifiers.basePrice')}: {formatMoney(basePrice)}</span>
-                          {modifierDelta > 0 && (
-                            <span>{t('modifiers.modifierPrice')}: +{formatMoney(modifierDelta)}</span>
-                          )}
-                          <span>{t('modifiers.unitPrice')}: {formatMoney(line.unitPrice)} × {line.quantity}</span>
+                          <span>{formatMoney(line.unitPrice)} × {line.quantity}</span>
                         </div>
                       </div>
                       <div className="waiter-manual-line-controls">
@@ -528,7 +392,7 @@ export default function WaiterManualOrderPage() {
                           <button type="button" onClick={() => setQuantity(line.lineKey, line.quantity + 1)} aria-label={t('customer.increaseQuantity')}>+</button>
                         </span>
                         <span className="waiter-manual-line-total">
-                          <small>{t('modifiers.finalPrice')}</small>
+                          <small>{t('common.total')}</small>
                           <strong>{formatMoney(line.unitPrice * line.quantity)}</strong>
                         </span>
                       </div>
@@ -563,13 +427,6 @@ export default function WaiterManualOrderPage() {
           </section>
         )}
       </div>
-      {customizingItem && (
-        <WaiterModifierDialog
-          item={customizingItem}
-          onClose={() => setCustomizingItem(null)}
-          onAdd={addItem}
-        />
-      )}
     </main>
   )
 }

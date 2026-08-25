@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { kitchenApiClient, KITCHEN_TOKEN_KEY } from '../api/client.js'
 import ConnectionStatus from '../components/ConnectionStatus.jsx'
 import LanguageSwitch from '../components/LanguageSwitch.jsx'
-import { OrderItemModifiers } from '../components/ItemModifiers.jsx'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getBackendErrorMessage, getLocalizedField, getOrderSourceLabel, getStatusLabel } from '../i18n/index.js'
 import useNotificationsSocket from '../realtime/useNotificationsSocket.js'
@@ -162,7 +161,6 @@ function KitchenOrderCard({ order, pending, actionsLocked, referenceTime, onAdva
               <b>{item.quantity}×</b>
               <strong>{getLocalizedField(item, 'name_at_order', language)}</strong>
             </div>
-            <OrderItemModifiers modifiers={item.modifiers} className="kitchen-item-modifiers" />
             {item.comment && <p><b>{t('kitchen.kitchenNote')}:</b> {item.comment}</p>}
           </li>
         ))}

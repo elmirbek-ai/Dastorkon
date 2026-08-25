@@ -1,7 +1,7 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Prefetch
 from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
-from rest_framework import generics, serializers, status, viewsets
+from rest_framework import serializers, status, viewsets
 from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -10,18 +10,10 @@ from rest_framework.views import APIView
 from apps.tables.services import get_table_by_qr_token
 from apps.users.permissions import IsAdminRole, IsWaiterRole
 
-from .models import (
-    Category,
-    MenuItem,
-    MenuItemModifierGroup,
-    MenuItemModifierOption,
-)
-from .querysets import active_modifier_groups_prefetch
+from .models import Category, MenuItem
 from .serializers import (
     CategorySerializer,
     MenuItemAvailabilityUpdateSerializer,
-    MenuItemModifierGroupSerializer,
-    MenuItemModifierOptionSerializer,
     MenuItemSerializer,
     PublicCategorySerializer,
     WaiterMenuItemSerializer,
@@ -49,7 +41,7 @@ class MenuItemAdminViewSet(viewsets.ModelViewSet):
     queryset = MenuItem.objects.select_related(
         "restaurant",
         "category",
-    ).prefetch_related("modifier_groups__options")
+    )
     serializer_class = MenuItemSerializer
     permission_classes = (IsAdminRole,)
 
@@ -73,80 +65,6 @@ class MenuItemAdminViewSet(viewsets.ModelViewSet):
         )
 
 
-class MenuItemModifierGroupListCreateView(generics.ListCreateAPIView):
-    serializer_class = MenuItemModifierGroupSerializer
-    permission_classes = (IsAdminRole,)
-
-    def get_menu_item(self):
-        return get_object_or_404(
-            MenuItem,
-            pk=self.kwargs["item_id"],
-            is_deleted=False,
-        )
-
-    def get_queryset(self):
-        return (
-            MenuItemModifierGroup.objects.filter(menu_item=self.get_menu_item())
-            .select_related("menu_item")
-            .prefetch_related("options")
-        )
-
-    def perform_create(self, serializer):
-        serializer.save(menu_item=self.get_menu_item())
-
-
-class MenuItemModifierGroupDetailView(generics.RetrieveUpdateDestroyAPIView):
-    serializer_class = MenuItemModifierGroupSerializer
-    permission_classes = (IsAdminRole,)
-    lookup_url_kwarg = "group_id"
-
-    def get_queryset(self):
-        return (
-            MenuItemModifierGroup.objects.filter(menu_item__is_deleted=False)
-            .select_related("menu_item")
-            .prefetch_related("options")
-        )
-
-    def perform_destroy(self, instance):
-        instance.is_active = False
-        instance.save(update_fields=("is_active", "updated_at"))
-
-
-class MenuItemModifierOptionListCreateView(generics.ListCreateAPIView):
-    serializer_class = MenuItemModifierOptionSerializer
-    permission_classes = (IsAdminRole,)
-
-    def get_group(self):
-        return get_object_or_404(
-            MenuItemModifierGroup.objects.select_related("menu_item"),
-            pk=self.kwargs["group_id"],
-            menu_item__is_deleted=False,
-        )
-
-    def get_queryset(self):
-        return MenuItemModifierOption.objects.filter(group=self.get_group()).select_related(
-            "group"
-        )
-
-    def perform_create(self, serializer):
-        serializer.save(group=self.get_group())
-
-
-class MenuItemModifierOptionDetailView(generics.RetrieveUpdateDestroyAPIView):
-    serializer_class = MenuItemModifierOptionSerializer
-    permission_classes = (IsAdminRole,)
-    lookup_url_kwarg = "option_id"
-
-    def get_queryset(self):
-        return MenuItemModifierOption.objects.filter(
-            group__menu_item__is_deleted=False,
-        ).select_related("group")
-
-    def perform_destroy(self, instance):
-        instance.is_active = False
-        instance.save(update_fields=("is_active", "updated_at"))
-
-
 class WaiterMenuItemListView(APIView):
     permission_classes = (IsWaiterRole,)
 
@@ -158,7 +76,6 @@ class WaiterMenuItemListView(APIView):
                 category__is_deleted=False,
             )
             .select_related("category")
-            .prefetch_related(active_modifier_groups_prefetch())
             .order_by(
                 "category__sort_order",
                 "category__name_ky",
@@ -177,9 +94,7 @@ class WaiterMenuItemAvailabilityView(APIView):
     )
     def patch(self, request, item_id):
         menu_item = get_object_or_404(
-            MenuItem.objects.select_related("category").prefetch_related(
-                active_modifier_groups_prefetch()
-            ),
+            MenuItem.objects.select_related("category"),
             pk=item_id,
             is_deleted=False,
             category__is_deleted=False,
@@ -217,7 +132,7 @@ class PublicMenuView(APIView):
             restaurant=table.restaurant,
             is_deleted=False,
             is_visible=True,
-        ).prefetch_related(active_modifier_groups_prefetch())
+        )
         categories = (
             Category.objects.filter(
                 restaurant=table.restaurant,

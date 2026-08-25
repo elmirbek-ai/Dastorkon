@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { waiterApiClient, WAITER_TOKEN_KEY } from '../api/client.js'
 import ConnectionStatus from '../components/ConnectionStatus.jsx'
-import { OrderItemModifiers } from '../components/ItemModifiers.jsx'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getBackendErrorMessage, getLocalizedField, getStatusLabel } from '../i18n/index.js'
 import useNotificationsSocket from '../realtime/useNotificationsSocket.js'
@@ -339,7 +338,6 @@ function ReadyOrderCard({ order, compact = false, pending, disabled, error, onDe
           {items.map((item) => (
             <li key={item.id}>
               <span><b>{item.quantity}×</b> {getLocalizedField(item, 'name_at_order', language)}</span>
-              <OrderItemModifiers modifiers={item.modifiers} />
               {item.comment && <small>{t('common.comments')}: {item.comment}</small>}
             </li>
           ))}

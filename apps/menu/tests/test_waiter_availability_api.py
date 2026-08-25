@@ -94,7 +94,6 @@ class WaiterMenuAvailabilityApiTests(APITestCase):
                 "is_vegetarian": True,
                 "is_recommended": True,
                 "cooking_time_min": 15,
-                "modifier_groups": [],
             },
         )
 

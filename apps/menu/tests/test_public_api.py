@@ -4,12 +4,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.menu.models import (
-    Category,
-    MenuItem,
-    MenuItemModifierGroup,
-    MenuItemModifierOption,
-)
+from apps.menu.models import Category, MenuItem
 from apps.restaurants.models import Restaurant
 from apps.tables.models import RestaurantTable
 
@@ -128,57 +123,6 @@ class PublicMenuApiTests(APITestCase):
         self.assertTrue(item["is_vegetarian"])
         self.assertTrue(item["is_recommended"])
         self.assertEqual(item["cooking_time_min"], 15)
-
-    def test_public_menu_exposes_only_active_available_modifiers(self):
-        active_group = MenuItemModifierGroup.objects.create(
-            menu_item=self.menu_item,
-            name_ky="Portion",
-            name_ru="Portion",
-            selection_type=MenuItemModifierGroup.SelectionType.SINGLE,
-            sort_order=1,
-        )
-        available_option = MenuItemModifierOption.objects.create(
-            group=active_group,
-            name_ky="Standard",
-            name_ru="Standard",
-            sort_order=1,
-        )
-        MenuItemModifierOption.objects.create(
-            group=active_group,
-            name_ky="Unavailable",
-            name_ru="Unavailable",
-            is_available=False,
-        )
-        MenuItemModifierOption.objects.create(
-            group=active_group,
-            name_ky="Inactive",
-            name_ru="Inactive",
-            is_active=False,
-        )
-        inactive_group = MenuItemModifierGroup.objects.create(
-            menu_item=self.menu_item,
-            name_ky="Hidden",
-            name_ru="Hidden",
-            selection_type=MenuItemModifierGroup.SelectionType.MULTIPLE,
-            is_active=False,
-        )
-        MenuItemModifierOption.objects.create(
-            group=inactive_group,
-            name_ky="Hidden option",
-            name_ru="Hidden option",
-        )
-
-        response = self.client.get(self.url)
-
-        item = response.data["categories"][0]["items"][0]
-        self.assertEqual(
-            [group["id"] for group in item["modifier_groups"]],
-            [active_group.pk],
-        )
-        self.assertEqual(
-            [option["id"] for option in item["modifier_groups"][0]["options"]],
-            [available_option.pk],
-        )
 
     def test_public_menu_groups_items_under_categories(self):
         drinks = Category.objects.create(
