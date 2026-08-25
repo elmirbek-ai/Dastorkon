@@ -3396,6 +3396,140 @@
   background: var(--surface);
 }
 
+.admin-modifier-presets {
+  display: grid;
+  gap: 11px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: #faf9f5;
+}
+
+.admin-modifier-presets > header,
+.admin-modifier-presets > header > div {
+  display: grid;
+  gap: 3px;
+}
+
+.admin-modifier-presets h3,
+.admin-modifier-presets p {
+  margin: 0;
+}
+
+.admin-modifier-presets h3 {
+  color: var(--text-heading);
+  font-size: 0.72rem;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.admin-modifier-presets > header p {
+  color: var(--text-muted);
+  font-size: 0.58rem;
+  line-height: 1.5;
+}
+
+.admin-modifier-presets__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+  gap: 8px;
+}
+
+.admin-modifier-presets__list > button {
+  display: flex;
+  min-width: 0;
+  min-height: 52px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  color: var(--text-primary);
+  background: var(--surface);
+  box-shadow: none;
+  text-align: left;
+}
+
+.admin-modifier-presets__list > button:hover:not(:disabled) {
+  border-color: var(--success-border);
+  background: #fdfffc;
+  box-shadow: 0 3px 10px rgba(31, 28, 24, 0.05);
+}
+
+.admin-modifier-presets__list > button.is-added,
+.admin-modifier-presets__list > button.is-added:disabled {
+  cursor: default;
+  border-color: #dfe6df;
+  color: var(--text-secondary);
+  background: #f4f6f2;
+  opacity: 0.82;
+}
+
+.admin-modifier-preset__copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.admin-modifier-preset__copy strong {
+  overflow: hidden;
+  font-size: 0.65rem;
+  font-weight: 800;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-modifier-preset__copy small {
+  color: var(--text-muted);
+  font-size: 0.52rem;
+  font-weight: 600;
+}
+
+.admin-modifier-preset__state {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-height: 24px;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  color: var(--primary);
+  background: var(--primary-light);
+  font-size: 0.52rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.admin-modifier-preset__state svg {
+  width: 12px;
+  height: 12px;
+}
+
+.admin-modifier-preset__state .admin-button-spinner {
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(15, 138, 58, 0.22);
+  border-top-color: var(--primary);
+}
+
+.admin-modifier-presets__list > button.is-added .admin-modifier-preset__state {
+  color: var(--success-dark);
+  background: var(--success-bg);
+}
+
+.admin-modifier-presets__feedback {
+  padding: 8px 10px;
+  border: 1px solid var(--success-border);
+  border-radius: 9px;
+  color: var(--success-dark);
+  background: var(--success-bg);
+  font-size: 0.58rem;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
 .admin-modifier-form {
   display: grid;
   gap: 18px;

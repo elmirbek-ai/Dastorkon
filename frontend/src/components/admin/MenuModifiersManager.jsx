@@ -5,6 +5,98 @@ import { getLocalizedField } from '../../i18n/index.js'
 import { useConfirm } from '../confirmation/useConfirm.js'
 import { AdminIcon, EmptyState, ErrorBanner, LoadingState, Toggle } from './AdminComponents.jsx'
 
+const modifierPresets = [
+  {
+    key: 'spiciness',
+    label_ky: 'Ачуулугу',
+    label_ru: 'Острота',
+    group: {
+      name_ky: 'Ачуулугу',
+      name_ru: 'Острота',
+      selection_type: 'SINGLE',
+      is_required: true,
+      min_selected: 1,
+      max_selected: 1,
+    },
+    options: [
+      { name_ky: 'Ачуу эмес', name_ru: 'Не остро', price_delta: '0.00' },
+      { name_ky: 'Орточо', name_ru: 'Средне', price_delta: '0.00' },
+      { name_ky: 'Ачуу', name_ru: 'Остро', price_delta: '0.00' },
+    ],
+  },
+  {
+    key: 'portion',
+    label_ky: 'Порция',
+    label_ru: 'Порция',
+    group: {
+      name_ky: 'Порция',
+      name_ru: 'Порция',
+      selection_type: 'SINGLE',
+      is_required: false,
+      min_selected: 0,
+      max_selected: 1,
+    },
+    options: [
+      { name_ky: 'Стандарт', name_ru: 'Стандарт', price_delta: '0.00' },
+      { name_ky: 'Чоң', name_ru: 'Большая', price_delta: '80.00' },
+    ],
+  },
+  {
+    key: 'extras',
+    label_ky: 'Кошумча',
+    label_ru: 'Дополнительно',
+    group: {
+      name_ky: 'Кошумча',
+      name_ru: 'Дополнительно',
+      selection_type: 'MULTIPLE',
+      is_required: false,
+      min_selected: 0,
+      max_selected: null,
+    },
+    options: [
+      { name_ky: 'Сыр', name_ru: 'Сыр', price_delta: '30.00' },
+      { name_ky: 'Соус', name_ru: 'Соус', price_delta: '20.00' },
+      { name_ky: 'Картошка', name_ru: 'Картофель', price_delta: '80.00' },
+    ],
+  },
+  {
+    key: 'sauce',
+    label_ky: 'Соус',
+    label_ru: 'Соус',
+    group: {
+      name_ky: 'Соус',
+      name_ru: 'Соус',
+      selection_type: 'SINGLE',
+      is_required: false,
+      min_selected: 0,
+      max_selected: 1,
+    },
+    options: [
+      { name_ky: 'Кетчуп', name_ru: 'Кетчуп', price_delta: '0.00' },
+      { name_ky: 'Сарымсак соусу', name_ru: 'Чесночный соус', price_delta: '20.00' },
+      { name_ky: 'Ачуу соус', name_ru: 'Острый соус', price_delta: '20.00' },
+    ],
+  },
+  {
+    key: 'drink-size',
+    label_ky: 'Суусундук көлөмү',
+    label_ru: 'Размер напитка',
+    group: {
+      name_ky: 'Көлөмү',
+      name_ru: 'Размер',
+      selection_type: 'SINGLE',
+      is_required: true,
+      min_selected: 1,
+      max_selected: 1,
+    },
+    options: [
+      { name_ky: 'Кичине', name_ru: 'Маленький', price_delta: '0.00' },
+      { name_ky: 'Орточо', name_ru: 'Средний', price_delta: '30.00' },
+      { name_ky: 'Чоң', name_ru: 'Большой', price_delta: '60.00' },
+    ],
+  },
+]
+
 const emptyGroup = {
   name_ky: '',
   name_ru: '',
@@ -41,6 +133,15 @@ function sortedByOrder(values) {
     || String(left.name_ky).localeCompare(String(right.name_ky))
     || left.id - right.id
   ))
+}
+
+function normalizedPresetName(value) {
+  return String(value || '').trim().toLocaleLowerCase()
+}
+
+function groupMatchesPreset(group, preset) {
+  return normalizedPresetName(group.name_ky) === normalizedPresetName(preset.group.name_ky)
+    && normalizedPresetName(group.name_ru) === normalizedPresetName(preset.group.name_ru)
 }
 
 function firstFieldError(data) {
@@ -241,6 +342,7 @@ export default function MenuModifiersManager({ menuItem, handleApiError, onBusyC
   const [editingGroup, setEditingGroup] = useState(null)
   const [editingOption, setEditingOption] = useState(null)
   const [operation, setOperation] = useState('')
+  const [presetFeedback, setPresetFeedback] = useState('')
   const busy = Boolean(operation)
 
   useEffect(() => {
@@ -262,27 +364,101 @@ export default function MenuModifiersManager({ menuItem, handleApiError, onBusyC
     return () => { active = false }
   }, [menuItem.id, handleApiError, t])
 
+  async function reloadGroups() {
+    const response = await adminApiClient.get(`/api/admin/menu-items/${menuItem.id}/modifier-groups/`)
+    const nextGroups = sortedByOrder(response.data)
+    setGroups(nextGroups)
+    return nextGroups
+  }
+
+  async function createPreset(preset) {
+    if (busy || groups.some((group) => groupMatchesPreset(group, preset))) return
+
+    const presetOperation = `preset-${preset.key}`
+    const nextSortOrder = groups.reduce(
+      (maximum, group) => Math.max(maximum, Number(group.sort_order) || 0),
+      -1,
+    ) + 1
+    setOperation(presetOperation)
+    setError('')
+    setFormError('')
+    setPresetFeedback('')
+
+    let groupCreated = false
+    try {
+      const groupResponse = await adminApiClient.post(
+        `/api/admin/menu-items/${menuItem.id}/modifier-groups/`,
+        {
+          ...preset.group,
+          sort_order: nextSortOrder,
+          is_active: true,
+        },
+      )
+      groupCreated = true
+      for (const [index, option] of preset.options.entries()) {
+        await adminApiClient.post(
+          `/api/admin/modifier-groups/${groupResponse.data.id}/options/`,
+          {
+            ...option,
+            sort_order: index,
+            is_available: true,
+            is_active: true,
+          },
+        )
+      }
+    } catch (requestError) {
+      const apiMessage = modifierApiError(requestError, t, handleApiError)
+      if (groupCreated) {
+        setError(`${t('admin.modifierPresetPartialError')} ${apiMessage}`)
+        try {
+          await reloadGroups()
+        } catch {
+          // Keep the original creation error visible.
+        }
+      } else {
+        setError(apiMessage)
+      }
+      setOperation('')
+      return
+    }
+
+    try {
+      await reloadGroups()
+      setPresetFeedback(t('admin.modifierPresetAddedFeedback', {
+        name: getLocalizedField(preset, 'label', language),
+      }))
+    } catch (requestError) {
+      setError(modifierApiError(requestError, t, handleApiError))
+    } finally {
+      setOperation('')
+    }
+  }
+
   function startGroupCreate() {
     setEditingOption(null)
     setFormError('')
+    setPresetFeedback('')
     setEditingGroup({ ...emptyGroup })
   }
 
   function startGroupEdit(group) {
     setEditingOption(null)
     setFormError('')
+    setPresetFeedback('')
     setEditingGroup(normalizeGroup(group))
   }
 
   function startOptionCreate(group) {
     setEditingGroup(null)
     setFormError('')
+    setPresetFeedback('')
     setEditingOption({ ...emptyOption, groupId: group.id })
   }
 
   function startOptionEdit(group, option) {
     setEditingGroup(null)
     setFormError('')
+    setPresetFeedback('')
     setEditingOption(normalizeOption(option, group.id))
   }
 
@@ -448,6 +624,48 @@ export default function MenuModifiersManager({ menuItem, handleApiError, onBusyC
         <button className="admin-primary-action" type="button" onClick={startGroupCreate} disabled={busy}><AdminIcon name="plus" />{t('admin.addModifierGroup')}</button>
       </div>
       <ErrorBanner message={error} />
+
+      <section className="admin-modifier-presets" aria-labelledby="admin-modifier-presets-title">
+        <header>
+          <div>
+            <h3 id="admin-modifier-presets-title">{t('admin.modifierPresets')}</h3>
+            <p>{t('admin.modifierPresetsHelp')}</p>
+          </div>
+        </header>
+        <div className="admin-modifier-presets__list">
+          {modifierPresets.map((preset) => {
+            const alreadyAdded = groups.some((group) => groupMatchesPreset(group, preset))
+            const presetLoading = operation === `preset-${preset.key}`
+            return (
+              <button
+                className={alreadyAdded ? 'is-added' : ''}
+                type="button"
+                onClick={() => createPreset(preset)}
+                disabled={busy || alreadyAdded}
+                aria-label={`${getLocalizedField(preset, 'label', language)}: ${alreadyAdded ? t('admin.modifierPresetAdded') : t('admin.modifierPresetAdd')}`}
+                key={preset.key}
+              >
+                <span className="admin-modifier-preset__copy">
+                  <strong>{getLocalizedField(preset, 'label', language)}</strong>
+                  <small>{t('admin.modifierPresetOptionCount', { count: preset.options.length })}</small>
+                </span>
+                <span className="admin-modifier-preset__state">
+                  {presetLoading ? (
+                    <><span className="admin-button-spinner" />{t('admin.modifierPresetAdding')}</>
+                  ) : alreadyAdded ? (
+                    <><span aria-hidden="true">✓</span>{t('admin.modifierPresetAdded')}</>
+                  ) : (
+                    <><AdminIcon name="plus" />{t('admin.modifierPresetAdd')}</>
+                  )}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+        {presetFeedback && (
+          <p className="admin-modifier-presets__feedback" role="status">{presetFeedback}</p>
+        )}
+      </section>
 
       {editingGroup && <GroupForm value={editingGroup} saving={operation === 'group-save'} error={formError} onChange={setEditingGroup} onSubmit={saveGroup} onCancel={() => { setEditingGroup(null); setFormError('') }} />}
 
