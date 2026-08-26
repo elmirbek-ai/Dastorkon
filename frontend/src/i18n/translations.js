@@ -800,3 +800,21 @@ translations.ru.confirmation = {
   deactivateMessage: 'Вы действительно хотите деактивировать аккаунт «{name}»?',
   deactivateConfirm: 'Да, деактивировать',
 }
+
+Object.assign(translations.ky.admin, {
+  comparedToYesterday: 'Кечээге караганда',
+  comparisonUnavailable: 'Маалымат жок',
+  trendUp: 'Өстү',
+  trendDown: 'Төмөндөдү',
+  trendNeutral: 'Өзгөргөн жок',
+  occupancy: 'Толтурулушу',
+})
+
+Object.assign(translations.ru.admin, {
+  comparedToYesterday: 'По сравнению со вчера',
+  comparisonUnavailable: 'Нет данных',
+  trendUp: 'Рост',
+  trendDown: 'Снижение',
+  trendNeutral: 'Без изменений',
+  occupancy: 'Заполняемость',
+})

@@ -2,13 +2,72 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { adminApiClient } from '../api/client.js'
 import { AdminIcon, EmptyState, ErrorBanner, LoadingState, PageIntro, StatusBadge } from '../components/admin/AdminComponents.jsx'
-import { formatAdminDate, formatAdminMoney, localDateString } from '../components/admin/adminUtils.js'
+import TableIcon from '../components/TableIcon.jsx'
+import { formatAdminDate, formatAdminMoney } from '../components/admin/adminUtils.js'
 import { useAdminContext } from '../components/admin/AdminContext.js'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getLocalizedField, getRoleLabel } from '../i18n/index.js'
 
-function StatCard({ icon, tone, label, value, note }) {
-  return <article className={`admin-stat-card admin-stat-card--${tone}`}><span><AdminIcon name={icon} /></span><div><small>{label}</small><strong>{value}</strong><p>{note}</p></div></article>
+function DashboardKpiIcon({ name }) {
+  if (name === 'tables') return <TableIcon />
+
+  if (name === 'completed') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="8.5" />
+        <path d="m8.5 12 2.25 2.25L15.75 9" />
+      </svg>
+    )
+  }
+
+  if (name === 'wallet') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h10A2.5 2.5 0 0 1 19 7.5V9" />
+        <path d="M4 7.5v9A2.5 2.5 0 0 0 6.5 19H19a1 1 0 0 0 1-1v-4" />
+        <path d="M16.5 9H20v5h-3.5a2.5 2.5 0 0 1 0-5Z" />
+        <circle cx="16.75" cy="11.5" r="0.5" />
+      </svg>
+    )
+  }
+
+  return <AdminIcon name={name} />
+}
+
+function StatCard({ icon, tone, label, value, comparison, className = '', children }) {
+  const { t } = useLanguage()
+  const trend = comparison?.trend || 'unavailable'
+  const trendSymbols = { up: '↑', down: '↓', neutral: '•', unavailable: '—' }
+  const trendLabels = {
+    up: t('admin.trendUp'),
+    down: t('admin.trendDown'),
+    neutral: t('admin.trendNeutral'),
+    unavailable: t('admin.comparisonUnavailable'),
+  }
+  const hasDelta = Number.isFinite(comparison?.delta_percent)
+  const comparisonLabel = trend === 'unavailable'
+    ? t('admin.comparisonUnavailable')
+    : t('admin.comparedToYesterday')
+  const accessibleComparison = trend === 'unavailable'
+    ? comparisonLabel
+    : `${trendLabels[trend]}${hasDelta ? ` ${Math.abs(comparison.delta_percent)}%` : ''}. ${comparisonLabel}`
+
+  return (
+    <article className={`admin-stat-card admin-stat-card--${tone} ${className}`.trim()}>
+      <span><DashboardKpiIcon name={icon} /></span>
+      <div>
+        <small>{label}</small>
+        <strong>{value}</strong>
+        {children || (
+          <p className={`admin-stat-comparison is-${trend}`} aria-label={accessibleComparison}>
+            <span aria-hidden="true">{trendSymbols[trend]}</span>
+            {hasDelta && <b aria-hidden="true">{Math.abs(comparison.delta_percent)}%</b>}
+            <span aria-hidden="true">{comparisonLabel}</span>
+          </p>
+        )}
+      </div>
+    </article>
+  )
 }
 
 export default function AdminDashboardPage() {
@@ -17,25 +76,28 @@ export default function AdminDashboardPage() {
   const quickActions = [
     ['/admin/menu?create=1', 'menu', t('admin.addMenuItem')], ['/admin/categories?create=1', 'category', t('admin.addCategory')], ['/admin/tables?create=1', 'tables', t('admin.addTable')], ['/admin/orders', 'orders', t('admin.viewOrders')], ['/admin/waiters?create=1', 'users', t('admin.addWaiter')],
   ]
-  const [data, setData] = useState({ today: null, overall: null, orders: [], menu: [], users: [] })
+  const [data, setData] = useState({ kpis: null, orders: [], menu: [], users: [] })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const activeTables = Number(data.kpis?.active_tables?.value ?? 0)
+  const totalTables = Number(data.kpis?.active_tables?.total ?? 0)
+  const occupancyPercentage = totalTables > 0
+    ? Math.round((activeTables / totalTables) * 100)
+    : 0
+  const occupancyProgress = Math.min(Math.max(occupancyPercentage, 0), 100)
 
   useEffect(() => {
     if (!restaurantId) return
     let active = true
-    const today = localDateString()
     Promise.all([
-      adminApiClient.get('/api/admin/statistics/summary/', { params: { restaurant: restaurantId, date_from: today, date_to: today } }),
-      adminApiClient.get('/api/admin/statistics/summary/', { params: { restaurant: restaurantId } }),
+      adminApiClient.get('/api/admin/statistics/summary/', { params: { restaurant: restaurantId, include_dashboard_comparison: true } }),
       adminApiClient.get('/api/admin/orders/', { params: { restaurant: restaurantId } }),
       adminApiClient.get('/api/admin/menu-items/'),
       adminApiClient.get('/api/admin/users/'),
-    ]).then(([todayResponse, overallResponse, ordersResponse, menuResponse, usersResponse]) => {
+    ]).then(([statisticsResponse, ordersResponse, menuResponse, usersResponse]) => {
       if (!active) return
       setData({
-        today: todayResponse.data,
-        overall: overallResponse.data,
+        kpis: statisticsResponse.data.dashboard_kpis || null,
         orders: ordersResponse.data.slice(0, 6),
         menu: menuResponse.data.filter((item) => item.restaurant === restaurantId).slice(0, 5),
         users: usersResponse.data,
@@ -54,10 +116,33 @@ export default function AdminDashboardPage() {
       <ErrorBanner message={layoutError || error} />
 
       <section className="admin-stat-grid">
-        <StatCard icon="orders" tone="green" label={t('admin.todayOrders')} value={data.today?.total_orders ?? 0} note={t('common.today')} />
-        <StatCard icon="dashboard" tone="blue" label={t('admin.completedOrders')} value={data.today?.completed_orders ?? 0} note={t('common.today')} />
-        <StatCard icon="tables" tone="orange" label={t('admin.activeTables')} value={data.overall?.active_table_sessions ?? 0} note={t('common.current')} />
-        <StatCard icon="stats" tone="purple" label={t('admin.todayRevenue')} value={formatAdminMoney(data.today?.completed_amount)} note={t('admin.closedOrders')} />
+        <StatCard icon="orders" tone="green" label={t('admin.todayOrders')} value={data.kpis?.today_orders?.value ?? '—'} comparison={data.kpis?.today_orders} />
+        <StatCard icon="completed" tone="green" label={t('admin.completedOrders')} value={data.kpis?.completed_orders?.value ?? '—'} comparison={data.kpis?.completed_orders} />
+        <StatCard
+          icon="tables"
+          tone="orange"
+          label={t('admin.activeTables')}
+          value={data.kpis?.active_tables ? `${activeTables}/${totalTables}` : '—'}
+          className="admin-stat-card--occupancy"
+        >
+          <div className="admin-stat-occupancy">
+            <div className="admin-stat-occupancy__label">
+              <span>{t('admin.occupancy')}</span>
+              <strong>{occupancyPercentage}%</strong>
+            </div>
+            <div
+              className="admin-stat-occupancy__track"
+              role="progressbar"
+              aria-label={t('admin.occupancy')}
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow={occupancyProgress}
+            >
+              <span style={{ width: `${occupancyProgress}%` }} />
+            </div>
+          </div>
+        </StatCard>
+        <StatCard icon="wallet" tone="green" label={t('admin.todayRevenue')} value={data.kpis?.today_revenue ? formatAdminMoney(data.kpis.today_revenue.value) : '—'} comparison={data.kpis?.today_revenue} />
       </section>
 
       <div className="admin-dashboard-grid">
@@ -91,7 +176,7 @@ export default function AdminDashboardPage() {
         <section className="admin-panel">
           <header><div><h2>{t('admin.quickActions')}</h2></div></header>
           <div className="admin-quick-actions">
-            {quickActions.map(([to, icon, label]) => <Link to={to} key={label}><span><AdminIcon name={icon} /></span><strong>{label}</strong><AdminIcon name="chevron" /></Link>)}
+            {quickActions.map(([to, icon, label]) => <Link to={to} key={label}><span>{icon === 'tables' ? <TableIcon /> : <AdminIcon name={icon} />}</span><strong>{label}</strong><AdminIcon name="chevron" /></Link>)}
           </div>
         </section>
 

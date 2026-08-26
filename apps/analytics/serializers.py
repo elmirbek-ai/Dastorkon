@@ -5,6 +5,43 @@ class StatisticsFilterSerializer(serializers.Serializer):
     restaurant = serializers.IntegerField(required=False)
     date_from = serializers.DateField(required=False)
     date_to = serializers.DateField(required=False)
+    include_dashboard_comparison = serializers.BooleanField(
+        required=False,
+        default=False,
+    )
+
+
+class IntegerComparisonSerializer(serializers.Serializer):
+    value = serializers.IntegerField()
+    previous = serializers.IntegerField(allow_null=True)
+    delta_percent = serializers.IntegerField(allow_null=True)
+    trend = serializers.ChoiceField(
+        choices=("up", "down", "neutral", "unavailable"),
+    )
+
+
+class ActiveTablesComparisonSerializer(IntegerComparisonSerializer):
+    total = serializers.IntegerField()
+
+
+class RevenueComparisonSerializer(serializers.Serializer):
+    value = serializers.DecimalField(max_digits=14, decimal_places=2)
+    previous = serializers.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        allow_null=True,
+    )
+    delta_percent = serializers.IntegerField(allow_null=True)
+    trend = serializers.ChoiceField(
+        choices=("up", "down", "neutral", "unavailable"),
+    )
+
+
+class DashboardKpisSerializer(serializers.Serializer):
+    today_orders = IntegerComparisonSerializer()
+    completed_orders = IntegerComparisonSerializer()
+    active_tables = ActiveTablesComparisonSerializer()
+    today_revenue = RevenueComparisonSerializer()
 
 
 class PopularItemSerializer(serializers.Serializer):
@@ -43,3 +80,4 @@ class StatisticsSummarySerializer(serializers.Serializer):
     popular_items = PopularItemSerializer(many=True)
     table_stats = TableStatsSerializer(many=True)
     waiter_stats = WaiterStatsSerializer(many=True)
+    dashboard_kpis = DashboardKpisSerializer(required=False)

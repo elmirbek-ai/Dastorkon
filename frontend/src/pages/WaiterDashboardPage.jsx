@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { waiterApiClient, WAITER_TOKEN_KEY } from '../api/client.js'
 import ConnectionStatus from '../components/ConnectionStatus.jsx'
+import TableIcon from '../components/TableIcon.jsx'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getBackendErrorMessage, getLocalizedField, getStatusLabel } from '../i18n/index.js'
 import useNotificationsSocket from '../realtime/useNotificationsSocket.js'
@@ -57,7 +58,6 @@ function AppIcon({ name }) {
   const paths = {
     orders: <><path d="M6 4h12v16H6z" /><path d="M9 8h6M9 12h6M9 16h4" /></>,
     manualOrder: <><path d="m4 6 1.4 1.4L8 4.8M10.5 6H20M4 12l1.4 1.4L8 10.8M10.5 12H20M4 18l1.4 1.4L8 16.8M10.5 18H20" /></>,
-    tables: <><path d="M4 10h16M7 10v9m10-9v9M6 19h12" /><path d="M8 5h8v5H8z" /></>,
     bell: <><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 8h18c0-1-3-1-3-8" /><path d="M10 21h4" /></>,
     ready: <><circle cx="12" cy="12" r="9" /><path d="m8 12 2.6 2.6L16.5 9" /></>,
     menu: <><path d="M5 5h14v14H5z" /><path d="M8 9h8M8 13h8M8 17h5" /></>,
@@ -151,7 +151,7 @@ function WaiterBottomNav({ activeView, counts, onChange }) {
             key={item.id}
           >
             <span>
-              <AppIcon name={item.icon} />
+              {item.icon === 'tables' ? <TableIcon /> : <AppIcon name={item.icon} />}
               {count > 0 && <b>{count > 99 ? '99+' : count}</b>}
             </span>
             <small>{item.label}</small>
@@ -167,7 +167,7 @@ function OverviewSection({ icon, tone, title, count, onViewAll, children, emptyT
   return (
     <section className={`waiter-overview-section waiter-overview-section--${tone}`}>
       <header>
-        <span className="waiter-overview-icon" aria-hidden="true"><AppIcon name={icon} /></span>
+        <span className="waiter-overview-icon" aria-hidden="true">{icon === 'tables' ? <TableIcon /> : <AppIcon name={icon} />}</span>
         <div>
           <h2>{title}</h2>
           <small>{t('waiter.activeCount', { count })}</small>

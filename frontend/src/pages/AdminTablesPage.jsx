@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import QRCode from 'qrcode'
 import { adminApiClient } from '../api/client.js'
 import { AdminIcon, AdminModal, EmptyState, ErrorBanner, LoadingState, PageIntro, Toggle } from '../components/admin/AdminComponents.jsx'
+import TableIcon from '../components/TableIcon.jsx'
 import { useAdminContext } from '../components/admin/AdminContext.js'
 import { useConfirm } from '../components/confirmation/useConfirm.js'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
@@ -371,7 +372,7 @@ export default function AdminTablesPage() {
           {tables.map((table) => (
             <article className="admin-table-card admin-table-card--simple" key={table.id}>
               <header>
-                <span><AdminIcon name="tables" /></span>
+                <span><TableIcon /></span>
                 <div><h2>{t('customer.tableLabel', { number: table.number })}</h2></div>
                 <b className={!table.is_active ? 'is-inactive' : table.status === 'OCCUPIED' ? 'is-occupied' : ''}>{!table.is_active ? t('admin.inactive') : table.status === 'OCCUPIED' ? t('admin.occupied') : t('admin.free')}</b>
               </header>

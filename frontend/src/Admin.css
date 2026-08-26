@@ -486,6 +486,88 @@
 
 .admin-stat-card p { margin: 0; }
 
+.admin-stat-comparison {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px !important;
+  font-weight: 750;
+}
+
+.admin-stat-comparison > span:first-child {
+  display: inline-grid;
+  width: 14px;
+  flex: 0 0 14px;
+  place-items: center;
+  font-size: 0.78rem;
+}
+
+.admin-stat-comparison > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-stat-comparison b {
+  font-size: 0.66rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-stat-comparison.is-up {
+  color: var(--success-dark);
+}
+
+.admin-stat-comparison.is-down {
+  color: var(--warning-dark);
+}
+
+.admin-stat-comparison.is-neutral,
+.admin-stat-comparison.is-unavailable {
+  color: var(--text-muted);
+}
+
+.admin-stat-card--occupancy > div {
+  flex: 1;
+}
+
+.admin-stat-occupancy {
+  display: grid;
+  gap: 5px;
+  margin-top: 3px;
+}
+
+.admin-stat-occupancy__label {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 0.65rem;
+  font-weight: 750;
+}
+
+.admin-stat-occupancy__label strong {
+  flex: 0 0 auto;
+  color: var(--success-dark);
+  font-size: 0.68rem;
+  letter-spacing: 0;
+}
+
+.admin-stat-occupancy__track {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--success-bg);
+}
+
+.admin-stat-occupancy__track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--success);
+}
+
 .admin-dashboard-grid,
 .admin-statistics-grid,
 .admin-settings-grid {

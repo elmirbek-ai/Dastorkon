@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import apiClient, { resolveApiAssetUrl } from '../api/client.js'
 import LanguageSwitch from '../components/LanguageSwitch.jsx'
 import MenuItemBadges from '../components/MenuItemBadges.jsx'
+import TableIcon from '../components/TableIcon.jsx'
 import { useConfirm } from '../components/confirmation/useConfirm.js'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getBackendErrorMessage, getLocalizedField, getStatusLabel } from '../i18n/index.js'
@@ -145,9 +146,7 @@ function CustomerContextBar({ tableNumber, orderCount, onOrdersClick }) {
     <section className="customer-context-bar" aria-label={t('customer.tableLabel', { number: tableNumber })}>
       <div className="customer-context-bar__table">
         <span className="customer-context-bar__icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24">
-          <path d="M5 9h14M7 9v10m10-10v10M4 19h16M8 5h8v4H8z" />
-        </svg>
+          <TableIcon />
         </span>
         <div>
           <small>{t('customer.yourTable')}</small>
@@ -1101,7 +1100,7 @@ function CartReviewSheet({
           <div className="checkout-review">
             <div className="checkout-review__order">
               <section className="checkout-table-card">
-                <span aria-hidden="true">⌑</span>
+                <span aria-hidden="true"><TableIcon /></span>
                 <div>
                   <small>{t('customer.yourTable')}</small>
                   <strong>{t('customer.tableLabel', { number: tableNumber })}</strong>

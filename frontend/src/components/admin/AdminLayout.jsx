@@ -6,6 +6,7 @@ import { AdminIcon, LoadingState, RequestErrorState } from './AdminComponents.js
 import { AdminContext } from './AdminContext.js'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import LanguageSwitch from '../LanguageSwitch.jsx'
+import TableIcon from '../TableIcon.jsx'
 
 function AdminSidebar({ restaurant, open, onClose, onLogout }) {
   const location = useLocation()
@@ -30,7 +31,7 @@ function AdminSidebar({ restaurant, open, onClose, onLogout }) {
           {navigation.map((item) => {
             const [pathname, search = ''] = item.to.split('?')
             const active = location.pathname === pathname && (item.exactQuery ? !location.search : search ? location.search === `?${search}` : true)
-            return <NavLink className={active ? 'is-active' : ''} to={item.to} onClick={onClose} key={item.label}><AdminIcon name={item.icon} /><span>{item.label}</span></NavLink>
+            return <NavLink className={active ? 'is-active' : ''} to={item.to} onClick={onClose} key={item.label}>{item.icon === 'tables' ? <TableIcon /> : <AdminIcon name={item.icon} />}<span>{item.label}</span></NavLink>
           })}
         </nav>
         <div className="admin-sidebar-bottom">

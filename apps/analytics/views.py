@@ -18,5 +18,13 @@ class StatisticsSummaryView(APIView):
     def get(self, request):
         filter_serializer = StatisticsFilterSerializer(data=request.query_params)
         filter_serializer.is_valid(raise_exception=True)
-        summary = get_statistics_summary(filter_serializer.validated_data)
+        filters = dict(filter_serializer.validated_data)
+        include_dashboard_comparison = filters.pop(
+            "include_dashboard_comparison",
+            False,
+        )
+        summary = get_statistics_summary(
+            filters,
+            include_dashboard_comparison=include_dashboard_comparison,
+        )
         return Response(StatisticsSummarySerializer(summary).data)
