@@ -838,7 +838,7 @@
   font-weight: 800;
 }
 
-.admin-row-actions button svg { width: 17px; height: 17px; }
+.admin-row-actions button svg { width: 18px; height: 18px; }
 .admin-row-actions button.is-danger { border-color: #fecaca; color: #b42318; background: #fff8f8; }
 
 .admin-toggle {
@@ -2176,6 +2176,14 @@
   border-color: var(--border);
   color: var(--text-secondary);
   background: var(--surface);
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
+}
+
+.admin-topbar-actions > button:not(.admin-logout-button):hover:not(:disabled),
+.admin-menu-toggle:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+  background: var(--surface-hover);
 }
 
 .admin-menu-toggle span {
@@ -2737,6 +2745,17 @@
 
 .admin-modal > header button:hover {
   background: var(--surface-hover);
+}
+
+.admin-row-actions button,
+.admin-modal > header button {
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
+}
+
+.admin-modal > header button svg,
+.admin-logout-button svg {
+  width: 18px;
+  height: 18px;
 }
 
 .admin-role-helper {

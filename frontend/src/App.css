@@ -1370,6 +1370,7 @@ button:disabled {
   background: var(--surface-secondary);
   font-size: 1.35rem;
   cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease;
 }
 
 .cart-sheet__heading > button:hover {
@@ -1478,6 +1479,7 @@ button:disabled {
   color: var(--error-dark);
   background: var(--error-bg);
   cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
 }
 
 .cart-sheet-item__remove span {
@@ -1771,6 +1773,7 @@ button:disabled {
   background: var(--surface-secondary);
   font-size: 1.3rem;
   cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease;
 }
 
 .waiter-reasons {
@@ -3103,6 +3106,7 @@ body:has(.customer-orders-page) {
   font-size: 0.78rem;
   font-weight: 800;
   cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
 }
 
 .kitchen-header__actions button:hover:not(:disabled) {
@@ -3118,6 +3122,11 @@ body:has(.customer-orders-page) {
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 1.8;
+}
+
+.kitchen-display button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
 }
 
 .kitchen-header__actions .kitchen-logout {
@@ -6149,13 +6158,20 @@ body:has(.customer-orders-page) {
 .waiter-header-tools > button {
   position: relative;
   display: grid;
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   place-items: center;
   border: 1px solid var(--border);
   border-radius: 50%;
   background: var(--surface);
   color: var(--text-primary);
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
+}
+
+.waiter-header-tools > button:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  color: var(--secondary);
+  background: var(--surface-hover);
 }
 
 .waiter-header-tools > button svg {
@@ -6519,12 +6535,19 @@ body:has(.customer-orders-page) {
 
 .waiter-overview-section > header > button {
   display: grid;
-  width: 42px;
+  width: 44px;
   height: 44px;
   place-items: center;
   border: 0;
+  border-radius: 12px;
   color: var(--text-muted);
   background: transparent;
+  transition: color 150ms ease, background-color 150ms ease;
+}
+
+.waiter-overview-section > header > button:hover:not(:disabled) {
+  color: var(--secondary);
+  background: var(--surface-hover);
 }
 
 .waiter-overview-section > header > button svg {
@@ -10478,6 +10501,7 @@ button.waiter-back-icon-button:focus-visible {
   color: #c2410c;
   background: #fff7ed;
   cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
 }
 
 .customer-menu .checkout-item__remove span {
@@ -11333,7 +11357,12 @@ body:has(.customer-menu) {
 .customer-menu .quantity-stepper button:focus-visible,
 .customer-menu .order-button:focus-visible,
 .customer-menu .mobile-cart-bar:focus-visible,
-.customer-menu .empty-message__action:focus-visible {
+.customer-menu .empty-message__action:focus-visible,
+.customer-menu .cart-sheet__heading > button:focus-visible,
+.customer-menu .cart-sheet-item__remove:focus-visible,
+.customer-menu .checkout-item__remove:focus-visible,
+.customer-menu .waiter-fab:focus-visible,
+.customer-menu .waiter-sheet__heading > button:focus-visible {
   outline: 3px solid rgba(23, 107, 58, 0.28);
   outline-offset: 2px;
 }
