@@ -1,6 +1,6 @@
 import { cloneElement, useEffect, useState } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { getTokenExpiryMs, roleDestinations, roleLoginPaths, verifyRoleToken } from './roleAuth.js'
+import { getTokenExpiryMs, roleDestinations, roleLoginPaths, roleTokenKeys, verifyRoleToken, verifyStaffSession } from './roleAuth.js'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 
 function RoleCheckLoading() {
@@ -40,17 +40,18 @@ export function ProtectedRoleRoute({ tokenKey, expectedRole, children }) {
   return <Navigate to={roleLoginPaths[expectedRole]} replace state={{ authError: result.message, from: location.pathname }} />
 }
 
-export function RoleLoginRoute({ tokenKey, expectedRole, children }) {
-  const [result, setResult] = useState(() => localStorage.getItem(tokenKey) ? null : { status: 'missing' })
+export function StaffLoginRoute({ children }) {
+  const hasStoredToken = Object.values(roleTokenKeys).some((tokenKey) => localStorage.getItem(tokenKey))
+  const [result, setResult] = useState(() => hasStoredToken ? null : { status: 'missing' })
 
   useEffect(() => {
-    if (!localStorage.getItem(tokenKey)) return
+    if (!hasStoredToken) return
     let active = true
-    verifyRoleToken({ tokenKey, expectedRole }).then((value) => active && setResult(value))
+    verifyStaffSession().then((value) => active && setResult(value))
     return () => { active = false }
-  }, [tokenKey, expectedRole])
+  }, [hasStoredToken])
 
   if (!result) return <RoleCheckLoading />
-  if (result.status === 'valid') return <Navigate to={roleDestinations[expectedRole]} replace />
+  if (result.status === 'valid') return <Navigate to={roleDestinations[result.role]} replace />
   return result.status === 'denied' ? cloneElement(children, { guardError: result.message }) : children
 }

@@ -1,4 +1,4 @@
-import apiClient from '../api/client.js'
+import apiClient, { ADMIN_TOKEN_KEY, KITCHEN_TOKEN_KEY, WAITER_TOKEN_KEY } from '../api/client.js'
 import { getStoredLanguage, t } from '../i18n/index.js'
 
 export const roleDestinations = {
@@ -8,9 +8,15 @@ export const roleDestinations = {
 }
 
 export const roleLoginPaths = {
-  ADMIN: '/admin/login',
-  WAITER: '/waiter/login',
-  KITCHEN: '/kitchen/login',
+  ADMIN: '/login',
+  WAITER: '/login',
+  KITCHEN: '/login',
+}
+
+export const roleTokenKeys = {
+  ADMIN: ADMIN_TOKEN_KEY,
+  WAITER: WAITER_TOKEN_KEY,
+  KITCHEN: KITCHEN_TOKEN_KEY,
 }
 
 function localizedWrongRole(language = getStoredLanguage()) {
@@ -48,6 +54,27 @@ export async function loginForRole({ username, password, expectedRole, tokenKey 
   return user
 }
 
+export async function loginForStaff({ username, password }) {
+  const tokenResponse = await apiClient.post('/api/auth/token/', { username, password })
+  const user = await getCurrentUser(tokenResponse.data.access)
+
+  if (!user.is_active) {
+    const error = new Error(t(getStoredLanguage(), 'auth.inactive'))
+    error.code = 'INACTIVE'
+    throw error
+  }
+
+  const tokenKey = roleTokenKeys[user.role]
+  if (!tokenKey || !roleDestinations[user.role]) {
+    const error = new Error(t(getStoredLanguage(), 'auth.unsupportedRole'))
+    error.code = 'UNSUPPORTED_ROLE'
+    throw error
+  }
+
+  localStorage.setItem(tokenKey, tokenResponse.data.access)
+  return user
+}
+
 export async function verifyRoleToken({ tokenKey, expectedRole }) {
   const token = localStorage.getItem(tokenKey)
   if (!token) return { status: 'missing' }
@@ -70,13 +97,29 @@ export async function verifyRoleToken({ tokenKey, expectedRole }) {
   }
 }
 
-export function roleLoginError(error, expectedRole, language = getStoredLanguage()) {
-  if (error.code === 'WRONG_ROLE') return localizedWrongRole(language)
+export async function verifyStaffSession() {
+  const storedRoles = Object.entries(roleTokenKeys).filter(([, tokenKey]) => localStorage.getItem(tokenKey))
+  if (storedRoles.length === 0) return { status: 'missing' }
+
+  const results = await Promise.all(storedRoles.map(async ([role, tokenKey]) => ({
+    role,
+    result: await verifyRoleToken({ tokenKey, expectedRole: role }),
+  })))
+  const validSession = results.find(({ result }) => result.status === 'valid')
+  if (validSession) return { ...validSession.result, role: validSession.role }
+
+  return results.find(({ result }) => result.status === 'denied')?.result || { status: 'missing' }
+}
+
+export function staffLoginError(error, language = getStoredLanguage()) {
+  if (error.code === 'UNSUPPORTED_ROLE') return t(language, 'auth.unsupportedRole')
   if (error.code === 'INACTIVE') return t(language, 'auth.inactive')
   const detail = error.response?.data?.detail
   if (typeof detail === 'string' && detail.toLowerCase().includes('inactive')) return t(language, 'auth.inactive')
-  if (typeof detail === 'string' && detail.toLowerCase().includes('no active account')) {
-    return t(language, 'auth.invalidCredentials')
-  }
   return t(language, 'auth.invalidCredentials')
+}
+
+export function roleLoginError(error, expectedRole, language = getStoredLanguage()) {
+  if (error.code === 'WRONG_ROLE') return localizedWrongRole(language)
+  return staffLoginError(error, language)
 }

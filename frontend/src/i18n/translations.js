@@ -50,17 +50,33 @@ Object.assign(translations.ru.common, {
 })
 
 Object.assign(translations.ky.auth, {
+  username: 'Логин',
   roleNotAllowed: 'Бул аккаунт бул панелге кире албайт.',
   restaurantOS: 'Ресторан системасы',
   staffLogin: 'Кызматкерлер үчүн кирүү',
+  staffAccount: 'Кызматкер аккаунту',
+  unifiedWelcome: "Dastorkon'го кош келиңиз",
+  unifiedWelcomeDescription: 'Ресторан командасы үчүн башкаруу системасы.',
+  unifiedLoginTitle: 'Кирүү',
+  usernamePlaceholder: 'Логиниңизди жазыңыз',
+  passwordPlaceholder: 'Сырсөзүңүздү жазыңыз',
+  unsupportedRole: 'Бул аккаунттун ролу колдоого алынбайт.',
   showPassword: 'Көрсөтүү',
   hidePassword: 'Жашыруу',
 })
 
 Object.assign(translations.ru.auth, {
+  username: 'Логин',
   roleNotAllowed: 'Этот аккаунт не может войти в эту панель.',
   restaurantOS: 'Ресторанная система',
   staffLogin: 'Вход для сотрудников',
+  staffAccount: 'Аккаунт сотрудника',
+  unifiedWelcome: 'Добро пожаловать в Dastorkon',
+  unifiedWelcomeDescription: 'Система управления для команды ресторана.',
+  unifiedLoginTitle: 'Вход',
+  usernamePlaceholder: 'Введите логин',
+  passwordPlaceholder: 'Введите пароль',
+  unsupportedRole: 'Роль этого аккаунта не поддерживается.',
   showPassword: 'Показать',
   hidePassword: 'Скрыть',
 })
