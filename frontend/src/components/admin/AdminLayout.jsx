@@ -7,6 +7,7 @@ import { AdminContext } from './AdminContext.js'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import LanguageSwitch from '../LanguageSwitch.jsx'
 import TableIcon from '../TableIcon.jsx'
+import WaiterIcon from '../WaiterIcon.jsx'
 
 function AdminSidebar({ restaurant, open, onClose, onLogout }) {
   const location = useLocation()
@@ -17,7 +18,7 @@ function AdminSidebar({ restaurant, open, onClose, onLogout }) {
     { to: '/admin/categories', label: t('admin.categories'), icon: 'category' },
     { to: '/admin/tables', label: t('admin.tables'), icon: 'tables' },
     { to: '/admin/orders', label: t('admin.orders'), icon: 'orders' },
-    { to: '/admin/waiters', label: t('admin.waiters'), icon: 'users' },
+    { to: '/admin/waiters', label: t('admin.waiters'), icon: 'waiter' },
     { to: '/admin/profiles', label: t('admin.profiles'), icon: 'profile' },
     { to: '/admin/statistics', label: t('admin.statistics'), icon: 'stats' },
     { to: '/admin/settings', label: t('admin.settings'), icon: 'settings' },
@@ -31,7 +32,7 @@ function AdminSidebar({ restaurant, open, onClose, onLogout }) {
           {navigation.map((item) => {
             const [pathname, search = ''] = item.to.split('?')
             const active = location.pathname === pathname && (item.exactQuery ? !location.search : search ? location.search === `?${search}` : true)
-            return <NavLink className={active ? 'is-active' : ''} to={item.to} onClick={onClose} key={item.label}>{item.icon === 'tables' ? <TableIcon /> : <AdminIcon name={item.icon} />}<span>{item.label}</span></NavLink>
+            return <NavLink className={active ? 'is-active' : ''} to={item.to} onClick={onClose} key={item.label}>{item.icon === 'tables' ? <TableIcon /> : item.icon === 'waiter' ? <WaiterIcon /> : <AdminIcon name={item.icon} />}<span>{item.label}</span></NavLink>
           })}
         </nav>
         <div className="admin-sidebar-bottom">

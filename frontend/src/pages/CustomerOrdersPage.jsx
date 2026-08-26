@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import apiClient from '../api/client.js'
 import ConnectionStatus from '../components/ConnectionStatus.jsx'
+import WaiterIcon from '../components/WaiterIcon.jsx'
 import { CustomerHeader, OrderHistory, WaiterCallSheet } from './CustomerMenuPage.jsx'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getBackendErrorMessage } from '../i18n/index.js'
@@ -152,7 +153,7 @@ function CustomerOrdersPage() {
           type="button"
           onClick={() => setWaiterSheetOpen(true)}
         >
-          <span aria-hidden="true">♧</span> {t('customer.callWaiter')}
+          <span aria-hidden="true"><WaiterIcon /></span> {t('customer.callWaiter')}
         </button>
       </div>
 

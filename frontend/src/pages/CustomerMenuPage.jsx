@@ -4,6 +4,7 @@ import apiClient, { resolveApiAssetUrl } from '../api/client.js'
 import LanguageSwitch from '../components/LanguageSwitch.jsx'
 import MenuItemBadges from '../components/MenuItemBadges.jsx'
 import TableIcon from '../components/TableIcon.jsx'
+import WaiterIcon from '../components/WaiterIcon.jsx'
 import { useConfirm } from '../components/confirmation/useConfirm.js'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getBackendErrorMessage, getLocalizedField, getStatusLabel } from '../i18n/index.js'
@@ -1268,7 +1269,7 @@ function WaiterCallButton({ raised, onOpen }) {
       onClick={onOpen}
       aria-label={t('customer.callWaiter')}
     >
-      <span aria-hidden="true">♧</span>
+      <span aria-hidden="true"><WaiterIcon /></span>
       <small>{t('common.waiter')}</small>
     </button>
   )
@@ -1277,7 +1278,7 @@ function WaiterCallButton({ raised, onOpen }) {
 export function WaiterCallSheet({ open, sending, onClose, onCall }) {
   const { t } = useLanguage()
   const waiterReasons = [
-    { value: 'WAITER_NEEDED', label: t('customer.waiterNeeded'), subtitle: t('customer.waiterNeededHelp'), icon: '🙋' },
+    { value: 'WAITER_NEEDED', label: t('customer.waiterNeeded'), subtitle: t('customer.waiterNeededHelp'), icon: <WaiterIcon /> },
     { value: 'BILL_REQUEST', label: t('customer.billRequest'), subtitle: t('customer.billRequestHelp'), icon: '🧾' },
     { value: 'EXTRA_ORDER', label: t('customer.extraOrder'), subtitle: t('customer.extraOrderHelp'), icon: '＋' },
     { value: 'HELP_NEEDED', label: t('customer.helpNeeded'), subtitle: t('customer.helpNeededHelp'), icon: '💬' },

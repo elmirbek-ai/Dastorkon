@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { adminApiClient } from '../api/client.js'
 import { AdminIcon, EmptyState, ErrorBanner, LoadingState, PageIntro, StatusBadge } from '../components/admin/AdminComponents.jsx'
 import TableIcon from '../components/TableIcon.jsx'
+import WaiterIcon from '../components/WaiterIcon.jsx'
 import { formatAdminDate, formatAdminMoney } from '../components/admin/adminUtils.js'
 import { useAdminContext } from '../components/admin/AdminContext.js'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
@@ -74,7 +75,7 @@ export default function AdminDashboardPage() {
   const { restaurantId, loadingRestaurant, layoutError, refreshKey, handleApiError } = useAdminContext()
   const { language, t } = useLanguage()
   const quickActions = [
-    ['/admin/menu?create=1', 'menu', t('admin.addMenuItem')], ['/admin/categories?create=1', 'category', t('admin.addCategory')], ['/admin/tables?create=1', 'tables', t('admin.addTable')], ['/admin/orders', 'orders', t('admin.viewOrders')], ['/admin/waiters?create=1', 'users', t('admin.addWaiter')],
+    ['/admin/menu?create=1', 'menu', t('admin.addMenuItem')], ['/admin/categories?create=1', 'category', t('admin.addCategory')], ['/admin/tables?create=1', 'tables', t('admin.addTable')], ['/admin/orders', 'orders', t('admin.viewOrders')], ['/admin/waiters?create=1', 'waiter', t('admin.addWaiter')],
   ]
   const [data, setData] = useState({ kpis: null, orders: [], menu: [], users: [] })
   const [loading, setLoading] = useState(true)
@@ -176,7 +177,7 @@ export default function AdminDashboardPage() {
         <section className="admin-panel">
           <header><div><h2>{t('admin.quickActions')}</h2></div></header>
           <div className="admin-quick-actions">
-            {quickActions.map(([to, icon, label]) => <Link to={to} key={label}><span>{icon === 'tables' ? <TableIcon /> : <AdminIcon name={icon} />}</span><strong>{label}</strong><AdminIcon name="chevron" /></Link>)}
+            {quickActions.map(([to, icon, label]) => <Link to={to} key={label}><span>{icon === 'tables' ? <TableIcon /> : icon === 'waiter' ? <WaiterIcon /> : <AdminIcon name={icon} />}</span><strong>{label}</strong><AdminIcon name="chevron" /></Link>)}
           </div>
         </section>
 
