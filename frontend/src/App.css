@@ -7327,7 +7327,7 @@ body:has(.customer-orders-page) {
 .waiter-manual-order-launch {
   display: grid;
   width: 100%;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   grid-template-columns: 46px minmax(0, 1fr) 20px;
   align-items: center;
   gap: 12px;
@@ -7346,7 +7346,7 @@ body:has(.customer-orders-page) {
   width: 46px;
   height: 46px;
   place-items: center;
-  border: 1px solid #b7e4c7;
+  border: 1px solid var(--border);
   border-radius: 14px;
   color: #166534;
   background: #ecfdf3;
@@ -7358,7 +7358,7 @@ body:has(.customer-orders-page) {
   height: 21px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.9;
+  stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -8212,7 +8212,7 @@ body:has(.customer-orders-page) {
   }
 
   .waiter-manual-order-launch {
-    margin-bottom: 22px;
+    margin-bottom: 28px;
   }
 
   .waiter-profile-card {
