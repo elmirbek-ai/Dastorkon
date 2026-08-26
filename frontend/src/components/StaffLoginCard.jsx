@@ -2,6 +2,16 @@ import { useState } from 'react'
 import LanguageSwitch from './LanguageSwitch.jsx'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 
+function PasswordVisibilityIcon({ visible }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+      <circle cx="12" cy="12" r="2.5" />
+      {visible && <path d="m4 4 16 16" />}
+    </svg>
+  )
+}
+
 export default function StaffLoginCard({
   pageClass,
   title,
@@ -18,6 +28,7 @@ export default function StaffLoginCard({
   const [passwordVisible, setPasswordVisible] = useState(false)
   const titleId = `${pageClass}-title`
   const errorId = `${pageClass}-error`
+  const passwordVisibilityLabel = passwordVisible ? t('auth.hidePassword') : t('auth.showPassword')
 
   return (
     <main className={`staff-login-page ${pageClass}`}>
@@ -71,8 +82,10 @@ export default function StaffLoginCard({
                 onClick={() => setPasswordVisible((visible) => !visible)}
                 disabled={submitting}
                 aria-pressed={passwordVisible}
+                aria-label={passwordVisibilityLabel}
+                title={passwordVisibilityLabel}
               >
-                {passwordVisible ? t('auth.hidePassword') : t('auth.showPassword')}
+                <PasswordVisibilityIcon visible={passwordVisible} />
               </button>
             </span>
           </label>

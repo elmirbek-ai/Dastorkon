@@ -5622,22 +5622,41 @@ body:has(.customer-orders-page) {
 }
 
 .staff-login-password-field input {
-  padding-right: 92px;
+  padding-right: 54px;
 }
 
 .staff-login-password-field button {
   position: absolute;
   top: 50%;
-  right: 12px;
-  padding: 6px;
+  right: 7px;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  padding: 0;
   border: 0;
+  border-radius: 10px;
   color: var(--primary);
   background: transparent;
   font: inherit;
-  font-size: 0.78rem;
-  font-weight: 850;
   cursor: pointer;
   transform: translateY(-50%);
+  transition: color 140ms ease, background 140ms ease;
+}
+
+.staff-login-password-field button:hover:not(:disabled) {
+  color: var(--primary-hover);
+  background: var(--primary-light);
+}
+
+.staff-login-password-field button svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .staff-login-password-field button:focus-visible {
