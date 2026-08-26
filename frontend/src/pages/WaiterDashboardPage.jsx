@@ -56,6 +56,7 @@ function timeAgo(value, language, translate) {
 function AppIcon({ name }) {
   const paths = {
     orders: <><path d="M6 4h12v16H6z" /><path d="M9 8h6M9 12h6M9 16h4" /></>,
+    manualOrder: <><rect x="4" y="3.5" width="16" height="17" rx="3" /><path d="m7.5 9 1.4 1.4 2.6-2.6M13.5 9h3M7.5 15l1.4 1.4 2.6-2.6M13.5 15h3" /></>,
     tables: <><path d="M4 10h16M7 10v9m10-9v9M6 19h12" /><path d="M8 5h8v5H8z" /></>,
     bell: <><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 8h18c0-1-3-1-3-8" /><path d="M10 21h4" /></>,
     ready: <><circle cx="12" cy="12" r="9" /><path d="m8 12 2.6 2.6L16.5 9" /></>,
@@ -630,7 +631,7 @@ function WaiterDashboardPage() {
 
         {activeView === 'overview' && (
           <button className="waiter-manual-order-launch" type="button" onClick={() => navigate('/waiter/manual-order')} disabled={!shift}>
-            <span aria-hidden="true"><AppIcon name="orders" /></span>
+            <span aria-hidden="true"><AppIcon name="manualOrder" /></span>
             <span><strong>{t('waiter.manualOrder')}</strong><small>{shift ? t('waiter.manualOrderShortHelp') : t('waiter.startShiftFirst')}</small></span>
             <AppIcon name="chevron" />
           </button>
