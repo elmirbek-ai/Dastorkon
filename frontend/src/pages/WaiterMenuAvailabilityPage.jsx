@@ -124,7 +124,9 @@ export default function WaiterMenuAvailabilityPage() {
   return (
     <main className="waiter-availability-page">
       <header className="waiter-availability-header">
-        <button type="button" onClick={() => navigate('/waiter/dashboard')}>{t('common.back')}</button>
+        <button className="waiter-back-icon-button" type="button" onClick={() => navigate('/waiter/dashboard')} aria-label={t('common.back')} title={t('common.back')}>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M19 12H5m7-7-7 7 7 7" /></svg>
+        </button>
         <div><strong>{t('waiter.menuAvailability')}</strong><small>{t('waiter.menuAvailabilityShortHelp')}</small></div>
       </header>
 

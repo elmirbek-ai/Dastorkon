@@ -137,7 +137,9 @@ export default function WaiterProfileEditPage() {
   return (
     <main className="waiter-profile-page waiter-profile-edit-page">
       <header className="waiter-profile-page-header">
-        <button type="button" onClick={() => navigate('/waiter/profile')}>{t('common.back')}</button>
+        <button className="waiter-back-icon-button" type="button" onClick={() => navigate('/waiter/profile')} aria-label={t('common.back')} title={t('common.back')}>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M19 12H5m7-7-7 7 7 7" /></svg>
+        </button>
         <div><strong>{t('waiterProfile.editProfile')}</strong>{profile && <small>@{profile.username}</small>}</div>
       </header>
 

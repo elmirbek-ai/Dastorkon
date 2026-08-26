@@ -87,7 +87,9 @@ export default function WaiterProfilePage() {
   return (
     <main className="waiter-profile-page">
       <header className="waiter-profile-page-header">
-        <button type="button" onClick={() => navigate('/waiter/dashboard')}>{t('common.back')}</button>
+        <button className="waiter-back-icon-button" type="button" onClick={() => navigate('/waiter/dashboard')} aria-label={t('common.back')} title={t('common.back')}>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M19 12H5m7-7-7 7 7 7" /></svg>
+        </button>
         <div><strong>{t('waiterProfile.myProfile')}</strong><small>@{profile.username}</small></div>
       </header>
 

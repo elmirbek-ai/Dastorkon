@@ -8017,7 +8017,7 @@ body:has(.customer-orders-page) {
 
 .waiter-manual-confirm-actions {
   display: grid;
-  grid-template-columns: 0.65fr 1.35fr;
+  grid-template-columns: 44px minmax(0, 1fr);
   gap: 9px;
 }
 
@@ -9397,6 +9397,43 @@ body:has(.customer-menu) {
   .waiter-availability-intro dl {
     grid-template-columns: 1fr;
   }
+}
+
+button.waiter-back-icon-button {
+  display: inline-grid;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text-primary);
+  background: var(--surface);
+  box-shadow: none;
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
+}
+
+button.waiter-back-icon-button svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+button.waiter-back-icon-button:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  color: var(--primary);
+  background: var(--surface-hover);
+}
+
+button.waiter-back-icon-button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
 }
 
 /* Customer dish detail */

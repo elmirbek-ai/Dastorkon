@@ -268,7 +268,9 @@ export default function WaiterManualOrderPage() {
   return (
     <main className="waiter-manual-order-page">
       <header className="waiter-manual-order-header">
-        <button type="button" onClick={() => navigate('/waiter/dashboard')}>{t('common.back')}</button>
+        <button className="waiter-back-icon-button" type="button" onClick={() => navigate('/waiter/dashboard')} aria-label={t('common.back')} title={t('common.back')}>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M19 12H5m7-7-7 7 7 7" /></svg>
+        </button>
         <div><strong>{t('waiter.manualOrder')}</strong><small>{t('waiter.manualOrderShortHelp')}</small></div>
       </header>
 
@@ -409,7 +411,9 @@ export default function WaiterManualOrderPage() {
             )}
             <div className="waiter-manual-confirm-total"><span>{t('waiter.manualOrderTotal')}</span><strong>{formatMoney(cartTotal)}</strong></div>
             <div className="waiter-manual-confirm-actions">
-              <button type="button" onClick={() => setStep('menu')} disabled={submitting}>{t('common.back')}</button>
+              <button className="waiter-back-icon-button" type="button" onClick={() => setStep('menu')} disabled={submitting} aria-label={t('common.back')} title={t('common.back')}>
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M19 12H5m7-7-7 7 7 7" /></svg>
+              </button>
               <button className="is-primary" type="button" onClick={submitOrder} disabled={!cartItems.length || submitting}>{submitting ? t('waiter.sendingManualOrder') : t('waiter.confirmManualOrder')}</button>
             </div>
           </section>
