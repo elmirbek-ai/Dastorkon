@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { adminApiClient } from '../api/client.js'
 import { AdminModal, EmptyState, ErrorBanner, LoadingState, PageIntro, RequestErrorState, StatusBadge } from '../components/admin/AdminComponents.jsx'
@@ -9,6 +9,27 @@ import { getLocalizedField, getOrderSourceLabel, getStatusLabel } from '../i18n/
 
 const statuses = ['NEW', 'PREPARING', 'READY', 'DELIVERED', 'COMPLETED', 'CANCELLED']
 
+function toLocalDateValue(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function getDefaultDateRange() {
+  const today = new Date()
+  const rangeStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 2)
+  return {
+    dateFrom: toLocalDateValue(rangeStart),
+    dateTo: toLocalDateValue(today),
+  }
+}
+
+function formatDateFilterLabel(value) {
+  const [year, month, day] = value.split('-')
+  return `${day}.${month}.${year}`
+}
+
 export default function AdminOrdersPage() {
   const { restaurantId, loadingRestaurant, layoutError, refreshKey, handleApiError } = useAdminContext()
   const { language, t } = useLanguage()
@@ -18,16 +39,27 @@ export default function AdminOrdersPage() {
   const [listRefreshing, setListRefreshing] = useState(false)
   const [error, setError] = useState('')
   const [status, setStatus] = useState('')
+  const [selectedDate, setSelectedDate] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [detailId, setDetailId] = useState(searchParams.get('open'))
   const [detail, setDetail] = useState(null)
   const [detailLoading, setDetailLoading] = useState(Boolean(searchParams.get('open')))
   const [detailError, setDetailError] = useState('')
   const [detailRevision, setDetailRevision] = useState(0)
+  const invalidDateRange = Boolean(dateFrom && dateTo && dateFrom > dateTo)
 
   useEffect(() => {
-    if (!restaurantId) return
+    if (!restaurantId || invalidDateRange) return
     let active = true
-    adminApiClient.get('/api/admin/orders/', { params: { restaurant: restaurantId, ...(status ? { status } : {}) } }).then((response) => {
+    const defaultDateRange = getDefaultDateRange()
+    const dateParams = selectedDate
+      ? { date: selectedDate }
+      : {
+          date_from: dateFrom || defaultDateRange.dateFrom,
+          date_to: dateTo || defaultDateRange.dateTo,
+        }
+    adminApiClient.get('/api/admin/orders/', { params: { restaurant: restaurantId, ...dateParams } }).then((response) => {
       if (!active) return
       setOrders(Array.isArray(response.data) ? response.data : [])
       setError('')
@@ -38,7 +70,7 @@ export default function AdminOrdersPage() {
         setListRefreshing(false)
       })
     return () => { active = false }
-  }, [restaurantId, status, refreshKey, handleApiError, t])
+  }, [restaurantId, selectedDate, dateFrom, dateTo, invalidDateRange, refreshKey, handleApiError, t])
 
   useEffect(() => {
     if (!detailId) return
@@ -73,8 +105,47 @@ export default function AdminOrdersPage() {
 
   function selectStatus(nextStatus) {
     if (nextStatus === status) return
-    setListRefreshing(true)
     setStatus(nextStatus)
+  }
+
+  function changeSelectedDate(nextDate) {
+    if (nextDate === selectedDate) return
+    setListRefreshing(true)
+    setSelectedDate(nextDate)
+    setDateFrom('')
+    setDateTo('')
+  }
+
+  function changeDateFrom(nextDate) {
+    if (!nextDate) {
+      resetDateFilter()
+      return
+    }
+    if (!selectedDate && nextDate === dateFrom) return
+    setListRefreshing(!(dateTo && nextDate > dateTo))
+    setSelectedDate('')
+    setDateFrom(nextDate)
+    setDateTo(dateTo || nextDate)
+  }
+
+  function changeDateTo(nextDate) {
+    if (!nextDate) {
+      resetDateFilter()
+      return
+    }
+    if (!selectedDate && nextDate === dateTo) return
+    setListRefreshing(!(dateFrom && dateFrom > nextDate))
+    setSelectedDate('')
+    setDateFrom(dateFrom || nextDate)
+    setDateTo(nextDate)
+  }
+
+  function resetDateFilter() {
+    if (!selectedDate && !dateFrom && !dateTo) return
+    setListRefreshing(true)
+    setSelectedDate('')
+    setDateFrom('')
+    setDateTo('')
   }
 
   function handleOrderKeyDown(event, orderId) {
@@ -83,34 +154,101 @@ export default function AdminOrdersPage() {
     openDetail(orderId)
   }
 
+  const statusCounts = useMemo(() => {
+    const counts = Object.fromEntries(statuses.map((item) => [item, 0]))
+    orders.forEach((order) => {
+      if (Object.hasOwn(counts, order.status)) counts[order.status] += 1
+    })
+    return counts
+  }, [orders])
+  const visibleOrders = useMemo(
+    () => (status ? orders.filter((order) => order.status === status) : orders),
+    [orders, status],
+  )
+
   if (loadingRestaurant || loading) return <LoadingState label={t('admin.loadingOrders')} />
 
-  const emptyTitle = status
-    ? t('admin.noOrdersWithStatus', { status: getStatusLabel(status, language) })
-    : t('admin.noOrders')
+  const emptyTitle = selectedDate
+    ? status
+      ? t('admin.noOrdersOnDateWithStatus', { date: formatDateFilterLabel(selectedDate), status: getStatusLabel(status, language) })
+      : t('admin.noOrdersOnDate', { date: formatDateFilterLabel(selectedDate) })
+    : status
+      ? t('admin.noOrdersWithStatus', { status: getStatusLabel(status, language) })
+      : t('admin.noOrders')
+  const emptyDescription = selectedDate ? t('admin.chooseAnotherOrderDateHelp') : t('admin.noOrdersHelp')
+  const todayDate = toLocalDateValue(new Date())
+  const hasCustomDateFilter = Boolean(selectedDate || dateFrom || dateTo)
+  const dateFilterLabel = selectedDate
+    ? formatDateFilterLabel(selectedDate)
+    : dateFrom && dateTo
+      ? `${formatDateFilterLabel(dateFrom)} – ${formatDateFilterLabel(dateTo)}`
+      : t('admin.last3Days')
 
   return (
     <>
       <PageIntro title={t('admin.orderHistory')} description={t('admin.orderHistoryDescription')} />
-      <ErrorBanner message={layoutError || error} />
+      <ErrorBanner message={invalidDateRange ? t('admin.invalidDateRange') : layoutError || error} />
+
+      <div className="admin-date-filter admin-orders-date-filter" aria-busy={listRefreshing}>
+        <div className="admin-orders-date-context">
+          <span>{t('admin.activeDateRange')}</span>
+          <strong>{dateFilterLabel}</strong>
+        </div>
+        <label>
+          <span>{t('admin.orderDate')}</span>
+          <input
+            type="date"
+            value={selectedDate}
+            max={todayDate}
+            disabled={listRefreshing}
+            onChange={(event) => changeSelectedDate(event.target.value)}
+          />
+        </label>
+        <label>
+          <span>{t('common.from')}</span>
+          <input
+            type="date"
+            value={dateFrom}
+            max={dateTo || todayDate}
+            aria-invalid={invalidDateRange}
+            disabled={listRefreshing}
+            onChange={(event) => changeDateFrom(event.target.value)}
+          />
+        </label>
+        <label>
+          <span>{t('common.to')}</span>
+          <input
+            type="date"
+            value={dateTo}
+            min={dateFrom || undefined}
+            max={todayDate}
+            aria-invalid={invalidDateRange}
+            disabled={listRefreshing}
+            onChange={(event) => changeDateTo(event.target.value)}
+          />
+        </label>
+        <button type="button" onClick={resetDateFilter} disabled={!hasCustomDateFilter || listRefreshing}>
+          {t('admin.resetDate')}
+        </button>
+      </div>
 
       <div className="admin-toolbar" aria-busy={listRefreshing}>
         <div className="admin-filter-tabs" aria-label={t('admin.filterOrdersByStatus')}>
           <button className={!status ? 'is-active' : ''} type="button" onClick={() => selectStatus('')} disabled={listRefreshing}>
-            {t('common.all')} {!status && <b>{orders.length}</b>}
+            {t('common.all')} <b>{orders.length}</b>
           </button>
           {statuses.map((item) => (
             <button className={status === item ? 'is-active' : ''} type="button" onClick={() => selectStatus(item)} disabled={listRefreshing} key={item}>
-              {getStatusLabel(item, language)}
+              {getStatusLabel(item, language)} <b>{statusCounts[item]}</b>
             </button>
           ))}
         </div>
-        <span>{listRefreshing ? t('common.loading') : t('admin.orderCount', { count: orders.length })}</span>
+        <span>{listRefreshing ? t('common.loading') : t('admin.orderCount', { count: visibleOrders.length })}</span>
       </div>
 
-      {listRefreshing && !orders.length ? (
+      {listRefreshing && !visibleOrders.length ? (
         <LoadingState label={t('admin.loadingOrders')} />
-      ) : orders.length ? (
+      ) : visibleOrders.length ? (
         <div className="admin-data-card" aria-busy={listRefreshing}>
           <div className="admin-table-wrap">
             <table className="admin-table admin-orders-table">
@@ -118,7 +256,7 @@ export default function AdminOrdersPage() {
                 <tr><th>{t('common.order')}</th><th>{t('common.table')}</th><th>{t('common.status')}</th><th>{t('admin.orderSource')}</th><th>{t('common.waiter')}</th><th>{t('common.items')}</th><th>{t('common.time')}</th><th>{t('common.amount')}</th></tr>
               </thead>
               <tbody>
-                {orders.map((order) => (
+                {visibleOrders.map((order) => (
                   <tr
                     role="button"
                     tabIndex="0"
@@ -142,7 +280,7 @@ export default function AdminOrdersPage() {
           </div>
         </div>
       ) : (
-        <EmptyState title={emptyTitle} description={t('admin.noOrdersHelp')} />
+        <EmptyState title={emptyTitle} description={emptyDescription} />
       )}
 
       {detailId && (

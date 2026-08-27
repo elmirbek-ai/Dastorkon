@@ -818,3 +818,23 @@ Object.assign(translations.ru.admin, {
   trendNeutral: 'Без изменений',
   occupancy: 'Заполняемость',
 })
+
+Object.assign(translations.ky.admin, {
+  activeDateRange: 'Мезгил',
+  last3Days: 'Акыркы 3 күн',
+  orderDate: 'Заказ күнү',
+  resetDate: 'Тазалоо',
+  noOrdersOnDate: '{date} күнү заказ жок',
+  noOrdersOnDateWithStatus: '{date} күнү «{status}» статусунда заказ жок',
+  chooseAnotherOrderDateHelp: 'Башка күндү тандаңыз же акыркы 3 күнгө кайтыңыз.',
+})
+
+Object.assign(translations.ru.admin, {
+  activeDateRange: 'Период',
+  last3Days: 'Последние 3 дня',
+  orderDate: 'Дата заказа',
+  resetDate: 'Сбросить',
+  noOrdersOnDate: 'За {date} заказов нет',
+  noOrdersOnDateWithStatus: 'За {date} нет заказов со статусом «{status}»',
+  chooseAnotherOrderDateHelp: 'Выберите другую дату или вернитесь к последним 3 дням.',
+})

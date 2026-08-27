@@ -1,7 +1,9 @@
 from datetime import UTC, datetime
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -232,10 +234,84 @@ class AdminOrderHistoryApiTests(APITestCase):
 
         self.assertEqual([item["id"] for item in response.data], [self.order.pk])
 
+    def test_admin_can_filter_orders_by_local_date(self):
+        Order.objects.filter(pk=self.order.pk).update(
+            created_at=datetime(2026, 1, 9, 19, 30, tzinfo=UTC)
+        )
+        self.authenticate(self.admin)
+
+        with timezone.override(ZoneInfo("Asia/Bishkek")):
+            response = self.client.get(
+                self.list_url,
+                {"restaurant": self.restaurant.pk, "date": "2026-01-10"},
+            )
+            previous_day_response = self.client.get(
+                self.list_url,
+                {"restaurant": self.restaurant.pk, "date": "2026-01-09"},
+            )
+            range_response = self.client.get(
+                self.list_url,
+                {
+                    "restaurant": self.restaurant.pk,
+                    "date_from": "2026-01-10",
+                    "date_to": "2026-01-10",
+                },
+            )
+
+        self.assertEqual([item["id"] for item in response.data], [self.order.pk])
+        self.assertEqual(previous_day_response.data, [])
+        self.assertEqual(
+            [item["id"] for item in range_response.data],
+            [self.order.pk],
+        )
+
+    def test_status_and_date_filters_work_together(self):
+        self.authenticate(self.admin)
+
+        matching_response = self.client.get(
+            self.list_url,
+            {
+                "restaurant": self.restaurant.pk,
+                "date": "2026-01-10",
+                "status": Order.Status.PREPARING,
+            },
+        )
+        non_matching_response = self.client.get(
+            self.list_url,
+            {
+                "restaurant": self.restaurant.pk,
+                "date": "2026-01-10",
+                "status": Order.Status.COMPLETED,
+            },
+        )
+
+        self.assertEqual(
+            [item["id"] for item in matching_response.data],
+            [self.order.pk],
+        )
+        self.assertEqual(non_matching_response.data, [])
+
     def test_invalid_date_filter_returns_bad_request(self):
         self.authenticate(self.admin)
 
         response = self.client.get(self.list_url, {"date_from": "not-a-date"})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_invalid_single_date_filter_returns_bad_request(self):
+        self.authenticate(self.admin)
+
+        response = self.client.get(self.list_url, {"date": "not-a-date"})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_reversed_date_range_returns_bad_request(self):
+        self.authenticate(self.admin)
+
+        response = self.client.get(
+            self.list_url,
+            {"date_from": "2026-01-31", "date_to": "2026-01-01"},
+        )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 

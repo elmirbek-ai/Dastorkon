@@ -305,8 +305,24 @@ class AdminOrderFilterSerializer(serializers.Serializer):
         choices=Order.Status.choices,
         required=False,
     )
+    date = serializers.DateField(required=False)
     date_from = serializers.DateField(required=False)
     date_to = serializers.DateField(required=False)
+
+    def validate(self, attrs):
+        selected_date = attrs.get("date")
+        date_from = attrs.get("date_from")
+        date_to = attrs.get("date_to")
+
+        if selected_date and (date_from or date_to):
+            raise serializers.ValidationError(
+                "Use either date or date_from/date_to, not both."
+            )
+        if date_from and date_to and date_from > date_to:
+            raise serializers.ValidationError(
+                "date_from must be earlier than or equal to date_to."
+            )
+        return attrs
 
 
 class AdminOrderListSerializer(serializers.ModelSerializer):
