@@ -75,7 +75,12 @@ export default function AdminDashboardPage() {
   const { restaurantId, loadingRestaurant, layoutError, refreshKey, handleApiError } = useAdminContext()
   const { language, t } = useLanguage()
   const quickActions = [
-    ['/admin/menu?create=1', 'menu', t('admin.addMenuItem')], ['/admin/categories?create=1', 'category', t('admin.addCategory')], ['/admin/tables?create=1', 'tables', t('admin.addTable')], ['/admin/orders', 'orders', t('admin.viewOrders')], ['/admin/waiters?create=1', 'waiter', t('admin.addWaiter')],
+    { to: '/admin/menu?create=1', icon: 'menu', label: t('admin.addMenuItem') },
+    { to: '/admin/categories?create=1', icon: 'category', label: t('admin.addCategory') },
+    { to: '/admin/tables?create=1', icon: 'tables', label: t('admin.addTable') },
+    { to: '/admin/orders', icon: 'orders', label: t('admin.viewOrders') },
+    { to: '/admin/waiters?create=1', icon: 'waiter', label: t('admin.addWaiter') },
+    { to: '/admin/tables', icon: 'qr', label: t('admin.qrCodes') },
   ]
   const [data, setData] = useState({ kpis: null, orders: [], menu: [], users: [] })
   const [loading, setLoading] = useState(true)
@@ -174,11 +179,19 @@ export default function AdminDashboardPage() {
           ) : <EmptyState title={t('admin.noOrders')} />}
         </section>
 
-        <section className="admin-panel">
+        <section className="admin-panel admin-panel--quick-actions">
           <header><div><h2>{t('admin.quickActions')}</h2></div></header>
-          <div className="admin-quick-actions">
-            {quickActions.map(([to, icon, label]) => <Link to={to} key={label}><span>{icon === 'tables' ? <TableIcon /> : icon === 'waiter' ? <WaiterIcon /> : <AdminIcon name={icon} />}</span><strong>{label}</strong><AdminIcon name="chevron" /></Link>)}
-          </div>
+          <nav className="admin-quick-actions" aria-label={t('admin.quickActions')}>
+            {quickActions.map((action) => (
+              <Link className="admin-quick-action" to={action.to} key={action.label}>
+                <span className="admin-quick-action__icon" aria-hidden="true">
+                  {action.icon === 'tables' ? <TableIcon /> : action.icon === 'waiter' ? <WaiterIcon /> : <AdminIcon name={action.icon} />}
+                </span>
+                <strong>{action.label}</strong>
+                <span className="admin-quick-action__arrow" aria-hidden="true"><AdminIcon name="chevron" /></span>
+              </Link>
+            ))}
+          </nav>
         </section>
 
         <section className="admin-panel">

@@ -838,3 +838,11 @@ Object.assign(translations.ru.admin, {
   noOrdersOnDateWithStatus: 'За {date} нет заказов со статусом «{status}»',
   chooseAnotherOrderDateHelp: 'Выберите другую дату или вернитесь к последним 3 дням.',
 })
+
+Object.assign(translations.ky.admin, {
+  qrCodes: 'QR коддор',
+})
+
+Object.assign(translations.ru.admin, {
+  qrCodes: 'QR-коды',
+})
