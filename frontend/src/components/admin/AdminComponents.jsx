@@ -1,14 +1,15 @@
 import { useEffect } from 'react'
 import { useLanguage } from '../../i18n/LanguageContext.jsx'
 import { getStatusLabel } from '../../i18n/index.js'
+import FoodIcon from '../FoodIcon.jsx'
 import TableIcon from '../TableIcon.jsx'
 
 export function AdminIcon({ name }) {
   if (name === 'tables') return <TableIcon />
+  if (name === 'menu') return <FoodIcon />
 
   const icons = {
     dashboard: <><rect x="4" y="4" width="6" height="6" rx="1" /><rect x="14" y="4" width="6" height="6" rx="1" /><rect x="4" y="14" width="6" height="6" rx="1" /><rect x="14" y="14" width="6" height="6" rx="1" /></>,
-    menu: <><path d="M5 6h14M5 12h14M5 18h14" /><circle cx="8" cy="6" r="1" /><circle cx="16" cy="12" r="1" /><circle cx="10" cy="18" r="1" /></>,
     category: <><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" /></>,
     qr: <><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v6h-4v-2h-2" /></>,
     orders: <><path d="M6 4h12v16H6z" /><path d="M9 8h6M9 12h6M9 16h4" /></>,

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import apiClient, { resolveApiAssetUrl } from '../api/client.js'
+import FoodIcon from '../components/FoodIcon.jsx'
 import LanguageSwitch from '../components/LanguageSwitch.jsx'
 import MenuItemBadges from '../components/MenuItemBadges.jsx'
 import TableIcon from '../components/TableIcon.jsx'
@@ -313,7 +314,7 @@ function PriceSortControl({ value, onChange }) {
 function FoodPlaceholder({ itemName }) {
   return (
     <div className="food-placeholder" aria-hidden="true">
-      <span>🍽</span>
+      <span><FoodIcon /></span>
       <strong>{itemName?.charAt(0) || 'D'}</strong>
     </div>
   )
@@ -862,7 +863,7 @@ function CartReviewItem({ cartItem, menuItem, pending, onIncrease, onDecrease, o
             onError={() => setImageFailed(true)}
           />
         ) : (
-          <span aria-hidden="true">🍽</span>
+          <span aria-hidden="true"><FoodIcon /></span>
         )}
       </div>
       <div className="cart-sheet-item__content">
@@ -941,7 +942,7 @@ function CheckoutReviewItem({
         {imageUrl && !imageFailed ? (
           <img src={imageUrl} alt="" onError={() => setImageFailed(true)} />
         ) : (
-          <span aria-hidden="true">🍽</span>
+          <span aria-hidden="true"><FoodIcon /></span>
         )}
       </div>
       <div className="checkout-item__body">

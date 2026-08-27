@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { waiterApiClient, WAITER_TOKEN_KEY } from '../api/client.js'
 import ConnectionStatus from '../components/ConnectionStatus.jsx'
+import FoodIcon from '../components/FoodIcon.jsx'
 import TableIcon from '../components/TableIcon.jsx'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getBackendErrorMessage, getLocalizedField, getStatusLabel } from '../i18n/index.js'
@@ -55,12 +56,13 @@ function timeAgo(value, language, translate) {
 }
 
 function AppIcon({ name }) {
+  if (name === 'menu') return <FoodIcon />
+
   const paths = {
     orders: <><path d="M6 4h12v16H6z" /><path d="M9 8h6M9 12h6M9 16h4" /></>,
     manualOrder: <><path d="m4 6 1.4 1.4L8 4.8M10.5 6H20M4 12l1.4 1.4L8 10.8M10.5 12H20M4 18l1.4 1.4L8 16.8M10.5 18H20" /></>,
     bell: <><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 8h18c0-1-3-1-3-8" /><path d="M10 21h4" /></>,
     ready: <><circle cx="12" cy="12" r="9" /><path d="m8 12 2.6 2.6L16.5 9" /></>,
-    menu: <><path d="M5 5h14v14H5z" /><path d="M8 9h8M8 13h8M8 17h5" /></>,
     profile: <><circle cx="12" cy="8" r="4" /><path d="M4.5 20a7.5 7.5 0 0 1 15 0" /></>,
     refresh: <><path d="M20 7v5h-5M4 17v-5h5" /><path d="M6.1 8a7 7 0 0 1 11.6-1.5L20 9M4 15l2.3 2.5A7 7 0 0 0 18 16" /></>,
     logout: <><path d="M10 5H5v14h5M14 8l4 4-4 4M18 12H9" /></>,
