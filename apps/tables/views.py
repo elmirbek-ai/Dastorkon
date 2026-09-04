@@ -52,6 +52,7 @@ class CustomerSessionStartView(APIView):
                         allow_null=True
                     ),
                     "customer_session_id": serializers.IntegerField(),
+                    "read_only": serializers.BooleanField(),
                     "comments_enabled": serializers.BooleanField(),
                 },
             ),
@@ -83,6 +84,7 @@ class CustomerSessionStartView(APIView):
                 "table": {"id": table.pk, "number": table.number},
                 "table_session_id": customer_session.active_table_session_id,
                 "customer_session_id": customer_session.pk,
+                "read_only": not customer_session.is_active,
                 "comments_enabled": comments_enabled,
             }
         )
@@ -100,10 +102,23 @@ class CustomerSessionStartView(APIView):
         if not session_key:
             return None
         try:
-            return CustomerSession.objects.filter(
-                session_key=session_key,
-                table=table,
-                is_active=True,
-            ).first()
+            customer_session = (
+                CustomerSession.objects.select_related("active_table_session")
+                .filter(
+                    session_key=session_key,
+                    table=table,
+                )
+                .first()
+            )
         except DjangoValidationError:
             return None
+        if customer_session is None or customer_session.is_active:
+            return customer_session
+        if (
+            customer_session.active_table_session is not None
+            and customer_session.active_table_session.status
+            == ActiveTableSession.Status.CLOSED
+            and customer_session.orders.exists()
+        ):
+            return customer_session
+        return None

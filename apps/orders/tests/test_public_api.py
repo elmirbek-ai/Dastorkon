@@ -3,11 +3,16 @@ from decimal import Decimal
 
 from django.urls import reverse
 from rest_framework import status
-from rest_framework.test import APITestCase
+from rest_framework.test import APIClient, APITestCase
 
 from apps.menu.models import Category, MenuItem
-from apps.orders.models import CartItem, Order
-from apps.orders.services import add_cart_item, create_order_from_cart
+from apps.orders.models import CartItem, Order, WaiterCall
+from apps.orders.services import (
+    add_cart_item,
+    change_order_status,
+    complete_table_session,
+    create_order_from_cart,
+)
 from apps.restaurants.models import Restaurant
 from apps.tables.models import ActiveTableSession, RestaurantTable
 from apps.tables.services import create_customer_session
@@ -56,6 +61,24 @@ class PublicCartOrderApiTests(APITestCase):
             comment=comment,
         )
         return create_order_from_cart(customer_session)
+
+    def close_customer_visit(self):
+        order = self.create_order()
+        admin = User.objects.create_user(
+            username="close-admin",
+            role=User.Role.ADMIN,
+        )
+        for next_status in (
+            Order.Status.PREPARING,
+            Order.Status.READY,
+            Order.Status.DELIVERED,
+        ):
+            order = change_order_status(order, next_status, admin)
+        complete_table_session(order.table_session, admin)
+        order.refresh_from_db()
+        self.customer_session.refresh_from_db()
+        self.table.refresh_from_db()
+        return order
 
     def test_cart_works_without_jwt_with_customer_cookie(self):
         response = self.client.get(self.cart_url)
@@ -364,6 +387,139 @@ class PublicCartOrderApiTests(APITestCase):
         self.assertEqual(
             [item["id"] for item in response.data["orders"]],
             [order.pk],
+        )
+
+    def test_closed_session_can_read_completed_order(self):
+        order = self.close_customer_visit()
+
+        response = self.client.get(self.orders_url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["read_only"])
+        self.assertEqual(response.data["orders"][0]["id"], order.pk)
+        self.assertEqual(
+            response.data["orders"][0]["status"],
+            Order.Status.COMPLETED,
+        )
+        self.assertEqual(self.table.status, RestaurantTable.Status.FREE)
+
+    def test_closed_session_order_polling_remains_read_only(self):
+        order = self.close_customer_visit()
+
+        first_response = self.client.get(self.orders_url)
+        second_response = self.client.get(self.orders_url)
+
+        for response in (first_response, second_response):
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(
+                [item["id"] for item in response.data["orders"]],
+                [order.pk],
+            )
+
+    def test_closed_session_cannot_add_cart_item(self):
+        self.close_customer_visit()
+
+        response = self.client.post(
+            self.cart_item_create_url,
+            {"menu_item": self.menu_item.pk, "quantity": 1},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertFalse(
+            CartItem.objects.filter(
+                customer_session=self.customer_session
+            ).exists()
+        )
+
+    def test_closed_session_cannot_create_waiter_call(self):
+        self.close_customer_visit()
+        waiter_call_url = reverse(
+            "public-waiter-call-create",
+            args=(self.table.qr_token,),
+        )
+
+        response = self.client.post(
+            waiter_call_url,
+            {"reason": WaiterCall.Reason.WAITER_NEEDED},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertFalse(
+            WaiterCall.objects.filter(
+                customer_session=self.customer_session
+            ).exists()
+        )
+
+    def test_closed_session_cart_read_is_empty_for_menu_reload(self):
+        self.close_customer_visit()
+
+        response = self.client.get(self.cart_url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, {"items": [], "total": "0.00"})
+
+    def test_closed_history_reload_reuses_cookie_without_reopening_table(self):
+        order = self.close_customer_visit()
+        customer_session_count = self.table.customer_sessions.count()
+        table_session_count = self.table.sessions.count()
+        session_url = reverse(
+            "public-customer-session",
+            args=(self.table.qr_token,),
+        )
+
+        session_response = self.client.post(session_url)
+        orders_response = self.client.get(self.orders_url)
+
+        self.table.refresh_from_db()
+        self.assertEqual(session_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            session_response.data["customer_session_id"],
+            self.customer_session.pk,
+        )
+        self.assertTrue(session_response.data["read_only"])
+        self.assertEqual(
+            self.table.customer_sessions.count(),
+            customer_session_count,
+        )
+        self.assertEqual(self.table.sessions.count(), table_session_count)
+        self.assertFalse(
+            self.table.sessions.filter(
+                status=ActiveTableSession.Status.ACTIVE
+            ).exists()
+        )
+        self.assertEqual(self.table.status, RestaurantTable.Status.FREE)
+        self.assertEqual(
+            [item["id"] for item in orders_response.data["orders"]],
+            [order.pk],
+        )
+
+    def test_fresh_browsing_context_does_not_hide_closed_visit_history(self):
+        order = self.close_customer_visit()
+        fresh_client = APIClient()
+        session_url = reverse(
+            "public-customer-session",
+            args=(self.table.qr_token,),
+        )
+
+        fresh_response = fresh_client.post(session_url)
+        history_response = self.client.get(self.orders_url)
+
+        self.table.refresh_from_db()
+        self.assertEqual(fresh_response.status_code, status.HTTP_200_OK)
+        self.assertNotEqual(
+            fresh_response.data["customer_session_id"],
+            self.customer_session.pk,
+        )
+        self.assertIsNone(fresh_response.data["table_session_id"])
+        self.assertEqual(
+            [item["id"] for item in history_response.data["orders"]],
+            [order.pk],
+        )
+        self.assertEqual(self.table.status, RestaurantTable.Status.FREE)
+        self.assertFalse(
+            self.table.sessions.filter(
+                status=ActiveTableSession.Status.ACTIVE
+            ).exists()
         )
 
     def test_get_orders_excludes_other_customer_orders(self):

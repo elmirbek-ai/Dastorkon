@@ -320,7 +320,16 @@ function FoodPlaceholder({ itemName }) {
   )
 }
 
-function MenuItemCard({ item, cartItem, pendingItemId, onAdd, onIncrease, onDecrease, onOpenDetail }) {
+function MenuItemCard({
+  item,
+  cartItem,
+  pendingItemId,
+  onAdd,
+  onIncrease,
+  onDecrease,
+  onOpenDetail,
+  readOnly,
+}) {
   const { language, t } = useLanguage()
   const [imageFailed, setImageFailed] = useState(false)
   const itemName = getLocalizedField(item, 'name', language)
@@ -376,7 +385,7 @@ function MenuItemCard({ item, cartItem, pendingItemId, onAdd, onIncrease, onDecr
                 className="quantity-stepper__minus"
                 type="button"
                 onClick={() => onDecrease(item, cartItem)}
-                disabled={actionPending || unavailable}
+                disabled={readOnly || actionPending || unavailable}
                 aria-label={t('customer.decreaseQuantity')}
               >
                 −
@@ -388,7 +397,7 @@ function MenuItemCard({ item, cartItem, pendingItemId, onAdd, onIncrease, onDecr
                 className="quantity-stepper__plus"
                 type="button"
                 onClick={() => onIncrease(item, cartItem)}
-                disabled={actionPending || unavailable}
+                disabled={readOnly || actionPending || unavailable}
                 aria-label={t('customer.increaseQuantity')}
               >
                 +
@@ -399,7 +408,7 @@ function MenuItemCard({ item, cartItem, pendingItemId, onAdd, onIncrease, onDecr
               className="add-button"
               type="button"
               onClick={() => onAdd(item)}
-              disabled={actionPending || unavailable}
+              disabled={readOnly || actionPending || unavailable}
               aria-label={t('customer.addToCart')}
               aria-busy={actionPending}
             >
@@ -413,7 +422,7 @@ function MenuItemCard({ item, cartItem, pendingItemId, onAdd, onIncrease, onDecr
   )
 }
 
-function DishDetailDialog({ item, pending, onClose, onAdd }) {
+function DishDetailDialog({ item, pending, onClose, onAdd, readOnly }) {
   const { language, t } = useLanguage()
   const [quantity, setQuantity] = useState(1)
   const [comment, setComment] = useState('')
@@ -518,7 +527,7 @@ function DishDetailDialog({ item, pending, onClose, onAdd }) {
               placeholder={t('customer.specialInstructionsPlaceholder')}
               maxLength={300}
               rows={3}
-              disabled={pending || unavailable}
+              disabled={readOnly || pending || unavailable}
             />
           </label>
 
@@ -527,7 +536,7 @@ function DishDetailDialog({ item, pending, onClose, onAdd }) {
               <button
                 type="button"
                 onClick={() => setQuantity((value) => Math.max(1, value - 1))}
-                disabled={pending || unavailable || quantity === 1}
+                disabled={readOnly || pending || unavailable || quantity === 1}
                 aria-label={t('customer.decreaseQuantity')}
               >
                 −
@@ -539,7 +548,7 @@ function DishDetailDialog({ item, pending, onClose, onAdd }) {
               <button
                 type="button"
                 onClick={() => setQuantity((value) => Math.min(99, value + 1))}
-                disabled={pending || unavailable || quantity === 99}
+                disabled={readOnly || pending || unavailable || quantity === 99}
                 aria-label={t('customer.increaseQuantity')}
               >
                 +
@@ -549,7 +558,7 @@ function DishDetailDialog({ item, pending, onClose, onAdd }) {
               className="dish-detail__add"
               type="button"
               onClick={handleAdd}
-              disabled={pending || unavailable}
+              disabled={readOnly || pending || unavailable}
               aria-busy={pending}
             >
               <span className="dish-detail__add-copy">
@@ -1355,6 +1364,7 @@ function CustomerMenuPage() {
   const [menu, setMenu] = useState(null)
   const [cart, setCart] = useState(emptyCart)
   const [orders, setOrders] = useState(emptyOrders)
+  const [readOnly, setReadOnly] = useState(false)
   const [loading, setLoading] = useState(true)
   const [loadFailed, setLoadFailed] = useState(false)
   const [loadRevision, setLoadRevision] = useState(0)
@@ -1432,7 +1442,7 @@ function CustomerMenuPage() {
             })
         }
 
-        await sessionRequestRef.current.promise
+        const sessionResponse = await sessionRequestRef.current.promise
 
         const [menuResponse, cartResponse, ordersResponse] = await Promise.all([
           apiClient.get(`${basePath}/menu/`, CUSTOMER_REQUEST_CONFIG),
@@ -1444,6 +1454,7 @@ function CustomerMenuPage() {
           const nextMenu = normalizeMenu(menuResponse.data)
           if (!nextMenu) throw new Error('Invalid customer menu response')
           setMenu(nextMenu)
+          setReadOnly(sessionResponse.data?.read_only === true)
           setCart(normalizeCart(cartResponse.data))
           setOrders(normalizeOrders(ordersResponse.data))
         }
@@ -1522,6 +1533,7 @@ function CustomerMenuPage() {
   async function refreshOrders() {
     const response = await apiClient.get(`${basePath}/orders/`)
     setOrders(response.data)
+    setReadOnly(response.data?.read_only === true)
   }
 
   function openCartSheet(stage = 'cart') {
@@ -1858,6 +1870,7 @@ function CustomerMenuPage() {
                       onIncrease={increaseCartItem}
                       onDecrease={decreaseCartItemSafely}
                       onOpenDetail={setSelectedDish}
+                      readOnly={readOnly}
                       key={item.id}
                     />
                   ))}
@@ -1880,6 +1893,7 @@ function CustomerMenuPage() {
           pending={pendingMenuItemId === selectedDish.id}
           onClose={() => setSelectedDish(null)}
           onAdd={addToCart}
+          readOnly={readOnly}
           key={selectedDish.id}
         />
       )}
@@ -1913,16 +1927,20 @@ function CustomerMenuPage() {
         onSubmit={submitOrder}
       />
 
-      <WaiterCallButton
-        raised={cartItemCount > 0}
-        onOpen={() => setWaiterSheetOpen(true)}
-      />
-      <WaiterCallSheet
-        open={waiterSheetOpen}
-        sending={sendingWaiterCall}
-        onClose={() => setWaiterSheetOpen(false)}
-        onCall={callWaiter}
-      />
+      {!readOnly && (
+        <>
+          <WaiterCallButton
+            raised={cartItemCount > 0}
+            onOpen={() => setWaiterSheetOpen(true)}
+          />
+          <WaiterCallSheet
+            open={waiterSheetOpen}
+            sending={sendingWaiterCall}
+            onClose={() => setWaiterSheetOpen(false)}
+            onCall={callWaiter}
+          />
+        </>
+      )}
     </main>
   )
 }

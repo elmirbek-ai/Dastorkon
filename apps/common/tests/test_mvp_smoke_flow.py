@@ -227,11 +227,36 @@ class MvpSmokeFlowTests(APITestCase):
         )
         self.assert_status(close_response, status.HTTP_200_OK)
 
+        reload_session_response = customer_client.post(
+            f"{public_base}/session/",
+            {},
+            format="json",
+        )
+        self.assert_status(reload_session_response, status.HTTP_200_OK)
+        self.assertEqual(
+            reload_session_response.data["customer_session_id"],
+            customer_session_id,
+        )
+        completed_orders_response = customer_client.get(
+            f"{public_base}/orders/"
+        )
+        self.assert_status(completed_orders_response, status.HTTP_200_OK)
+        self.assertEqual(
+            completed_orders_response.data["orders"][0]["status"],
+            Order.Status.COMPLETED,
+        )
+
         order = Order.objects.get(pk=order_id)
         table = RestaurantTable.objects.get(pk=table_id)
         customer_session = CustomerSession.objects.get(pk=customer_session_id)
         self.assertEqual(order.status, Order.Status.COMPLETED)
         self.assertEqual(table.status, RestaurantTable.Status.FREE)
+        self.assertFalse(
+            ActiveTableSession.objects.filter(
+                table=table,
+                status=ActiveTableSession.Status.ACTIVE,
+            ).exists()
+        )
         self.assertFalse(customer_session.is_active)
         self.assertEqual(customer_session.table_id, table_id)
         self.assertFalse(

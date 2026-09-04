@@ -74,6 +74,7 @@ PublicOrdersResponseSchema = inline_serializer(
     name="PublicOrdersResponse",
     fields={
         "orders": PublicOrderSerializer(many=True),
+        "read_only": drf_serializers.BooleanField(),
         "total_amount": drf_serializers.DecimalField(
             max_digits=10,
             decimal_places=2,
@@ -85,7 +86,7 @@ PublicOrdersResponseSchema = inline_serializer(
 class CustomerSessionMixin:
     permission_classes = (AllowAny,)
 
-    def get_customer_session(self, request, qr_token):
+    def get_customer_session(self, request, qr_token, *, allow_closed=False):
         try:
             table = get_table_by_qr_token(qr_token)
         except DjangoValidationError as exc:
@@ -103,7 +104,6 @@ class CustomerSessionMixin:
                 )
                 .filter(
                     session_key=session_key,
-                    is_active=True,
                     table=table,
                 )
                 .first()
@@ -112,7 +112,16 @@ class CustomerSessionMixin:
             raise PermissionDenied("Customer session cookie is invalid.") from exc
         if customer_session is None:
             raise PermissionDenied("Customer session cookie is invalid.")
-        return customer_session
+        if customer_session.is_active:
+            return customer_session
+        if (
+            allow_closed
+            and customer_session.active_table_session is not None
+            and customer_session.active_table_session.status
+            == ActiveTableSession.Status.CLOSED
+        ):
+            return customer_session
+        raise PermissionDenied("Customer session is closed.")
 
     def raise_service_error(self, exc):
         raise ValidationError(exc.messages) from exc
@@ -121,7 +130,13 @@ class CustomerSessionMixin:
 class PublicCartView(CustomerSessionMixin, APIView):
     @extend_schema(responses=PublicCartResponseSchema)
     def get(self, request, qr_token):
-        customer_session = self.get_customer_session(request, qr_token)
+        customer_session = self.get_customer_session(
+            request,
+            qr_token,
+            allow_closed=True,
+        )
+        if not customer_session.is_active:
+            return Response({"items": [], "total": "0.00"})
         try:
             cart_items = get_cart_items(customer_session)
             total = calculate_cart_total(customer_session)
@@ -202,7 +217,11 @@ class PublicCartItemDetailView(CustomerSessionMixin, APIView):
 class PublicOrderView(CustomerSessionMixin, APIView):
     @extend_schema(responses=PublicOrdersResponseSchema)
     def get(self, request, qr_token):
-        customer_session = self.get_customer_session(request, qr_token)
+        customer_session = self.get_customer_session(
+            request,
+            qr_token,
+            allow_closed=True,
+        )
         orders = Order.objects.filter(
             customer_session=customer_session,
         ).prefetch_related("items")
@@ -215,6 +234,7 @@ class PublicOrderView(CustomerSessionMixin, APIView):
         return Response(
             {
                 "orders": PublicOrderSerializer(orders, many=True).data,
+                "read_only": not customer_session.is_active,
                 "total_amount": f"{total_amount:.2f}",
             }
         )

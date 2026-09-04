@@ -18,6 +18,7 @@ function CustomerOrdersPage() {
   const waiterCallInFlightRef = useRef(false)
   const [orders, setOrders] = useState(emptyOrders)
   const [tableNumber, setTableNumber] = useState(null)
+  const [readOnly, setReadOnly] = useState(false)
   const [loading, setLoading] = useState(true)
   const [loadFailed, setLoadFailed] = useState(false)
   const [loadRevision, setLoadRevision] = useState(0)
@@ -47,6 +48,7 @@ function CustomerOrdersPage() {
             ...response.data,
             orders: Array.isArray(response.data?.orders) ? response.data.orders : [],
           })
+          setReadOnly(response.data?.read_only === true)
         }
       } catch {
         if (active) setLoadFailed(true)
@@ -78,6 +80,7 @@ function CustomerOrdersPage() {
             ...response.data,
             orders: Array.isArray(response.data?.orders) ? response.data.orders : [],
           })
+          setReadOnly(response.data?.read_only === true)
         }
       } catch {
         // Preserve the last successful result; the next poll will retry quietly.
@@ -148,13 +151,15 @@ function CustomerOrdersPage() {
         <button className="customer-orders-back" type="button" onClick={goToMenu}>
           <span aria-hidden="true">←</span> {t('customer.backToMenu')}
         </button>
-        <button
-          className="customer-orders-waiter"
-          type="button"
-          onClick={() => setWaiterSheetOpen(true)}
-        >
-          <span aria-hidden="true"><WaiterIcon /></span> {t('customer.callWaiter')}
-        </button>
+        {!readOnly && (
+          <button
+            className="customer-orders-waiter"
+            type="button"
+            onClick={() => setWaiterSheetOpen(true)}
+          >
+            <span aria-hidden="true"><WaiterIcon /></span> {t('customer.callWaiter')}
+          </button>
+        )}
       </div>
 
       {!loading && !loadFailed && (
@@ -190,12 +195,14 @@ function CustomerOrdersPage() {
         <OrderHistory orders={orders} tableNumber={tableNumber} onBackToMenu={goToMenu} />
       )}
 
-      <WaiterCallSheet
-        open={waiterSheetOpen}
-        sending={sendingWaiterCall}
-        onClose={() => setWaiterSheetOpen(false)}
-        onCall={callWaiter}
-      />
+      {!readOnly && (
+        <WaiterCallSheet
+          open={waiterSheetOpen}
+          sending={sendingWaiterCall}
+          onClose={() => setWaiterSheetOpen(false)}
+          onCall={callWaiter}
+        />
+      )}
     </main>
   )
 }

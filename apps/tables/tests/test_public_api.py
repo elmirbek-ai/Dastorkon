@@ -26,6 +26,7 @@ class PublicCustomerSessionApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["restaurant"]["id"], self.restaurant.pk)
         self.assertEqual(response.data["table"]["id"], self.table.pk)
+        self.assertFalse(response.data["read_only"])
         self.assertTrue(response.data["comments_enabled"])
 
     def test_invalid_qr_token_returns_not_found(self):
