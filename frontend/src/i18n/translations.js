@@ -38,6 +38,14 @@ Object.assign(translations.ru.waiter, {
 })
 
 Object.assign(translations.ky.admin, {
+  waiterHasActiveWork: 'Бул официантта активдүү смена, стол, заказ же чакыруу бар. Алгач ишин бүтүрүңүз.',
+})
+
+Object.assign(translations.ru.admin, {
+  waiterHasActiveWork: 'У этого официанта есть активная смена, стол, заказ или вызов. Сначала завершите работу.',
+})
+
+Object.assign(translations.ky.admin, {
   interfaceLanguage: 'Интерфейс тили',
   interfaceLanguageDescription: 'Админ панелдин жана системанын тили.',
   defaultLanguage: 'Кардар менюсунун негизги тили',

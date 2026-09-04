@@ -2,6 +2,11 @@ from django.contrib.auth import get_user_model
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from apps.orders.models import Order, WaiterCall
+from apps.restaurants.models import Restaurant
+from apps.tables.models import ActiveTableSession, RestaurantTable
+from apps.users.models import WaiterShift
+
 
 User = get_user_model()
 
@@ -17,6 +22,20 @@ class AdminUserApiTests(APITestCase):
 
     def authenticate_admin(self):
         self.client.force_authenticate(self.admin)
+
+    def create_assigned_active_session(self):
+        restaurant = Restaurant.objects.create(name="Dastorkon")
+        table = RestaurantTable.objects.create(
+            restaurant=restaurant,
+            number=1,
+            status=RestaurantTable.Status.OCCUPIED,
+        )
+        table_session = ActiveTableSession.objects.create(
+            restaurant=restaurant,
+            table=table,
+            assigned_waiter=self.waiter,
+        )
+        return restaurant, table_session
 
     def test_anonymous_user_cannot_access_admin_users(self):
         self.assertEqual(self.client.get(self.url).status_code, status.HTTP_401_UNAUTHORIZED)
@@ -142,6 +161,121 @@ class AdminUserApiTests(APITestCase):
         self.waiter.refresh_from_db()
         self.assertEqual(self.waiter.role, User.Role.KITCHEN)
 
+    def test_admin_can_deactivate_waiter_without_active_work(self):
+        self.authenticate_admin()
+
+        response = self.client.patch(
+            f"{self.url}{self.waiter.pk}/",
+            {"is_active": False},
+        )
+
+        self.waiter.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(self.waiter.is_active)
+
+    def test_admin_cannot_deactivate_waiter_with_active_shift(self):
+        self.authenticate_admin()
+        WaiterShift.objects.create(waiter=self.waiter)
+
+        response = self.client.patch(
+            f"{self.url}{self.waiter.pk}/",
+            {"is_active": False},
+        )
+
+        self.waiter.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["code"], "WAITER_HAS_ACTIVE_WORK")
+        self.assertEqual(response.data["active_shifts"], 1)
+        self.assertEqual(response.data["active_tables"], 0)
+        self.assertEqual(response.data["unfinished_orders"], 0)
+        self.assertEqual(response.data["unresolved_calls"], 0)
+        self.assertTrue(self.waiter.is_active)
+
+    def test_admin_cannot_deactivate_waiter_with_assigned_active_table(self):
+        self.authenticate_admin()
+        self.create_assigned_active_session()
+
+        response = self.client.patch(
+            f"{self.url}{self.waiter.pk}/",
+            {"is_active": False},
+        )
+
+        self.waiter.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["code"], "WAITER_HAS_ACTIVE_WORK")
+        self.assertEqual(response.data["active_shifts"], 0)
+        self.assertEqual(response.data["active_tables"], 1)
+        self.assertTrue(self.waiter.is_active)
+
+    def test_admin_cannot_change_waiter_role_with_active_work(self):
+        self.authenticate_admin()
+        WaiterShift.objects.create(waiter=self.waiter)
+
+        response = self.client.patch(
+            f"{self.url}{self.waiter.pk}/",
+            {"role": User.Role.KITCHEN, "is_active": False},
+        )
+
+        self.waiter.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["code"], "WAITER_HAS_ACTIVE_WORK")
+        self.assertEqual(self.waiter.role, User.Role.WAITER)
+        self.assertTrue(self.waiter.is_active)
+
+    def test_active_work_error_returns_all_counts(self):
+        self.authenticate_admin()
+        WaiterShift.objects.create(waiter=self.waiter)
+        restaurant, table_session = self.create_assigned_active_session()
+        Order.objects.create(
+            restaurant=restaurant,
+            table_session=table_session,
+            responsible_waiter=self.waiter,
+            order_number="ACTIVE-WAITER-ORDER",
+            status=Order.Status.READY,
+        )
+        WaiterCall.objects.create(
+            restaurant=restaurant,
+            table_session=table_session,
+            assigned_waiter=self.waiter,
+            reason=WaiterCall.Reason.WAITER_NEEDED,
+            status=WaiterCall.Status.ACCEPTED,
+        )
+
+        response = self.client.patch(
+            f"{self.url}{self.waiter.pk}/",
+            {"is_active": False},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            response.data,
+            {
+                "code": "WAITER_HAS_ACTIVE_WORK",
+                "detail": (
+                    "Complete the waiter's active shift and assigned work "
+                    "before changing access."
+                ),
+                "active_shifts": 1,
+                "active_tables": 1,
+                "unfinished_orders": 1,
+                "unresolved_calls": 1,
+            },
+        )
+
+    def test_admin_can_update_waiter_profile_with_active_work(self):
+        self.authenticate_admin()
+        WaiterShift.objects.create(waiter=self.waiter)
+
+        response = self.client.patch(
+            f"{self.url}{self.waiter.pk}/",
+            {"first_name": "Aibek", "phone": "+996700000000"},
+        )
+
+        self.waiter.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(self.waiter.first_name, "Aibek")
+        self.assertEqual(self.waiter.phone, "+996700000000")
+
     def test_invalid_role_is_rejected(self):
         self.authenticate_admin()
         response = self.client.patch(f"{self.url}{self.waiter.pk}/", {"role": "INVALID"})
@@ -172,6 +306,17 @@ class AdminUserApiTests(APITestCase):
         self.waiter.refresh_from_db()
         self.assertFalse(self.waiter.is_active)
         self.assertTrue(User.objects.filter(pk=self.waiter.pk).exists())
+
+    def test_destroy_cannot_deactivate_waiter_with_active_work(self):
+        self.authenticate_admin()
+        WaiterShift.objects.create(waiter=self.waiter)
+
+        response = self.client.delete(f"{self.url}{self.waiter.pk}/")
+
+        self.waiter.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["code"], "WAITER_HAS_ACTIVE_WORK")
+        self.assertTrue(self.waiter.is_active)
 
     def test_admin_cannot_deactivate_own_account(self):
         self.authenticate_admin()

@@ -12,6 +12,9 @@ WAITER_HAS_ACTIVE_WORK_CODE = "WAITER_HAS_ACTIVE_WORK"
 WAITER_HAS_ACTIVE_WORK_DETAIL = (
     "Complete assigned active tables, orders, and calls before ending the shift."
 )
+WAITER_ACCESS_CHANGE_ACTIVE_WORK_DETAIL = (
+    "Complete the waiter's active shift and assigned work before changing access."
+)
 
 
 def validate_waiter(waiter):
@@ -67,6 +70,37 @@ def get_waiter_active_work_counts(waiter):
         "unfinished_orders": len(unfinished_order_ids),
         "unresolved_calls": len(unresolved_call_ids),
     }
+
+
+@transaction.atomic
+def validate_waiter_access_change(waiter, *, next_is_active, next_role):
+    waiter = User.objects.select_for_update().get(pk=waiter.pk)
+    is_deactivating = waiter.is_active and next_is_active is False
+    is_changing_role = (
+        waiter.role == User.Role.WAITER
+        and next_role != User.Role.WAITER
+    )
+    if waiter.role != User.Role.WAITER or not (
+        is_deactivating or is_changing_role
+    ):
+        return waiter
+
+    active_shift_ids = list(
+        WaiterShift.objects.select_for_update()
+        .filter(waiter=waiter, is_active=True)
+        .values_list("pk", flat=True)
+    )
+    active_work = {
+        "active_shifts": len(active_shift_ids),
+        **get_waiter_active_work_counts(waiter),
+    }
+    if any(active_work.values()):
+        raise ValidationError(
+            WAITER_ACCESS_CHANGE_ACTIVE_WORK_DETAIL,
+            code=WAITER_HAS_ACTIVE_WORK_CODE,
+            params=active_work,
+        )
+    return waiter
 
 
 @transaction.atomic

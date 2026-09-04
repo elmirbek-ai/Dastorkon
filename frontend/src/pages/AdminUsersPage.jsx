@@ -12,6 +12,7 @@ import { getRoleLabel } from '../i18n/index.js'
 
 const emptyUser = { username: '', password: '', confirm_password: '', phone: '', role: 'WAITER', is_active: true }
 const emptyPassword = { password: '', confirm_password: '' }
+const WAITER_HAS_ACTIVE_WORK_CODE = 'WAITER_HAS_ACTIVE_WORK'
 const pageConfigs = {
   waiters: {
     roles: ['WAITER'],
@@ -90,6 +91,12 @@ export default function AdminUsersPage({ mode = 'waiters' }) {
   const [revision, setRevision] = useState(0)
   const mutationInFlightRef = useRef(false)
 
+  function getMutationError(requestError) {
+    return requestError.response?.data?.code === WAITER_HAS_ACTIVE_WORK_CODE
+      ? t('admin.waiterHasActiveWork')
+      : handleApiError(requestError, t('errors.generic'))
+  }
+
   useEffect(() => {
     let active = true
     adminApiClient.get('/api/admin/users/', { params: { include_inactive: 'true', ...pageConfig.apiParams } }).then((response) => {
@@ -146,7 +153,7 @@ export default function AdminUsersPage({ mode = 'waiters' }) {
       setNotice(editing.id ? t('admin.accountUpdated') : t('admin.accountCreated'))
       setRevision((value) => value + 1)
     } catch (requestError) {
-      setFormError(handleApiError(requestError, t('errors.generic')))
+      setFormError(getMutationError(requestError))
     } finally {
       mutationInFlightRef.current = false
       setSaving(false)
@@ -170,7 +177,7 @@ export default function AdminUsersPage({ mode = 'waiters' }) {
       await adminApiClient.patch(`/api/admin/users/${user.id}/`, { is_active: !user.is_active })
       setUsers((current) => current.map((item) => item.id === user.id ? { ...item, is_active: !item.is_active } : item))
     } catch (requestError) {
-      setError(handleApiError(requestError, t('errors.generic')))
+      setError(getMutationError(requestError))
     } finally {
       mutationInFlightRef.current = false
       setBusyId(null)

@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
@@ -25,6 +26,7 @@ from .services import (
     end_waiter_shift,
     get_active_waiter_shift,
     start_waiter_shift,
+    validate_waiter_access_change,
 )
 
 
@@ -64,14 +66,60 @@ class AdminUserViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(role__in=roles)
         return queryset
 
+    @staticmethod
+    def active_work_response(exc):
+        return Response(
+            {
+                "code": WAITER_HAS_ACTIVE_WORK_CODE,
+                "detail": exc.message,
+                **(exc.params or {}),
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    @transaction.atomic
+    def update(self, request, *args, **kwargs):
+        try:
+            return super().update(request, *args, **kwargs)
+        except DjangoValidationError as exc:
+            if getattr(exc, "code", None) == WAITER_HAS_ACTIVE_WORK_CODE:
+                return self.active_work_response(exc)
+            raise ValidationError(exc.messages) from exc
+
+    @transaction.atomic
+    def destroy(self, request, *args, **kwargs):
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except DjangoValidationError as exc:
+            if getattr(exc, "code", None) == WAITER_HAS_ACTIVE_WORK_CODE:
+                return self.active_work_response(exc)
+            raise ValidationError(exc.messages) from exc
+
     def perform_update(self, serializer):
         if serializer.instance == self.request.user and serializer.validated_data.get("is_active") is False:
             raise ValidationError({"is_active": "You cannot deactivate your own account."})
+        instance = validate_waiter_access_change(
+            serializer.instance,
+            next_is_active=serializer.validated_data.get(
+                "is_active",
+                serializer.instance.is_active,
+            ),
+            next_role=serializer.validated_data.get(
+                "role",
+                serializer.instance.role,
+            ),
+        )
+        serializer.instance = instance
         serializer.save()
 
     def perform_destroy(self, instance):
         if instance == self.request.user:
             raise ValidationError("You cannot deactivate your own account.")
+        instance = validate_waiter_access_change(
+            instance,
+            next_is_active=False,
+            next_role=instance.role,
+        )
         instance.is_active = False
         instance.save(update_fields=("is_active",))
 
