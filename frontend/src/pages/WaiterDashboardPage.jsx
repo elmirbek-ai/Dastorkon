@@ -11,6 +11,7 @@ import { getAvatarInitial } from '../utils/avatar.js'
 
 const ACTIVE_WAITER_ORDER_STATUSES = ['NEW', 'PREPARING', 'READY', 'DELIVERED']
 const unfinishedOrderStatuses = new Set(['NEW', 'PREPARING', 'READY'])
+const WAITER_HAS_ACTIVE_WORK_CODE = 'WAITER_HAS_ACTIVE_WORK'
 const WAITER_POLL_INTERVAL_MS = 8000
 const CONNECTED_POLL_INTERVAL_MS = 30000
 const WAITER_NOTIFICATION_EVENTS = new Set([
@@ -28,6 +29,11 @@ const WAITER_NOTIFICATION_EVENTS = new Set([
 
 function emptyOrderStatusCounts() {
   return Object.fromEntries(ACTIVE_WAITER_ORDER_STATUSES.map((status) => [status, 0]))
+}
+
+function getResponseErrorCode(requestError) {
+  const code = requestError.response?.data?.code
+  return Array.isArray(code) ? code[0] : code
 }
 
 function formatMoney(value) {
@@ -546,7 +552,9 @@ function WaiterDashboardPage() {
       await loadDashboard({ refreshAfterCurrent: true })
     } catch (requestError) {
       if (handleUnauthorized(requestError)) return
-      const backendMessage = getBackendErrorMessage(requestError, language)
+      const backendMessage = getResponseErrorCode(requestError) === WAITER_HAS_ACTIVE_WORK_CODE
+        ? t('waiter.endShiftActiveWork')
+        : getBackendErrorMessage(requestError, language)
       setActionError({ key, message: requestError.response?.data ? backendMessage : fallbackError })
     } finally {
       if (pendingActionRef.current === key) pendingActionRef.current = ''

@@ -19,6 +19,7 @@ from .serializers import (
     RoleTokenRefreshSerializer,
 )
 from .services import (
+    WAITER_HAS_ACTIVE_WORK_CODE,
     build_waiter_shift_summary,
     build_waiter_work_stats,
     end_waiter_shift,
@@ -131,6 +132,15 @@ class WaiterShiftEndView(APIView):
         try:
             shift = end_waiter_shift(request.user)
         except DjangoValidationError as exc:
+            if getattr(exc, "code", None) == WAITER_HAS_ACTIVE_WORK_CODE:
+                return Response(
+                    {
+                        "code": WAITER_HAS_ACTIVE_WORK_CODE,
+                        "detail": exc.message,
+                        **(exc.params or {}),
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             raise ValidationError(exc.messages) from exc
         return Response(WaiterShiftSerializer(shift).data)
 

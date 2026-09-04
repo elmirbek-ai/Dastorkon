@@ -8,6 +8,12 @@ from django.utils import timezone
 from .models import User, WaiterShift
 
 
+WAITER_HAS_ACTIVE_WORK_CODE = "WAITER_HAS_ACTIVE_WORK"
+WAITER_HAS_ACTIVE_WORK_DETAIL = (
+    "Complete assigned active tables, orders, and calls before ending the shift."
+)
+
+
 def validate_waiter(waiter):
     if not waiter.is_authenticated or waiter.pk is None:
         raise ValidationError("Authenticated waiter is required.")
@@ -17,6 +23,50 @@ def validate_waiter(waiter):
 
 def get_active_waiter_shift(waiter):
     return WaiterShift.objects.filter(waiter=waiter, is_active=True).first()
+
+
+@transaction.atomic
+def get_waiter_active_work_counts(waiter):
+    from apps.orders.models import Order, WaiterCall
+    from apps.tables.models import ActiveTableSession
+
+    active_session_ids = list(
+        ActiveTableSession.objects.select_for_update()
+        .filter(
+            assigned_waiter=waiter,
+            status=ActiveTableSession.Status.ACTIVE,
+        )
+        .values_list("pk", flat=True)
+    )
+    unfinished_order_ids = list(
+        Order.objects.select_for_update()
+        .filter(
+            table_session_id__in=active_session_ids,
+            status__in=(
+                Order.Status.NEW,
+                Order.Status.PREPARING,
+                Order.Status.READY,
+                Order.Status.DELIVERED,
+            ),
+        )
+        .values_list("pk", flat=True)
+    )
+    unresolved_call_ids = list(
+        WaiterCall.objects.select_for_update()
+        .filter(
+            assigned_waiter=waiter,
+            status__in=(
+                WaiterCall.Status.NEW,
+                WaiterCall.Status.ACCEPTED,
+            ),
+        )
+        .values_list("pk", flat=True)
+    )
+    return {
+        "active_tables": len(active_session_ids),
+        "unfinished_orders": len(unfinished_order_ids),
+        "unresolved_calls": len(unresolved_call_ids),
+    }
 
 
 @transaction.atomic
@@ -40,6 +90,14 @@ def end_waiter_shift(waiter):
     )
     if active_shift is None:
         raise ValidationError("Waiter has no active shift.")
+
+    active_work = get_waiter_active_work_counts(waiter)
+    if any(active_work.values()):
+        raise ValidationError(
+            WAITER_HAS_ACTIVE_WORK_DETAIL,
+            code=WAITER_HAS_ACTIVE_WORK_CODE,
+            params=active_work,
+        )
 
     active_shift.is_active = False
     active_shift.ended_at = timezone.now()

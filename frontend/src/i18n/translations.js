@@ -27,6 +27,14 @@ export const translations = {
   }
 }
 
+Object.assign(translations.ky.waiter, {
+  endShiftActiveWork: 'Сменаны жабуу үчүн алгач активдүү столдорду, заказдарды жана чакырууларды бүтүрүңүз.',
+})
+
+Object.assign(translations.ru.waiter, {
+  endShiftActiveWork: 'Чтобы закрыть смену, сначала завершите активные столы, заказы и вызовы.',
+})
+
 Object.assign(translations.ky.admin, {
   interfaceLanguage: 'Интерфейс тили',
   interfaceLanguageDescription: 'Админ панелдин жана системанын тили.',
