@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from django.urls import reverse
 from rest_framework import status
-from rest_framework.test import APITestCase
+from rest_framework.test import APIClient, APITestCase
 
 from apps.menu.models import Category, MenuItem
 from apps.orders.models import Order, OrderStatusHistory
@@ -114,13 +114,13 @@ class KitchenOrdersApiTests(APITestCase):
 
         self.assertIn(order.pk, [item["id"] for item in response.data])
 
-    def test_kitchen_list_excludes_ready_orders(self):
+    def test_kitchen_can_list_ready_orders(self):
         self.authenticate(self.kitchen)
         order = self.create_test_order(Order.Status.READY)
 
         response = self.client.get(self.orders_url)
 
-        self.assertNotIn(order.pk, [item["id"] for item in response.data])
+        self.assertIn(order.pk, [item["id"] for item in response.data])
 
     def test_kitchen_list_excludes_delivered_orders(self):
         self.authenticate(self.kitchen)
@@ -196,6 +196,37 @@ class KitchenOrdersApiTests(APITestCase):
         order.refresh_from_db()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(order.status, Order.Status.READY)
+
+    def test_ready_order_remains_visible_on_subsequent_kitchen_list(self):
+        self.authenticate(self.kitchen)
+        order = self.create_test_order(Order.Status.PREPARING)
+        ready_url = reverse("kitchen-order-ready", args=(order.pk,))
+
+        ready_response = self.client.post(ready_url)
+        reload_response = self.client.get(self.orders_url)
+
+        self.assertEqual(ready_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(ready_response.data["status"], Order.Status.READY)
+        self.assertIn(
+            order.pk,
+            [item["id"] for item in reload_response.data],
+        )
+
+    def test_second_kitchen_client_can_list_ready_order(self):
+        self.authenticate(self.kitchen)
+        order = self.create_test_order(Order.Status.READY)
+        second_kitchen = User.objects.create_user(
+            username="second-kitchen",
+            role=User.Role.KITCHEN,
+        )
+        second_client = APIClient()
+        second_client.force_authenticate(user=second_kitchen)
+
+        first_response = self.client.get(self.orders_url)
+        second_response = second_client.get(self.orders_url)
+
+        self.assertIn(order.pk, [item["id"] for item in first_response.data])
+        self.assertIn(order.pk, [item["id"] for item in second_response.data])
 
     def test_kitchen_cannot_mark_new_order_ready(self):
         self.authenticate(self.kitchen)

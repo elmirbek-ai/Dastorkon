@@ -8,7 +8,6 @@ import { getBackendErrorMessage, getLocalizedField, getOrderSourceLabel, getStat
 import useNotificationsSocket from '../realtime/useNotificationsSocket.js'
 
 const ACTIVE_STATUSES = ['NEW', 'PREPARING', 'READY']
-const READY_RETENTION_MS = 15 * 60 * 1000
 const KITCHEN_POLL_INTERVAL_MS = 7000
 const CONNECTED_POLL_INTERVAL_MS = 30000
 const KITCHEN_NOTIFICATION_EVENTS = new Set([
@@ -262,18 +261,7 @@ function KitchenDisplayPage() {
         const response = await kitchenApiClient.get('/api/kitchen/orders/')
         const responseOrders = Array.isArray(response.data) ? response.data : []
         const fetchedOrders = responseOrders.filter((order) => ACTIVE_STATUSES.includes(order.status))
-        const now = Date.now()
-        setOrders((currentOrders) => {
-          const fetchedIds = new Set(fetchedOrders.map((order) => order.id))
-          const recentReady = currentOrders.filter(
-            (order) => (
-              order.status === 'READY'
-              && !fetchedIds.has(order.id)
-              && now - order._readyAt < READY_RETENTION_MS
-            ),
-          )
-          return [...fetchedOrders, ...recentReady]
-        })
+        setOrders(fetchedOrders)
         setLastUpdated(new Date())
         setError('')
       } catch (requestError) {
@@ -345,9 +333,7 @@ function KitchenDisplayPage() {
       const response = await kitchenApiClient.post(
         `/api/kitchen/orders/${order.id}/${action}/`,
       )
-      const updatedOrder = response.data.status === 'READY'
-        ? { ...response.data, _readyAt: Date.now() }
-        : response.data
+      const updatedOrder = response.data
       setOrders((currentOrders) => currentOrders.map(
         (currentOrder) => currentOrder.id === order.id ? updatedOrder : currentOrder,
       ))

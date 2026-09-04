@@ -524,7 +524,11 @@ class KitchenOrdersView(APIView):
     def get(self, request):
         orders = (
             Order.objects.filter(
-                status__in=(Order.Status.NEW, Order.Status.PREPARING),
+                status__in=(
+                    Order.Status.NEW,
+                    Order.Status.PREPARING,
+                    Order.Status.READY,
+                ),
             )
             .select_related("table_session__table")
             .prefetch_related("items")
