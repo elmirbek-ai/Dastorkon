@@ -3,6 +3,7 @@ from django.test import TestCase
 from apps.restaurants.models import Restaurant
 from apps.tables.models import ActiveTableSession, RestaurantTable
 from apps.tables.services import (
+    activate_customer_session,
     close_active_table_session,
     create_customer_session,
     get_or_create_active_table_session,
@@ -40,6 +41,27 @@ class TableServicesTests(TestCase):
         self.assertEqual(customer_session.active_table_session, table_session)
         self.assertTrue(customer_session.is_active)
         self.assertIsNone(customer_session.closed_at)
+
+    def test_create_customer_session_can_create_browsing_context(self):
+        customer_session = create_customer_session(table=self.table)
+
+        self.table.refresh_from_db()
+        self.assertEqual(customer_session.table, self.table)
+        self.assertIsNone(customer_session.active_table_session)
+        self.assertEqual(self.table.status, RestaurantTable.Status.FREE)
+        self.assertFalse(ActiveTableSession.objects.exists())
+
+    def test_activate_customer_session_creates_operational_session(self):
+        customer_session = create_customer_session(table=self.table)
+
+        customer_session, table_session = activate_customer_session(
+            customer_session
+        )
+
+        self.table.refresh_from_db()
+        self.assertEqual(customer_session.active_table_session, table_session)
+        self.assertEqual(table_session.table, self.table)
+        self.assertEqual(self.table.status, RestaurantTable.Status.OCCUPIED)
 
     def test_close_active_table_session_closes_related_sessions_and_table(self):
         table_session = get_or_create_active_table_session(self.table)

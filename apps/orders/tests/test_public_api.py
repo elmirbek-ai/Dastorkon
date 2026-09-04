@@ -9,11 +9,9 @@ from apps.menu.models import Category, MenuItem
 from apps.orders.models import CartItem, Order
 from apps.orders.services import add_cart_item, create_order_from_cart
 from apps.restaurants.models import Restaurant
-from apps.tables.models import RestaurantTable
-from apps.tables.services import (
-    create_customer_session,
-    get_or_create_active_table_session,
-)
+from apps.tables.models import ActiveTableSession, RestaurantTable
+from apps.tables.services import create_customer_session
+from apps.users.models import User
 
 
 class PublicCartOrderApiTests(APITestCase):
@@ -35,8 +33,7 @@ class PublicCartOrderApiTests(APITestCase):
             restaurant=self.restaurant,
             number=1,
         )
-        self.table_session = get_or_create_active_table_session(self.table)
-        self.customer_session = create_customer_session(self.table_session)
+        self.customer_session = create_customer_session(table=self.table)
         self.client.cookies["customer_session_key"] = str(
             self.customer_session.session_key
         )
@@ -85,8 +82,7 @@ class PublicCartOrderApiTests(APITestCase):
             restaurant=self.restaurant,
             number=2,
         )
-        other_table_session = get_or_create_active_table_session(other_table)
-        other_customer = create_customer_session(other_table_session)
+        other_customer = create_customer_session(table=other_table)
         self.client.cookies["customer_session_key"] = str(
             other_customer.session_key
         )
@@ -133,6 +129,11 @@ class PublicCartOrderApiTests(APITestCase):
                 quantity=2,
             ).exists()
         )
+        self.table.refresh_from_db()
+        self.customer_session.refresh_from_db()
+        self.assertEqual(self.table.status, RestaurantTable.Status.FREE)
+        self.assertIsNone(self.customer_session.active_table_session)
+        self.assertFalse(ActiveTableSession.objects.exists())
 
     def test_post_cart_item_merges_same_item_and_comment(self):
         data = {
@@ -203,7 +204,7 @@ class PublicCartOrderApiTests(APITestCase):
         self.assertFalse(CartItem.objects.filter(pk=item_id).exists())
 
     def test_customer_cannot_update_or_delete_another_customers_item(self):
-        other_customer = create_customer_session(self.table_session)
+        other_customer = create_customer_session(table=self.table)
         other_item = add_cart_item(other_customer, self.menu_item)
         url = reverse(
             "public-cart-item-detail",
@@ -305,6 +306,16 @@ class PublicCartOrderApiTests(APITestCase):
         )
         self.assertEqual(response.data["items"][0]["comment"], "Пиязсыз")
 
+        order = Order.objects.get(pk=response.data["id"])
+        self.table.refresh_from_db()
+        self.customer_session.refresh_from_db()
+        self.assertEqual(self.table.status, RestaurantTable.Status.OCCUPIED)
+        self.assertEqual(
+            self.customer_session.active_table_session_id,
+            order.table_session_id,
+        )
+        self.assertEqual(ActiveTableSession.objects.count(), 1)
+
     def test_post_orders_clears_cart_after_success(self):
         add_cart_item(self.customer_session, self.menu_item)
 
@@ -318,6 +329,9 @@ class PublicCartOrderApiTests(APITestCase):
         response = self.client.post(self.orders_url)
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.table.refresh_from_db()
+        self.assertEqual(self.table.status, RestaurantTable.Status.FREE)
+        self.assertFalse(ActiveTableSession.objects.exists())
 
     def test_post_orders_rejects_item_that_became_unavailable(self):
         cart_item = add_cart_item(self.customer_session, self.menu_item)
@@ -354,7 +368,7 @@ class PublicCartOrderApiTests(APITestCase):
 
     def test_get_orders_excludes_other_customer_orders(self):
         own_order = self.create_order()
-        other_customer = create_customer_session(self.table_session)
+        other_customer = create_customer_session(table=self.table)
         other_order = self.create_order(other_customer)
 
         response = self.client.get(self.orders_url)
@@ -362,6 +376,30 @@ class PublicCartOrderApiTests(APITestCase):
         order_ids = [item["id"] for item in response.data["orders"]]
         self.assertIn(own_order.pk, order_ids)
         self.assertNotIn(other_order.pk, order_ids)
+
+    def test_additional_order_reuses_existing_active_table_session(self):
+        first_order = self.create_order()
+        additional_customer = create_customer_session(table=self.table)
+        second_order = self.create_order(additional_customer, quantity=2)
+
+        self.assertEqual(
+            second_order.table_session_id,
+            first_order.table_session_id,
+        )
+        self.assertEqual(ActiveTableSession.objects.count(), 1)
+
+    def test_checkout_order_is_visible_to_kitchen(self):
+        kitchen = User.objects.create_user(
+            username="kitchen",
+            role=User.Role.KITCHEN,
+        )
+        order = self.create_order()
+        self.client.force_authenticate(user=kitchen)
+
+        response = self.client.get(reverse("kitchen-orders"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn(order.pk, [item["id"] for item in response.data])
 
     def test_get_orders_returns_non_cancelled_total(self):
         active_order = self.create_order(quantity=1)

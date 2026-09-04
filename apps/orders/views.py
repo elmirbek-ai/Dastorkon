@@ -97,12 +97,14 @@ class CustomerSessionMixin:
 
         try:
             customer_session = (
-                CustomerSession.objects.select_related("active_table_session")
+                CustomerSession.objects.select_related(
+                    "table",
+                    "active_table_session",
+                )
                 .filter(
                     session_key=session_key,
                     is_active=True,
-                    active_table_session__table=table,
-                    active_table_session__status=ActiveTableSession.Status.ACTIVE,
+                    table=table,
                 )
                 .first()
             )

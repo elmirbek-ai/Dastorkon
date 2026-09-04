@@ -449,7 +449,10 @@ class WaiterProfileApiTests(APITestCase):
 
     def create_order(self, order_status, table_session=None, number="ORDER-1"):
         table_session = table_session or self.create_table_session(1, ActiveTableSession.Status.ACTIVE)
-        customer_session = CustomerSession.objects.create(active_table_session=table_session)
+        customer_session = CustomerSession.objects.create(
+            table=table_session.table,
+            active_table_session=table_session,
+        )
         return Order.objects.create(
             restaurant=table_session.restaurant,
             table_session=table_session,

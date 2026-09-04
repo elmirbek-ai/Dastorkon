@@ -16,6 +16,7 @@ from apps.notifications.services import (
 )
 from apps.tables.models import ActiveTableSession, CustomerSession, RestaurantTable
 from apps.tables.services import (
+    activate_customer_session,
     close_active_table_session,
     get_or_create_active_table_session,
 )
@@ -44,12 +45,16 @@ def normalize_item_comment(comment):
 def validate_menu_item_for_customer_session(customer_session, menu_item):
     if not customer_session.is_active:
         raise ValidationError("Customer session is inactive.")
-
+    if not customer_session.table.is_active:
+        raise ValidationError("Table not found or inactive.")
     table_session = customer_session.active_table_session
-    if table_session.status != ActiveTableSession.Status.ACTIVE:
+    if (
+        table_session is not None
+        and table_session.status != ActiveTableSession.Status.ACTIVE
+    ):
         raise ValidationError("Table session is not active.")
     if (
-        menu_item.restaurant_id != table_session.restaurant_id
+        menu_item.restaurant_id != customer_session.table.restaurant_id
         or menu_item.is_deleted
         or not menu_item.is_visible
         or not menu_item.is_available
@@ -72,7 +77,7 @@ def add_cart_item(
 ):
     customer_session = (
         CustomerSession.objects.select_for_update()
-        .select_related("active_table_session")
+        .select_related("table", "active_table_session")
         .get(pk=customer_session.pk)
     )
     menu_item = MenuItem.objects.get(pk=menu_item.pk)
@@ -108,6 +113,7 @@ def update_cart_item(cart_item, quantity=None, comment=None):
         CartItem.objects.select_for_update()
         .select_related(
             "customer_session__active_table_session",
+            "customer_session__table",
             "menu_item",
         )
         .get(pk=cart_item.pk)
@@ -140,8 +146,12 @@ def get_cart_items(customer_session):
     if not customer_session.is_active:
         raise ValidationError("Customer session is inactive.")
     if (
-        customer_session.active_table_session.status
-        != ActiveTableSession.Status.ACTIVE
+        not customer_session.table.is_active
+        or (
+            customer_session.active_table_session is not None
+            and customer_session.active_table_session.status
+            != ActiveTableSession.Status.ACTIVE
+        )
     ):
         raise ValidationError("Table session is not active.")
     return CartItem.objects.filter(
@@ -165,21 +175,11 @@ def clear_cart(customer_session):
 
 @transaction.atomic
 def create_waiter_call(customer_session, reason):
-    table_session = (
-        ActiveTableSession.objects.select_for_update()
-        .select_related("restaurant", "assigned_waiter")
-        .get(pk=customer_session.active_table_session_id)
-    )
-    customer_session = CustomerSession.objects.select_for_update().get(
-        pk=customer_session.pk,
-        active_table_session=table_session,
-    )
-    if not customer_session.is_active:
-        raise ValidationError("Customer session is inactive.")
-    if table_session.status != ActiveTableSession.Status.ACTIVE:
-        raise ValidationError("Table session is not active.")
     if reason not in WaiterCall.Reason.values:
         raise ValidationError("Invalid waiter call reason.")
+    customer_session, table_session = activate_customer_session(
+        customer_session
+    )
 
     waiter_call = WaiterCall.objects.create(
         restaurant=table_session.restaurant,
@@ -384,20 +384,9 @@ def _create_order_record(
 
 @transaction.atomic
 def create_order(customer_session, items_data):
-    table_session = (
-        ActiveTableSession.objects.select_for_update()
-        .select_related("restaurant", "assigned_waiter")
-        .get(pk=customer_session.active_table_session_id)
+    customer_session, table_session = activate_customer_session(
+        customer_session
     )
-    customer_session = CustomerSession.objects.select_for_update().get(
-        pk=customer_session.pk,
-        active_table_session=table_session,
-    )
-
-    if not customer_session.is_active:
-        raise ValidationError("Customer session is inactive.")
-    if table_session.status != ActiveTableSession.Status.ACTIVE:
-        raise ValidationError("Table session is not active.")
 
     return _create_order_record(
         table_session,
@@ -439,7 +428,7 @@ def create_manual_order(waiter, table_id, items_data):
 def create_order_from_cart(customer_session):
     customer_session = (
         CustomerSession.objects.select_for_update()
-        .select_related("active_table_session")
+        .select_related("table", "active_table_session")
         .get(pk=customer_session.pk)
     )
     if not customer_session.is_active:

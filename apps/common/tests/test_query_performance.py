@@ -37,6 +37,7 @@ class EndpointQueryCountTests(APITestCase):
             table=self.table,
         )
         self.customer_session = CustomerSession.objects.create(
+            table=self.table,
             active_table_session=self.table_session,
         )
         self.category = Category.objects.create(
@@ -104,6 +105,7 @@ class EndpointQueryCountTests(APITestCase):
             assigned_waiter=assigned_waiter,
         )
         customer_session = CustomerSession.objects.create(
+            table=table,
             active_table_session=table_session,
         )
         return table_session, customer_session

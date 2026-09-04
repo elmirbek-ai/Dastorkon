@@ -13,7 +13,6 @@ from .models import ActiveTableSession, CustomerSession, RestaurantTable
 from .serializers import RestaurantTableSerializer
 from .services import (
     create_customer_session,
-    get_or_create_active_table_session,
     get_table_by_qr_token,
 )
 
@@ -49,7 +48,9 @@ class CustomerSessionStartView(APIView):
                 fields={
                     "restaurant": serializers.DictField(),
                     "table": serializers.DictField(),
-                    "table_session_id": serializers.IntegerField(),
+                    "table_session_id": serializers.IntegerField(
+                        allow_null=True
+                    ),
                     "customer_session_id": serializers.IntegerField(),
                     "comments_enabled": serializers.BooleanField(),
                 },
@@ -63,10 +64,9 @@ class CustomerSessionStartView(APIView):
         except DjangoValidationError:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
-        table_session = get_or_create_active_table_session(table)
-        customer_session = self.get_customer_session(request, table_session)
+        customer_session = self.get_customer_session(request, table)
         if customer_session is None:
-            customer_session = create_customer_session(table_session)
+            customer_session = create_customer_session(table=table)
 
         restaurant_settings = getattr(table.restaurant, "settings", None)
         comments_enabled = (
@@ -81,7 +81,7 @@ class CustomerSessionStartView(APIView):
                     "name": table.restaurant.name,
                 },
                 "table": {"id": table.pk, "number": table.number},
-                "table_session_id": table_session.pk,
+                "table_session_id": customer_session.active_table_session_id,
                 "customer_session_id": customer_session.pk,
                 "comments_enabled": comments_enabled,
             }
@@ -95,14 +95,14 @@ class CustomerSessionStartView(APIView):
         )
         return response
 
-    def get_customer_session(self, request, table_session):
+    def get_customer_session(self, request, table):
         session_key = request.COOKIES.get("customer_session_key")
         if not session_key:
             return None
         try:
             return CustomerSession.objects.filter(
                 session_key=session_key,
-                active_table_session=table_session,
+                table=table,
                 is_active=True,
             ).first()
         except DjangoValidationError:

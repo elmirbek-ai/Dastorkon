@@ -5,6 +5,7 @@ from rest_framework.test import APITestCase
 
 from apps.restaurants.models import Restaurant
 from apps.tables.models import ActiveTableSession, CustomerSession, RestaurantTable
+from apps.tables.services import activate_customer_session
 
 
 class PublicCustomerSessionApiTests(APITestCase):
@@ -40,14 +41,15 @@ class PublicCustomerSessionApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_session_endpoint_creates_table_session_and_occupies_table(self):
+    def test_session_endpoint_does_not_occupy_table(self):
         response = self.client.post(self.url)
 
         self.table.refresh_from_db()
-        table_session = ActiveTableSession.objects.get(table=self.table)
-        self.assertEqual(response.data["table_session_id"], table_session.pk)
-        self.assertEqual(table_session.status, ActiveTableSession.Status.ACTIVE)
-        self.assertEqual(self.table.status, RestaurantTable.Status.OCCUPIED)
+        self.assertIsNone(response.data["table_session_id"])
+        self.assertFalse(
+            ActiveTableSession.objects.filter(table=self.table).exists()
+        )
+        self.assertEqual(self.table.status, RestaurantTable.Status.FREE)
 
     def test_session_endpoint_creates_customer_session_and_cookie(self):
         response = self.client.post(self.url)
@@ -57,6 +59,8 @@ class PublicCustomerSessionApiTests(APITestCase):
         )
         cookie = response.cookies["customer_session_key"]
         self.assertTrue(customer_session.is_active)
+        self.assertEqual(customer_session.table, self.table)
+        self.assertIsNone(customer_session.active_table_session)
         self.assertEqual(cookie.value, str(customer_session.session_key))
         self.assertTrue(cookie["httponly"])
         self.assertEqual(cookie["samesite"], "Lax")
@@ -72,6 +76,25 @@ class PublicCustomerSessionApiTests(APITestCase):
             first_response.data["customer_session_id"],
         )
         self.assertEqual(CustomerSession.objects.count(), 1)
+
+    def test_session_endpoint_reuses_bound_operational_context(self):
+        first_response = self.client.post(self.url)
+        customer_session = CustomerSession.objects.get(
+            pk=first_response.data["customer_session_id"]
+        )
+        _, table_session = activate_customer_session(customer_session)
+
+        second_response = self.client.post(self.url)
+
+        self.assertEqual(
+            second_response.data["customer_session_id"],
+            customer_session.pk,
+        )
+        self.assertEqual(
+            second_response.data["table_session_id"],
+            table_session.pk,
+        )
+        self.assertEqual(ActiveTableSession.objects.count(), 1)
 
     def test_session_endpoint_does_not_reuse_cookie_from_another_table(self):
         other_table = RestaurantTable.objects.create(
@@ -93,4 +116,5 @@ class PublicCustomerSessionApiTests(APITestCase):
         customer_session = CustomerSession.objects.get(
             pk=response.data["customer_session_id"],
         )
-        self.assertEqual(customer_session.active_table_session.table, self.table)
+        self.assertEqual(customer_session.table, self.table)
+        self.assertIsNone(customer_session.active_table_session)

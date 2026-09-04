@@ -3,7 +3,11 @@ from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
 from apps.orders.models import CartItem, Order
-from apps.tables.models import CustomerSession, RestaurantTable
+from apps.tables.models import (
+    ActiveTableSession,
+    CustomerSession,
+    RestaurantTable,
+)
 
 
 User = get_user_model()
@@ -121,8 +125,11 @@ class MvpSmokeFlowTests(APITestCase):
         )
         self.assert_status(session_response, status.HTTP_200_OK)
         self.assertIn("customer_session_key", customer_client.cookies)
-        table_session_id = session_response.data["table_session_id"]
+        self.assertIsNone(session_response.data["table_session_id"])
         customer_session_id = session_response.data["customer_session_id"]
+        table = RestaurantTable.objects.get(pk=table_id)
+        self.assertEqual(table.status, RestaurantTable.Status.FREE)
+        self.assertFalse(ActiveTableSession.objects.filter(table=table).exists())
 
         menu_response = customer_client.get(f"{public_base}/menu/")
         self.assert_status(menu_response, status.HTTP_200_OK)
@@ -137,6 +144,9 @@ class MvpSmokeFlowTests(APITestCase):
             format="json",
         )
         self.assert_status(cart_response, status.HTTP_201_CREATED)
+        table.refresh_from_db()
+        self.assertEqual(table.status, RestaurantTable.Status.FREE)
+        self.assertFalse(ActiveTableSession.objects.filter(table=table).exists())
 
         order_response = customer_client.post(
             f"{public_base}/orders/",
@@ -146,6 +156,14 @@ class MvpSmokeFlowTests(APITestCase):
         self.assert_status(order_response, status.HTTP_201_CREATED)
         order_id = order_response.data["id"]
         self.assertEqual(order_response.data["status"], Order.Status.NEW)
+        order = Order.objects.get(pk=order_id)
+        table_session_id = order.table_session_id
+        table.refresh_from_db()
+        self.assertEqual(table.status, RestaurantTable.Status.OCCUPIED)
+        self.assertEqual(
+            ActiveTableSession.objects.filter(table=table).count(),
+            1,
+        )
 
         own_orders_response = customer_client.get(f"{public_base}/orders/")
         self.assert_status(own_orders_response, status.HTTP_200_OK)
@@ -215,6 +233,7 @@ class MvpSmokeFlowTests(APITestCase):
         self.assertEqual(order.status, Order.Status.COMPLETED)
         self.assertEqual(table.status, RestaurantTable.Status.FREE)
         self.assertFalse(customer_session.is_active)
+        self.assertEqual(customer_session.table_id, table_id)
         self.assertFalse(
             CartItem.objects.filter(customer_session=customer_session).exists()
         )

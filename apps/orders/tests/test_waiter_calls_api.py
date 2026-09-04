@@ -11,7 +11,7 @@ from apps.orders.services import (
     create_waiter_call,
 )
 from apps.restaurants.models import Restaurant
-from apps.tables.models import RestaurantTable
+from apps.tables.models import ActiveTableSession, RestaurantTable
 from apps.tables.services import (
     create_customer_session,
     get_or_create_active_table_session,
@@ -76,6 +76,36 @@ class WaiterCallApiTests(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_public_call_activates_free_table_without_existing_session(self):
+        table = RestaurantTable.objects.create(
+            restaurant=self.restaurant,
+            number=2,
+        )
+        customer_session = create_customer_session(table=table)
+        self.client.cookies["customer_session_key"] = str(
+            customer_session.session_key
+        )
+        url = reverse("public-waiter-call-create", args=(table.qr_token,))
+
+        response = self.client.post(
+            url,
+            {"reason": WaiterCall.Reason.WAITER_NEEDED},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        table.refresh_from_db()
+        customer_session.refresh_from_db()
+        waiter_call = WaiterCall.objects.get(pk=response.data["id"])
+        self.assertEqual(table.status, RestaurantTable.Status.OCCUPIED)
+        self.assertEqual(
+            customer_session.active_table_session_id,
+            waiter_call.table_session_id,
+        )
+        self.assertEqual(
+            ActiveTableSession.objects.filter(table=table).count(),
+            1,
+        )
 
     def test_public_endpoint_rejects_missing_cookie(self):
         del self.client.cookies["customer_session_key"]

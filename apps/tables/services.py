@@ -38,10 +38,45 @@ def get_or_create_active_table_session(table):
     return active_session
 
 
-def create_customer_session(active_table_session):
+def create_customer_session(active_table_session=None, *, table=None):
+    if table is None:
+        table = active_table_session.table
     return CustomerSession.objects.create(
+        table=table,
         active_table_session=active_table_session,
     )
+
+
+@transaction.atomic
+def activate_customer_session(customer_session):
+    customer_snapshot = CustomerSession.objects.select_related("table").get(
+        pk=customer_session.pk
+    )
+    if not customer_snapshot.is_active:
+        raise ValidationError("Customer session is inactive.")
+    if not customer_snapshot.table.is_active:
+        raise ValidationError("Table not found or inactive.")
+
+    table_session = get_or_create_active_table_session(customer_snapshot.table)
+    customer_session = (
+        CustomerSession.objects.select_for_update()
+        .select_related("table", "active_table_session")
+        .get(pk=customer_snapshot.pk)
+    )
+    if not customer_session.is_active:
+        raise ValidationError("Customer session is inactive.")
+    if not customer_session.table.is_active:
+        raise ValidationError("Table not found or inactive.")
+    if customer_session.table_id != table_session.table_id:
+        raise ValidationError("Customer session table does not match.")
+    if customer_session.active_table_session_id not in (None, table_session.pk):
+        raise ValidationError("Customer session table does not match.")
+    if customer_session.active_table_session_id == table_session.pk:
+        return customer_session, table_session
+
+    customer_session.active_table_session = table_session
+    customer_session.save(update_fields=("active_table_session", "updated_at"))
+    return customer_session, table_session
 
 
 @transaction.atomic

@@ -85,10 +85,17 @@ class ActiveTableSession(TimeStampedModel):
 
 
 class CustomerSession(TimeStampedModel):
+    table = models.ForeignKey(
+        RestaurantTable,
+        on_delete=models.PROTECT,
+        related_name="customer_sessions",
+    )
     active_table_session = models.ForeignKey(
         ActiveTableSession,
         on_delete=models.CASCADE,
         related_name="customer_sessions",
+        null=True,
+        blank=True,
     )
     session_key = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     is_active = models.BooleanField(default=True)
