@@ -362,6 +362,39 @@ class AdminStatisticsApiTests(APITestCase):
         self.assertEqual(response.data["total_orders"], 2)
         self.assertEqual(response.data["completed_amount"], "300.00")
 
+    def test_statistics_range_uses_bishkek_boundaries_for_revenue(self):
+        self.create_order(
+            self.customer_session,
+            self.menu_item,
+            quantity=1,
+            completed=True,
+            created_at=datetime(2026, 1, 9, 17, 59, 59, tzinfo=UTC),
+        )
+        self.create_order(
+            self.customer_session,
+            self.menu_item,
+            quantity=1,
+            completed=True,
+            created_at=datetime(2026, 1, 9, 18, 0, tzinfo=UTC),
+        )
+        self.create_order(
+            self.customer_session,
+            self.menu_item,
+            quantity=1,
+            completed=True,
+            created_at=datetime(2026, 1, 10, 18, 0, tzinfo=UTC),
+        )
+        self.authenticate(self.admin)
+
+        response = self.client.get(
+            self.url,
+            {"date_from": "2026-01-10", "date_to": "2026-01-10"},
+        )
+
+        self.assertEqual(response.data["total_orders"], 2)
+        self.assertEqual(response.data["completed_orders"], 2)
+        self.assertEqual(response.data["completed_amount"], "300.00")
+
     def test_dashboard_kpis_compare_real_today_and_yesterday_values(self):
         now = datetime(2026, 4, 15, 12, tzinfo=UTC)
         yesterday_order = self.create_order(
@@ -416,6 +449,44 @@ class AdminStatisticsApiTests(APITestCase):
         self.assertEqual(kpis["today_revenue"]["value"], "200.00")
         self.assertEqual(kpis["today_revenue"]["previous"], "100.00")
         self.assertEqual(kpis["today_revenue"]["delta_percent"], 100)
+
+    def test_dashboard_kpis_use_bishkek_day_near_utc_boundary(self):
+        now = datetime(2026, 4, 14, 18, 30, tzinfo=UTC)
+        yesterday_order = self.create_order(
+            self.customer_session,
+            self.menu_item,
+            quantity=1,
+            completed=False,
+            created_at=datetime(2026, 4, 14, 17, 59, tzinfo=UTC),
+        )
+        today_order = self.create_order(
+            self.customer_session,
+            self.menu_item,
+            quantity=2,
+            completed=False,
+            created_at=datetime(2026, 4, 14, 18, 1, tzinfo=UTC),
+        )
+        self.set_order_status_at(
+            yesterday_order,
+            Order.Status.COMPLETED,
+            datetime(2026, 4, 14, 17, 59, tzinfo=UTC),
+        )
+        self.set_order_status_at(
+            today_order,
+            Order.Status.COMPLETED,
+            datetime(2026, 4, 14, 18, 2, tzinfo=UTC),
+        )
+
+        response = self.get_dashboard_kpis_response(now)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        kpis = response.data["dashboard_kpis"]
+        self.assertEqual(kpis["today_orders"]["value"], 1)
+        self.assertEqual(kpis["today_orders"]["previous"], 1)
+        self.assertEqual(kpis["completed_orders"]["value"], 1)
+        self.assertEqual(kpis["completed_orders"]["previous"], 1)
+        self.assertEqual(kpis["today_revenue"]["value"], "200.00")
+        self.assertEqual(kpis["today_revenue"]["previous"], "100.00")
 
     def test_dashboard_kpis_previous_zero_does_not_invent_percentage(self):
         now = datetime(2026, 5, 15, 12, tzinfo=UTC)

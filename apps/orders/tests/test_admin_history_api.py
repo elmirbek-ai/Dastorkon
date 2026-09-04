@@ -1,9 +1,7 @@
 from datetime import UTC, datetime
 from decimal import Decimal
-from zoneinfo import ZoneInfo
 
 from django.urls import reverse
-from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -117,6 +115,19 @@ class AdminOrderHistoryApiTests(APITestCase):
 
     def authenticate(self, user):
         self.client.force_authenticate(user=user)
+
+    def create_order_at(self, order_number, created_at):
+        order = Order.objects.create(
+            restaurant=self.restaurant,
+            table_session=self.table_session,
+            customer_session=self.customer_session,
+            order_number=order_number,
+            responsible_waiter=self.waiter,
+            total_amount=Decimal("100.00"),
+        )
+        Order.objects.filter(pk=order.pk).update(created_at=created_at)
+        order.refresh_from_db()
+        return order
 
     def test_anonymous_user_cannot_access_order_history(self):
         response = self.client.get(self.list_url)
@@ -234,36 +245,78 @@ class AdminOrderHistoryApiTests(APITestCase):
 
         self.assertEqual([item["id"] for item in response.data], [self.order.pk])
 
-    def test_admin_can_filter_orders_by_local_date(self):
+    def test_admin_can_filter_orders_by_bishkek_date_near_utc_boundary(self):
         Order.objects.filter(pk=self.order.pk).update(
-            created_at=datetime(2026, 1, 9, 19, 30, tzinfo=UTC)
+            created_at=datetime(2026, 1, 9, 18, 0, tzinfo=UTC)
+        )
+        before_day = self.create_order_at(
+            "BEFORE-BISHKEK-DAY",
+            datetime(2026, 1, 9, 17, 59, 59, tzinfo=UTC),
+        )
+        end_of_day = self.create_order_at(
+            "END-OF-BISHKEK-DAY",
+            datetime(2026, 1, 10, 17, 59, 59, tzinfo=UTC),
+        )
+        next_day = self.create_order_at(
+            "NEXT-BISHKEK-DAY",
+            datetime(2026, 1, 10, 18, 0, tzinfo=UTC),
         )
         self.authenticate(self.admin)
 
-        with timezone.override(ZoneInfo("Asia/Bishkek")):
-            response = self.client.get(
-                self.list_url,
-                {"restaurant": self.restaurant.pk, "date": "2026-01-10"},
-            )
-            previous_day_response = self.client.get(
-                self.list_url,
-                {"restaurant": self.restaurant.pk, "date": "2026-01-09"},
-            )
-            range_response = self.client.get(
-                self.list_url,
-                {
-                    "restaurant": self.restaurant.pk,
-                    "date_from": "2026-01-10",
-                    "date_to": "2026-01-10",
-                },
-            )
-
-        self.assertEqual([item["id"] for item in response.data], [self.order.pk])
-        self.assertEqual(previous_day_response.data, [])
-        self.assertEqual(
-            [item["id"] for item in range_response.data],
-            [self.order.pk],
+        response = self.client.get(
+            self.list_url,
+            {"restaurant": self.restaurant.pk, "date": "2026-01-10"},
         )
+        previous_day_response = self.client.get(
+            self.list_url,
+            {"restaurant": self.restaurant.pk, "date": "2026-01-09"},
+        )
+        next_day_response = self.client.get(
+            self.list_url,
+            {"restaurant": self.restaurant.pk, "date": "2026-01-11"},
+        )
+
+        self.assertEqual(
+            [item["id"] for item in response.data],
+            [end_of_day.pk, self.order.pk],
+        )
+        self.assertEqual(
+            [item["id"] for item in previous_day_response.data],
+            [before_day.pk],
+        )
+        self.assertEqual(
+            [item["id"] for item in next_day_response.data],
+            [next_day.pk],
+        )
+
+    def test_admin_date_range_includes_local_dates_and_excludes_next_day(self):
+        range_start = self.create_order_at(
+            "RANGE-START",
+            datetime(2026, 1, 9, 18, 0, tzinfo=UTC),
+        )
+        range_end_inside = self.create_order_at(
+            "RANGE-END-INSIDE",
+            datetime(2026, 1, 11, 17, 59, 59, tzinfo=UTC),
+        )
+        range_end = self.create_order_at(
+            "RANGE-END",
+            datetime(2026, 1, 11, 18, 0, tzinfo=UTC),
+        )
+        self.authenticate(self.admin)
+
+        response = self.client.get(
+            self.list_url,
+            {
+                "restaurant": self.restaurant.pk,
+                "date_from": "2026-01-10",
+                "date_to": "2026-01-11",
+            },
+        )
+
+        returned_ids = [item["id"] for item in response.data]
+        self.assertIn(range_start.pk, returned_ids)
+        self.assertIn(range_end_inside.pk, returned_ids)
+        self.assertNotIn(range_end.pk, returned_ids)
 
     def test_status_and_date_filters_work_together(self):
         self.authenticate(self.admin)

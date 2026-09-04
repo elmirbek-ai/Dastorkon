@@ -1,10 +1,8 @@
-from datetime import datetime, time, timedelta
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Count, DecimalField, Prefetch, Q, Sum, Value
 from django.db.models.functions import Coalesce
-from django.utils import timezone
 from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
 from rest_framework import serializers as drf_serializers
 from rest_framework import status
@@ -13,6 +11,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.common.business_time import get_local_day_range
 from apps.menu.models import MenuItem
 from apps.tables.models import (
     ActiveTableSession,
@@ -666,16 +665,6 @@ class CompleteWaiterCallView(ActiveWaiterShiftMixin, APIView):
         return Response(WaiterCallSerializer(waiter_call).data)
 
 
-def _local_day_bounds(day):
-    current_timezone = timezone.get_current_timezone()
-    start = timezone.make_aware(datetime.combine(day, time.min), current_timezone)
-    end = timezone.make_aware(
-        datetime.combine(day + timedelta(days=1), time.min),
-        current_timezone,
-    )
-    return start, end
-
-
 def filter_admin_orders(queryset, filters):
     if "restaurant" in filters:
         queryset = queryset.filter(restaurant_id=filters["restaurant"])
@@ -686,17 +675,17 @@ def filter_admin_orders(queryset, filters):
     if "status" in filters:
         queryset = queryset.filter(status=filters["status"])
     if "date" in filters:
-        day_start, next_day_start = _local_day_bounds(filters["date"])
+        day_start, next_day_start = get_local_day_range(filters["date"])
         queryset = queryset.filter(
             created_at__gte=day_start,
             created_at__lt=next_day_start,
         )
         return queryset
     if "date_from" in filters:
-        range_start, _ = _local_day_bounds(filters["date_from"])
+        range_start, _ = get_local_day_range(filters["date_from"])
         queryset = queryset.filter(created_at__gte=range_start)
     if "date_to" in filters:
-        _, range_end = _local_day_bounds(filters["date_to"])
+        _, range_end = get_local_day_range(filters["date_to"])
         queryset = queryset.filter(created_at__lt=range_end)
     return queryset
 

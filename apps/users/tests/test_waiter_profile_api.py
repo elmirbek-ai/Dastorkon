@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import UTC, date, datetime, timedelta
 from unittest.mock import patch
 
 from django.urls import reverse
@@ -368,6 +368,23 @@ class WaiterProfileApiTests(APITestCase):
         response = self.get_profile()
 
         self.assertEqual(response.data["shift_summary"]["today_worked_seconds"], 3600)
+
+    def test_shift_summary_uses_bishkek_day_near_utc_boundary(self):
+        self.now = datetime(2026, 1, 2, 19, 0, tzinfo=UTC)
+        self.create_shift(
+            datetime(2026, 1, 2, 17, 30, tzinfo=UTC),
+            datetime(2026, 1, 2, 18, 30, tzinfo=UTC),
+        )
+        self.authenticate()
+
+        response = self.get_profile()
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["shift_summary"]["today_worked_seconds"], 1800)
+        self.assertEqual(
+            response.data["recent_shifts"][0]["date"],
+            date(2026, 1, 2),
+        )
 
     def test_average_delivery_time_returns_localized_no_data(self):
         self.authenticate()

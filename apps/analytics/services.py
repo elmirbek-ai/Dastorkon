@@ -1,10 +1,11 @@
-from datetime import datetime, time, timedelta
+from datetime import datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
 from django.db.models import Count, DecimalField, F, Q, Sum, Value
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
+from apps.common.business_time import get_business_timezone, get_local_day_range
 from apps.orders.models import Order, OrderItem, OrderStatusHistory
 from apps.tables.models import ActiveTableSession, RestaurantTable
 
@@ -44,23 +45,14 @@ def build_comparison(current, previous):
     }
 
 
-def local_day_bounds(day):
-    current_timezone = timezone.get_current_timezone()
-    start = timezone.make_aware(datetime.combine(day, time.min), current_timezone)
-    end = timezone.make_aware(
-        datetime.combine(day + timedelta(days=1), time.min),
-        current_timezone,
-    )
-    return start, end
-
-
 def get_dashboard_kpis(restaurant_id=None, now=None):
     now = now or timezone.now()
-    local_now = timezone.localtime(now)
+    business_timezone = get_business_timezone()
+    local_now = timezone.localtime(now, business_timezone)
     today = local_now.date()
     yesterday = today - timedelta(days=1)
-    today_start, tomorrow_start = local_day_bounds(today)
-    yesterday_start, _ = local_day_bounds(yesterday)
+    today_start, tomorrow_start = get_local_day_range(today)
+    yesterday_start, _ = get_local_day_range(yesterday)
 
     orders = Order.objects.all()
     completed_history = OrderStatusHistory.objects.filter(
@@ -112,7 +104,7 @@ def get_dashboard_kpis(restaurant_id=None, now=None):
             yesterday,
             local_now.timetz().replace(tzinfo=None),
         ),
-        timezone.get_current_timezone(),
+        business_timezone,
     )
     previous_active_tables = table_sessions.filter(
         opened_at__lte=previous_snapshot,
@@ -147,9 +139,11 @@ def filter_orders(queryset, filters):
     if "restaurant" in filters:
         queryset = queryset.filter(restaurant_id=filters["restaurant"])
     if "date_from" in filters:
-        queryset = queryset.filter(created_at__date__gte=filters["date_from"])
+        range_start, _ = get_local_day_range(filters["date_from"])
+        queryset = queryset.filter(created_at__gte=range_start)
     if "date_to" in filters:
-        queryset = queryset.filter(created_at__date__lte=filters["date_to"])
+        _, range_end = get_local_day_range(filters["date_to"])
+        queryset = queryset.filter(created_at__lt=range_end)
     return queryset
 
 
@@ -189,12 +183,14 @@ def get_statistics_summary(filters, *, include_dashboard_comparison=False):
             restaurant_id=filters["restaurant"]
         )
     if "date_from" in filters:
+        range_start, _ = get_local_day_range(filters["date_from"])
         active_sessions = active_sessions.filter(
-            created_at__date__gte=filters["date_from"]
+            created_at__gte=range_start
         )
     if "date_to" in filters:
+        _, range_end = get_local_day_range(filters["date_to"])
         active_sessions = active_sessions.filter(
-            created_at__date__lte=filters["date_to"]
+            created_at__lt=range_end
         )
 
     money_field = DecimalField(max_digits=14, decimal_places=2)

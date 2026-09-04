@@ -345,7 +345,8 @@ if "test" in sys.argv:
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+BUSINESS_TIME_ZONE = 'Asia/Bishkek'
+TIME_ZONE = BUSINESS_TIME_ZONE
 
 USE_I18N = True
 

@@ -8,20 +8,33 @@ import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getLocalizedField, getOrderSourceLabel, getStatusLabel } from '../i18n/index.js'
 
 const statuses = ['NEW', 'PREPARING', 'READY', 'DELIVERED', 'COMPLETED', 'CANCELLED']
+const businessTimeZone = 'Asia/Bishkek'
+const businessDateFormatter = new Intl.DateTimeFormat('en', {
+  timeZone: businessTimeZone,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+})
 
-function toLocalDateValue(date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
+function toBusinessDateValue(date) {
+  const parts = Object.fromEntries(
+    businessDateFormatter.formatToParts(date).map(({ type, value }) => [type, value]),
+  )
+  const { year, month, day } = parts
   return `${year}-${month}-${day}`
 }
 
+function shiftDateValue(value, days) {
+  const [year, month, day] = value.split('-').map(Number)
+  const shiftedDate = new Date(Date.UTC(year, month - 1, day + days))
+  return shiftedDate.toISOString().slice(0, 10)
+}
+
 function getDefaultDateRange() {
-  const today = new Date()
-  const rangeStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 2)
+  const today = toBusinessDateValue(new Date())
   return {
-    dateFrom: toLocalDateValue(rangeStart),
-    dateTo: toLocalDateValue(today),
+    dateFrom: shiftDateValue(today, -2),
+    dateTo: today,
   }
 }
 
@@ -176,7 +189,7 @@ export default function AdminOrdersPage() {
       ? t('admin.noOrdersWithStatus', { status: getStatusLabel(status, language) })
       : t('admin.noOrders')
   const emptyDescription = selectedDate ? t('admin.chooseAnotherOrderDateHelp') : t('admin.noOrdersHelp')
-  const todayDate = toLocalDateValue(new Date())
+  const todayDate = toBusinessDateValue(new Date())
   const hasCustomDateFilter = Boolean(selectedDate || dateFrom || dateTo)
   const dateFilterLabel = selectedDate
     ? formatDateFilterLabel(selectedDate)

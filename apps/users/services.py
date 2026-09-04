@@ -1,9 +1,11 @@
-from datetime import datetime, time, timedelta
+from datetime import timedelta
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
+
+from apps.common.business_time import get_business_timezone, get_local_day_range
 
 from .models import User, WaiterShift
 
@@ -139,10 +141,6 @@ def end_waiter_shift(waiter):
     return active_shift
 
 
-def _local_day_start(day, current_timezone):
-    return timezone.make_aware(datetime.combine(day, time.min), current_timezone)
-
-
 def _overlap_seconds(started_at, ended_at, window_start, window_end):
     interval_start = max(started_at, window_start)
     interval_end = min(ended_at, window_end)
@@ -185,12 +183,11 @@ def _request_language(request):
 
 def build_waiter_shift_summary(waiter, request, now=None):
     now = now or timezone.now()
-    current_timezone = timezone.get_current_timezone()
-    local_today = timezone.localtime(now, current_timezone).date()
-    tomorrow_start = _local_day_start(local_today + timedelta(days=1), current_timezone)
-    today_start = _local_day_start(local_today, current_timezone)
-    seven_day_start = _local_day_start(local_today - timedelta(days=6), current_timezone)
-    thirty_day_start = _local_day_start(local_today - timedelta(days=29), current_timezone)
+    business_timezone = get_business_timezone()
+    local_today = timezone.localtime(now, business_timezone).date()
+    today_start, tomorrow_start = get_local_day_range(local_today)
+    seven_day_start, _ = get_local_day_range(local_today - timedelta(days=6))
+    thirty_day_start, _ = get_local_day_range(local_today - timedelta(days=29))
     language = _request_language(request)
 
     window_shifts = list(
@@ -248,7 +245,7 @@ def build_waiter_shift_summary(waiter, request, now=None):
         "recent_shifts": [
             {
                 "id": shift.pk,
-                "date": timezone.localtime(shift.started_at, current_timezone).date(),
+                "date": timezone.localtime(shift.started_at, business_timezone).date(),
                 "started_at": shift.started_at,
                 "ended_at": shift.ended_at,
                 "is_active": shift.ended_at is None,
