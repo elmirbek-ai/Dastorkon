@@ -1,8 +1,10 @@
 import asyncio
 from decimal import Decimal
+from unittest.mock import patch
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from apps.menu.models import Category, MenuItem
@@ -96,6 +98,17 @@ class NotificationEventTests(TestCase):
         self.assertIsInstance(message["data"], dict)
         return message["data"]
 
+    def run_with_failing_dispatch(self, action):
+        with patch(
+            "apps.notifications.services.send_notification_to_group",
+            side_effect=RuntimeError("Channel layer unavailable"),
+        ) as send_mock:
+            with self.assertLogs("apps.notifications.services", level="ERROR"):
+                with self.captureOnCommitCallbacks(execute=True):
+                    result = action()
+        self.assertGreater(send_mock.call_count, 0)
+        return result
+
     def test_create_order_notifies_kitchen(self):
         channel = self.subscribe("kitchen")
         with self.captureOnCommitCallbacks(execute=True):
@@ -105,6 +118,89 @@ class NotificationEventTests(TestCase):
         payload = self.assert_event(channel, "order_created")
         self.assertEqual(payload["id"], order.pk)
         self.assertEqual(payload["source"], Order.Source.CUSTOMER_QR)
+
+    def test_create_order_succeeds_when_notification_dispatch_fails(self):
+        order = self.run_with_failing_dispatch(self.create_test_order)
+
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.NEW)
+        self.assertTrue(Order.objects.filter(pk=order.pk).exists())
+
+    def test_order_status_change_succeeds_when_notification_dispatch_fails(self):
+        order = self.create_test_order()
+
+        order = self.run_with_failing_dispatch(
+            lambda: mark_order_preparing(order)
+        )
+
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.PREPARING)
+
+    def test_waiter_call_creation_succeeds_when_notification_dispatch_fails(self):
+        waiter_call = self.run_with_failing_dispatch(
+            lambda: create_waiter_call(
+                self.customer_session,
+                WaiterCall.Reason.WAITER_NEEDED,
+            )
+        )
+
+        waiter_call.refresh_from_db()
+        self.assertEqual(waiter_call.status, WaiterCall.Status.NEW)
+
+    def test_waiter_call_accept_succeeds_when_notification_dispatch_fails(self):
+        waiter_call = create_waiter_call(
+            self.customer_session,
+            WaiterCall.Reason.HELP_NEEDED,
+        )
+
+        waiter_call = self.run_with_failing_dispatch(
+            lambda: accept_waiter_call(waiter_call, self.waiter)
+        )
+
+        waiter_call.refresh_from_db()
+        self.assertEqual(waiter_call.status, WaiterCall.Status.ACCEPTED)
+        self.assertEqual(waiter_call.assigned_waiter, self.waiter)
+
+    def test_waiter_call_done_succeeds_when_notification_dispatch_fails(self):
+        waiter_call = create_waiter_call(
+            self.customer_session,
+            WaiterCall.Reason.EXTRA_ORDER,
+        )
+        waiter_call = accept_waiter_call(waiter_call, self.waiter)
+
+        waiter_call = self.run_with_failing_dispatch(
+            lambda: complete_waiter_call(waiter_call, self.waiter)
+        )
+
+        waiter_call.refresh_from_db()
+        self.assertEqual(waiter_call.status, WaiterCall.Status.DONE)
+
+    def test_table_close_succeeds_when_notification_dispatch_fails(self):
+        assign_waiter_to_table_session(self.table_session, self.waiter)
+
+        table_session = self.run_with_failing_dispatch(
+            lambda: complete_table_session(self.table_session, self.waiter)
+        )
+
+        table_session.refresh_from_db()
+        self.table.refresh_from_db()
+        self.assertEqual(table_session.status, table_session.Status.CLOSED)
+        self.assertEqual(self.table.status, RestaurantTable.Status.FREE)
+
+    def test_failed_validation_does_not_dispatch_notification(self):
+        with patch(
+            "apps.notifications.services.send_notification_to_group",
+        ) as send_mock:
+            with self.captureOnCommitCallbacks(execute=True) as callbacks:
+                with self.assertRaises(ValidationError):
+                    create_order(
+                        self.customer_session,
+                        [{"menu_item": self.menu_item, "quantity": 0}],
+                    )
+
+        self.assertEqual(callbacks, [])
+        send_mock.assert_not_called()
+        self.assertFalse(Order.objects.exists())
 
     def test_manual_order_notifies_kitchen_with_manual_source(self):
         channel = self.subscribe("kitchen")

@@ -9,6 +9,7 @@ from apps.notifications.services import (
     build_order_notification_payload,
     build_table_session_notification_payload,
     build_waiter_call_notification_payload,
+    enqueue_notification_on_commit,
     notify_admins,
     notify_kitchen,
     notify_waiters,
@@ -217,7 +218,7 @@ def create_waiter_call(customer_session, reason):
     payload = build_waiter_call_notification_payload(waiter_call)
     waiter_id = waiter_call.assigned_waiter_id
     if waiter_id:
-        transaction.on_commit(
+        enqueue_notification_on_commit(
             lambda: send_notification_to_user(
                 waiter_id,
                 "waiter_call_created",
@@ -225,7 +226,7 @@ def create_waiter_call(customer_session, reason):
             )
         )
     else:
-        transaction.on_commit(
+        enqueue_notification_on_commit(
             lambda: notify_waiters("waiter_call_available", payload)
         )
     return waiter_call
@@ -275,7 +276,7 @@ def accept_waiter_call(waiter_call, waiter):
         )
     )
     payload = build_waiter_call_notification_payload(waiter_call)
-    transaction.on_commit(
+    enqueue_notification_on_commit(
         lambda: notify_waiters("waiter_call_accepted", payload)
     )
     return waiter_call
@@ -294,10 +295,10 @@ def complete_waiter_call(waiter_call, waiter):
     waiter_call.completed_at = timezone.now()
     waiter_call.save(update_fields=("status", "completed_at", "updated_at"))
     payload = build_waiter_call_notification_payload(waiter_call)
-    transaction.on_commit(
+    enqueue_notification_on_commit(
         lambda: notify_admins("waiter_call_completed", payload)
     )
-    transaction.on_commit(
+    enqueue_notification_on_commit(
         lambda: send_notification_to_user(
             waiter_call.assigned_waiter_id,
             "waiter_call_completed",
@@ -390,10 +391,12 @@ def _create_order_record(
         to_status=Order.Status.NEW,
     )
     payload = build_order_notification_payload(order)
-    transaction.on_commit(lambda: notify_kitchen("order_created", payload))
+    enqueue_notification_on_commit(
+        lambda: notify_kitchen("order_created", payload)
+    )
     waiter_id = table_session.assigned_waiter_id
     if waiter_id:
-        transaction.on_commit(
+        enqueue_notification_on_commit(
             lambda: send_notification_to_user(
                 waiter_id,
                 "order_created",
@@ -401,7 +404,7 @@ def _create_order_record(
             )
         )
     else:
-        transaction.on_commit(
+        enqueue_notification_on_commit(
             lambda: notify_waiters("order_available", payload)
         )
     return order
@@ -509,7 +512,7 @@ def assign_waiter_to_table_session(active_table_session, waiter):
         responsible_waiter__isnull=True,
     ).update(responsible_waiter=waiter)
     payload = build_table_session_notification_payload(active_table_session)
-    transaction.on_commit(
+    enqueue_notification_on_commit(
         lambda: notify_waiters("table_session_assigned", payload)
     )
     return active_table_session
@@ -543,7 +546,7 @@ def change_order_status(order, new_status, changed_by=None):
 def mark_order_preparing(order, user=None):
     order = change_order_status(order, Order.Status.PREPARING, user)
     payload = build_order_notification_payload(order)
-    transaction.on_commit(
+    enqueue_notification_on_commit(
         lambda: notify_kitchen("order_preparing", payload)
     )
     return order
@@ -553,10 +556,12 @@ def mark_order_preparing(order, user=None):
 def mark_order_ready(order, user=None):
     order = change_order_status(order, Order.Status.READY, user)
     payload = build_order_notification_payload(order)
-    transaction.on_commit(lambda: notify_kitchen("order_ready", payload))
+    enqueue_notification_on_commit(
+        lambda: notify_kitchen("order_ready", payload)
+    )
     waiter_id = order.table_session.assigned_waiter_id
     if waiter_id:
-        transaction.on_commit(
+        enqueue_notification_on_commit(
             lambda: send_notification_to_user(
                 waiter_id,
                 "order_ready",
@@ -564,7 +569,9 @@ def mark_order_ready(order, user=None):
             )
         )
     else:
-        transaction.on_commit(lambda: notify_waiters("order_ready", payload))
+        enqueue_notification_on_commit(
+            lambda: notify_waiters("order_ready", payload)
+        )
     return order
 
 
@@ -585,10 +592,12 @@ def mark_order_delivered(order, waiter):
         order.save(update_fields=("responsible_waiter", "updated_at"))
     order = change_order_status(order, Order.Status.DELIVERED, waiter)
     payload = build_order_notification_payload(order)
-    transaction.on_commit(lambda: notify_kitchen("order_delivered", payload))
+    enqueue_notification_on_commit(
+        lambda: notify_kitchen("order_delivered", payload)
+    )
     waiter_id = order.responsible_waiter_id or order.table_session.assigned_waiter_id
     if waiter_id:
-        transaction.on_commit(
+        enqueue_notification_on_commit(
             lambda: send_notification_to_user(
                 waiter_id,
                 "order_delivered",
@@ -596,7 +605,7 @@ def mark_order_delivered(order, waiter):
             )
         )
     else:
-        transaction.on_commit(
+        enqueue_notification_on_commit(
             lambda: notify_waiters("order_delivered", payload)
         )
     return order

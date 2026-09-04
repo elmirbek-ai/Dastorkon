@@ -1,5 +1,21 @@
+import logging
+
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from django.db import transaction
+
+
+logger = logging.getLogger(__name__)
+
+
+def enqueue_notification_on_commit(callback):
+    def safe_dispatch():
+        try:
+            callback()
+        except Exception:
+            logger.exception("Notification dispatch failed after transaction commit.")
+
+    transaction.on_commit(safe_dispatch)
 
 
 def send_notification_to_group(group_name, event, data):

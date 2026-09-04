@@ -4,6 +4,7 @@ from django.utils import timezone
 
 from apps.notifications.services import (
     build_table_session_notification_payload,
+    enqueue_notification_on_commit,
     notify_kitchen,
     notify_waiters,
 )
@@ -95,10 +96,10 @@ def close_active_table_session(active_table_session, closed_by_user=None):
     table.status = RestaurantTable.Status.FREE
     table.save(update_fields=("status", "updated_at"))
     payload = build_table_session_notification_payload(active_table_session)
-    transaction.on_commit(
+    enqueue_notification_on_commit(
         lambda: notify_waiters("table_session_closed", payload)
     )
-    transaction.on_commit(
+    enqueue_notification_on_commit(
         lambda: notify_kitchen("table_session_closed", payload)
     )
     return active_table_session
