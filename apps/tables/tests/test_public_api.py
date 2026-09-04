@@ -3,7 +3,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.restaurants.models import Restaurant
+from apps.restaurants.models import Restaurant, RestaurantSettings
 from apps.tables.models import ActiveTableSession, CustomerSession, RestaurantTable
 from apps.tables.services import activate_customer_session
 
@@ -28,6 +28,17 @@ class PublicCustomerSessionApiTests(APITestCase):
         self.assertEqual(response.data["table"]["id"], self.table.pk)
         self.assertFalse(response.data["read_only"])
         self.assertTrue(response.data["comments_enabled"])
+
+    def test_session_endpoint_exposes_disabled_comments_setting(self):
+        RestaurantSettings.objects.create(
+            restaurant=self.restaurant,
+            comments_enabled=False,
+        )
+
+        response = self.client.post(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(response.data["comments_enabled"])
 
     def test_invalid_qr_token_returns_not_found(self):
         response = self.client.post("/api/public/qr/not-a-uuid/session/")

@@ -422,7 +422,7 @@ function MenuItemCard({
   )
 }
 
-function DishDetailDialog({ item, pending, onClose, onAdd, readOnly }) {
+function DishDetailDialog({ item, pending, onClose, onAdd, readOnly, commentsEnabled }) {
   const { language, t } = useLanguage()
   const [quantity, setQuantity] = useState(1)
   const [comment, setComment] = useState('')
@@ -439,7 +439,7 @@ function DishDetailDialog({ item, pending, onClose, onAdd, readOnly }) {
   async function handleAdd() {
     const added = await onAdd(item, {
       quantity,
-      comment: comment.trim(),
+      comment: commentsEnabled ? comment.trim() : '',
     })
     if (added) onClose()
   }
@@ -516,20 +516,22 @@ function DishDetailDialog({ item, pending, onClose, onAdd, readOnly }) {
             </div>
           )}
 
-          <label className="dish-detail__comment">
-            <span>
-              <strong>{t('customer.specialInstructions')}</strong>
-              <small>{t('common.optional')}</small>
-            </span>
-            <textarea
-              value={comment}
-              onChange={(event) => setComment(event.target.value)}
-              placeholder={t('customer.specialInstructionsPlaceholder')}
-              maxLength={300}
-              rows={3}
-              disabled={readOnly || pending || unavailable}
-            />
-          </label>
+          {commentsEnabled && (
+            <label className="dish-detail__comment">
+              <span>
+                <strong>{t('customer.specialInstructions')}</strong>
+                <small>{t('common.optional')}</small>
+              </span>
+              <textarea
+                value={comment}
+                onChange={(event) => setComment(event.target.value)}
+                placeholder={t('customer.specialInstructionsPlaceholder')}
+                maxLength={300}
+                rows={3}
+                disabled={readOnly || pending || unavailable}
+              />
+            </label>
+          )}
 
           <footer className="dish-detail__action">
             <div className="dish-detail__quantity" aria-label={t('common.quantity')}>
@@ -585,7 +587,7 @@ function DishDetailDialog({ item, pending, onClose, onAdd, readOnly }) {
   )
 }
 
-function CartPanel({ cart, itemCount, onCheckout }) {
+function CartPanel({ cart, itemCount, commentsEnabled, onCheckout }) {
   const { language, t } = useLanguage()
   return (
     <aside className="cart-section" id="cart" aria-labelledby="cart-title">
@@ -610,7 +612,7 @@ function CartPanel({ cart, itemCount, onCheckout }) {
                 <div className="cart-item__quantity">{item.quantity}×</div>
                 <div className="cart-item__details">
                   <h3>{getLocalizedField(item, 'menu_item_name', language)}</h3>
-                  {item.comment && <small>{t('common.comments')}: {item.comment}</small>}
+                  {commentsEnabled && item.comment && <small>{t('common.comments')}: {item.comment}</small>}
                 </div>
                 <strong>{money(item.line_total)}</strong>
               </article>
@@ -853,7 +855,7 @@ function cartItemIsUnavailable(cartItem, menuItem) {
     || menuItem.is_available === false
 }
 
-function CartReviewItem({ cartItem, menuItem, pending, onIncrease, onDecrease, onRemove }) {
+function CartReviewItem({ cartItem, menuItem, pending, commentsEnabled, onIncrease, onDecrease, onRemove }) {
   const { language, t } = useLanguage()
   const [imageFailed, setImageFailed] = useState(false)
   const imageUrl = resolveImageUrl(menuItem?.image)
@@ -881,7 +883,7 @@ function CartReviewItem({ cartItem, menuItem, pending, onIncrease, onDecrease, o
             <h3>{itemName}</h3>
             <p>{money(unitPrice)}</p>
             {unavailable && <small className="cart-item-unavailable">{t('customer.temporarilyUnavailable')}</small>}
-            {cartItem.comment && (
+            {commentsEnabled && cartItem.comment && (
               <small className="cart-sheet-item__comment">
                 {t('customer.kitchenNote')}: {cartItem.comment}
               </small>
@@ -932,6 +934,7 @@ function CheckoutReviewItem({
   menuItem,
   pending,
   disabled,
+  commentsEnabled,
   onIncrease,
   onDecrease,
   onRemove,
@@ -1004,17 +1007,19 @@ function CheckoutReviewItem({
             <small>{t('customer.removeItem')}</small>
           </button>
         </div>
-        <label className="checkout-item__comment">
-          <span>{t('customer.itemNote')}</span>
-          <textarea
-            rows="2"
-            maxLength={300}
-            value={cartItem.comment || ''}
-            onChange={(event) => onCommentChange(event.target.value)}
-            placeholder={t('customer.itemNotePlaceholder')}
-            disabled={disabled}
-          />
-        </label>
+        {commentsEnabled && (
+          <label className="checkout-item__comment">
+            <span>{t('customer.itemNote')}</span>
+            <textarea
+              rows="2"
+              maxLength={300}
+              value={cartItem.comment || ''}
+              onChange={(event) => onCommentChange(event.target.value)}
+              placeholder={t('customer.itemNotePlaceholder')}
+              disabled={disabled}
+            />
+          </label>
+        )}
       </div>
     </article>
   )
@@ -1030,6 +1035,7 @@ function CartReviewSheet({
   pendingItemId,
   submitting,
   error,
+  commentsEnabled,
   onClose,
   onIncrease,
   onDecrease,
@@ -1141,6 +1147,7 @@ function CartReviewSheet({
                       menuItem={menuItem}
                       pending={pendingItemId === item.id}
                       disabled={submitting || pendingItemId !== null}
+                      commentsEnabled={commentsEnabled}
                       onIncrease={() => onIncrease(item, cartItem)}
                       onDecrease={() => (
                         cartItem.quantity === 1
@@ -1201,6 +1208,7 @@ function CartReviewSheet({
                     cartItem={cartItem}
                     menuItem={menuItem}
                     pending={pending}
+                    commentsEnabled={commentsEnabled}
                     onIncrease={() => onIncrease(item, cartItem)}
                     onDecrease={() => (
                       cartItem.quantity === 1
@@ -1365,6 +1373,7 @@ function CustomerMenuPage() {
   const [cart, setCart] = useState(emptyCart)
   const [orders, setOrders] = useState(emptyOrders)
   const [readOnly, setReadOnly] = useState(false)
+  const [commentsEnabled, setCommentsEnabled] = useState(true)
   const [loading, setLoading] = useState(true)
   const [loadFailed, setLoadFailed] = useState(false)
   const [loadRevision, setLoadRevision] = useState(0)
@@ -1455,6 +1464,7 @@ function CustomerMenuPage() {
           if (!nextMenu) throw new Error('Invalid customer menu response')
           setMenu(nextMenu)
           setReadOnly(sessionResponse.data?.read_only === true)
+          setCommentsEnabled(sessionResponse.data?.comments_enabled !== false)
           setCart(normalizeCart(cartResponse.data))
           setOrders(normalizeOrders(ordersResponse.data))
         }
@@ -1549,7 +1559,7 @@ function CustomerMenuPage() {
 
   async function addToCart(item, options = {}) {
     const quantity = options.quantity ?? 1
-    const comment = options.comment ?? ''
+    const comment = commentsEnabled ? options.comment ?? '' : ''
     setPendingMenuItemId(item.id)
     setError('')
     setSuccess('')
@@ -1590,7 +1600,7 @@ function CustomerMenuPage() {
       if (quantity > 0) {
         const response = await apiClient.patch(itemPath, {
           quantity,
-          comment: cartItem.comment || '',
+          comment: commentsEnabled ? cartItem.comment || '' : '',
         })
         updatedItem = response.data
       } else {
@@ -1621,6 +1631,7 @@ function CustomerMenuPage() {
   }
 
   function changeCartItemComment(cartItem, comment) {
+    if (!commentsEnabled) return
     setCart((current) => {
       const currentItem = current.items.find((item) => item.id === cartItem.id)
       if (!currentItem) return current
@@ -1670,7 +1681,7 @@ function CustomerMenuPage() {
       await Promise.all(
         cart.items.map((cartItem) => (
           apiClient.patch(`${basePath}/cart/items/${cartItem.id}/`, {
-            comment: cartItem.comment || '',
+            comment: commentsEnabled ? cartItem.comment || '' : '',
           })
         )),
       )
@@ -1883,6 +1894,7 @@ function CustomerMenuPage() {
         <CartPanel
           cart={cart}
           itemCount={cartItemCount}
+          commentsEnabled={commentsEnabled}
           onCheckout={() => openCartSheet('checkout')}
         />
       </div>
@@ -1894,6 +1906,7 @@ function CustomerMenuPage() {
           onClose={() => setSelectedDish(null)}
           onAdd={addToCart}
           readOnly={readOnly}
+          commentsEnabled={commentsEnabled}
           key={selectedDish.id}
         />
       )}
@@ -1916,6 +1929,7 @@ function CustomerMenuPage() {
         pendingItemId={pendingMenuItemId}
         submitting={submittingOrder}
         error={error}
+        commentsEnabled={commentsEnabled}
         onClose={closeCartSheet}
         onIncrease={increaseCartItem}
         onDecrease={decreaseCartItem}

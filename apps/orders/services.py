@@ -14,6 +14,7 @@ from apps.notifications.services import (
     notify_waiters,
     send_notification_to_user,
 )
+from apps.restaurants.models import RestaurantSettings
 from apps.tables.models import ActiveTableSession, CustomerSession, RestaurantTable
 from apps.tables.services import (
     activate_customer_session,
@@ -37,6 +38,8 @@ TABLE_HAS_UNRESOLVED_CALLS_CODE = "TABLE_HAS_UNRESOLVED_CALLS"
 TABLE_HAS_UNRESOLVED_CALLS_DETAIL = (
     "Complete all waiter calls before closing the table session."
 )
+COMMENTS_DISABLED_CODE = "COMMENTS_DISABLED"
+COMMENTS_DISABLED_DETAIL = "Customer item comments are disabled."
 
 
 def normalize_item_comment(comment):
@@ -46,6 +49,19 @@ def normalize_item_comment(comment):
             f"Item comment cannot exceed {ITEM_COMMENT_MAX_LENGTH} characters."
         )
     return normalized_comment
+
+
+def normalize_customer_item_comment(customer_session, comment):
+    normalized_comment = str(comment or "").strip()
+    if normalized_comment and RestaurantSettings.objects.filter(
+        restaurant_id=customer_session.table.restaurant_id,
+        comments_enabled=False,
+    ).exists():
+        raise ValidationError(
+            COMMENTS_DISABLED_DETAIL,
+            code=COMMENTS_DISABLED_CODE,
+        )
+    return normalize_item_comment(normalized_comment)
 
 
 def validate_menu_item_for_customer_session(customer_session, menu_item):
@@ -90,7 +106,7 @@ def add_cart_item(
     validate_menu_item_for_customer_session(customer_session, menu_item)
     if quantity <= 0:
         raise ValidationError("Quantity must be greater than zero.")
-    comment = normalize_item_comment(comment)
+    comment = normalize_customer_item_comment(customer_session, comment)
     cart_item = (
         CartItem.objects.select_for_update()
         .filter(
@@ -136,7 +152,10 @@ def update_cart_item(cart_item, quantity=None, comment=None):
         cart_item.quantity = quantity
         update_fields.append("quantity")
     if comment is not None:
-        cart_item.comment = normalize_item_comment(comment)
+        cart_item.comment = normalize_customer_item_comment(
+            cart_item.customer_session,
+            comment,
+        )
         update_fields.append("comment")
     if update_fields:
         cart_item.save(update_fields=(*update_fields, "updated_at"))
@@ -447,6 +466,9 @@ def create_order_from_cart(customer_session):
     )
     if not cart_items:
         raise ValidationError("Cart is empty.")
+
+    for cart_item in cart_items:
+        normalize_customer_item_comment(customer_session, cart_item.comment)
 
     order = create_order(
         customer_session,

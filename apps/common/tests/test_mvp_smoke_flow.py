@@ -140,7 +140,7 @@ class MvpSmokeFlowTests(APITestCase):
 
         cart_response = customer_client.post(
             f"{public_base}/cart/items/",
-            {"menu_item": menu_item_id, "quantity": 2, "comment": "No onions"},
+            {"menu_item": menu_item_id, "quantity": 2, "comment": ""},
             format="json",
         )
         self.assert_status(cart_response, status.HTTP_201_CREATED)

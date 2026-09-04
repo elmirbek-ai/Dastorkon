@@ -13,7 +13,7 @@ from apps.orders.services import (
     complete_table_session,
     create_order_from_cart,
 )
-from apps.restaurants.models import Restaurant
+from apps.restaurants.models import Restaurant, RestaurantSettings
 from apps.tables.models import ActiveTableSession, RestaurantTable
 from apps.tables.services import create_customer_session
 from apps.users.models import User
@@ -51,6 +51,13 @@ class PublicCartOrderApiTests(APITestCase):
             "public-orders",
             args=(self.table.qr_token,),
         )
+
+    def set_comments_enabled(self, enabled):
+        settings, _ = RestaurantSettings.objects.update_or_create(
+            restaurant=self.restaurant,
+            defaults={"comments_enabled": enabled},
+        )
+        return settings
 
     def create_order(self, customer_session=None, quantity=1, comment=""):
         customer_session = customer_session or self.customer_session
@@ -158,6 +165,50 @@ class PublicCartOrderApiTests(APITestCase):
         self.assertIsNone(self.customer_session.active_table_session)
         self.assertFalse(ActiveTableSession.objects.exists())
 
+    def test_comments_enabled_allows_cart_item_comment(self):
+        self.set_comments_enabled(True)
+
+        response = self.client.post(
+            self.cart_item_create_url,
+            {
+                "menu_item": self.menu_item.pk,
+                "comment": "Пиязсыз",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["comment"], "Пиязсыз")
+
+    def test_comments_disabled_rejects_cart_item_comment(self):
+        self.set_comments_enabled(False)
+
+        response = self.client.post(
+            self.cart_item_create_url,
+            {
+                "menu_item": self.menu_item.pk,
+                "comment": "Пиязсыз",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["code"], "COMMENTS_DISABLED")
+        self.assertFalse(
+            CartItem.objects.filter(
+                customer_session=self.customer_session,
+            ).exists()
+        )
+
+    def test_comments_disabled_allows_empty_cart_item_comment(self):
+        self.set_comments_enabled(False)
+
+        response = self.client.post(
+            self.cart_item_create_url,
+            {"menu_item": self.menu_item.pk, "comment": ""},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["comment"], "")
+
     def test_post_cart_item_merges_same_item_and_comment(self):
         data = {
             "menu_item": self.menu_item.pk,
@@ -199,6 +250,21 @@ class PublicCartOrderApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(cart_item.comment, "Пиязсыз")
         self.assertEqual(response.data["comment"], "Пиязсыз")
+
+    def test_comments_disabled_rejects_cart_item_comment_update(self):
+        self.set_comments_enabled(False)
+        cart_item = add_cart_item(self.customer_session, self.menu_item)
+        url = reverse(
+            "public-cart-item-detail",
+            args=(self.table.qr_token, cart_item.pk),
+        )
+
+        response = self.client.patch(url, {"comment": "Пиязсыз"})
+
+        cart_item.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["code"], "COMMENTS_DISABLED")
+        self.assertEqual(cart_item.comment, "")
 
     def test_patch_cart_item_rejects_overlong_comment(self):
         cart_item = add_cart_item(self.customer_session, self.menu_item)
@@ -338,6 +404,27 @@ class PublicCartOrderApiTests(APITestCase):
             order.table_session_id,
         )
         self.assertEqual(ActiveTableSession.objects.count(), 1)
+
+    def test_comments_disabled_rejects_checkout_with_existing_comment(self):
+        settings = self.set_comments_enabled(True)
+        cart_item = add_cart_item(
+            self.customer_session,
+            self.menu_item,
+            comment="Пиязсыз",
+        )
+        settings.comments_enabled = False
+        settings.save(update_fields=("comments_enabled", "updated_at"))
+
+        response = self.client.post(self.orders_url)
+
+        self.table.refresh_from_db()
+        self.customer_session.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["code"], "COMMENTS_DISABLED")
+        self.assertFalse(Order.objects.exists())
+        self.assertTrue(CartItem.objects.filter(pk=cart_item.pk).exists())
+        self.assertEqual(self.table.status, RestaurantTable.Status.FREE)
+        self.assertIsNone(self.customer_session.active_table_session)
 
     def test_post_orders_clears_cart_after_success(self):
         add_cart_item(self.customer_session, self.menu_item)

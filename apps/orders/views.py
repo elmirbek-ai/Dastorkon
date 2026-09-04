@@ -45,6 +45,7 @@ from .serializers import (
     WaiterTableSessionSerializer,
 )
 from .services import (
+    COMMENTS_DISABLED_CODE,
     TABLE_HAS_UNRESOLVED_CALLS_CODE,
     add_cart_item,
     accept_waiter_call,
@@ -125,6 +126,13 @@ class CustomerSessionMixin:
         raise PermissionDenied("Customer session is closed.")
 
     def raise_service_error(self, exc):
+        if getattr(exc, "code", None) == COMMENTS_DISABLED_CODE:
+            raise ValidationError(
+                {
+                    "code": COMMENTS_DISABLED_CODE,
+                    "detail": exc.message,
+                }
+            ) from exc
         raise ValidationError(exc.messages) from exc
 
 
