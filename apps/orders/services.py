@@ -33,6 +33,12 @@ from .models import (
 )
 
 
+TABLE_HAS_UNRESOLVED_CALLS_CODE = "TABLE_HAS_UNRESOLVED_CALLS"
+TABLE_HAS_UNRESOLVED_CALLS_DETAIL = (
+    "Complete all waiter calls before closing the table session."
+)
+
+
 def normalize_item_comment(comment):
     normalized_comment = str(comment or "").strip()
     if len(normalized_comment) > ITEM_COMMENT_MAX_LENGTH:
@@ -581,6 +587,23 @@ def complete_table_session(active_table_session, user):
     )
     if active_table_session.status != ActiveTableSession.Status.ACTIVE:
         raise ValidationError("Table session is not active.")
+    unresolved_call_ids = list(
+        WaiterCall.objects.select_for_update()
+        .filter(
+            table_session=active_table_session,
+            status__in=(
+                WaiterCall.Status.NEW,
+                WaiterCall.Status.ACCEPTED,
+            ),
+        )
+        .values_list("pk", flat=True)
+    )
+    if unresolved_call_ids:
+        raise ValidationError(
+            TABLE_HAS_UNRESOLVED_CALLS_DETAIL,
+            code=TABLE_HAS_UNRESOLVED_CALLS_CODE,
+            params={"unresolved_calls": len(unresolved_call_ids)},
+        )
     orders = Order.objects.select_for_update().filter(
         table_session=active_table_session,
     )

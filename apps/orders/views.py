@@ -45,6 +45,7 @@ from .serializers import (
     WaiterTableSessionSerializer,
 )
 from .services import (
+    TABLE_HAS_UNRESOLVED_CALLS_CODE,
     add_cart_item,
     accept_waiter_call,
     assign_waiter_to_table_session,
@@ -502,6 +503,15 @@ class CloseTableSessionView(ActiveWaiterShiftMixin, APIView):
                 request.user,
             )
         except DjangoValidationError as exc:
+            if getattr(exc, "code", None) == TABLE_HAS_UNRESOLVED_CALLS_CODE:
+                return Response(
+                    {
+                        "code": TABLE_HAS_UNRESOLVED_CALLS_CODE,
+                        "detail": exc.message,
+                        **(exc.params or {}),
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             self.raise_service_error(exc)
         table_session = table_sessions_with_totals().get(pk=table_session.pk)
         return Response(WaiterTableSessionSerializer(table_session).data)

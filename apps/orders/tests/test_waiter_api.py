@@ -5,10 +5,11 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.menu.models import Category, MenuItem
-from apps.orders.models import Order
+from apps.orders.models import Order, WaiterCall
 from apps.orders.services import (
     assign_waiter_to_table_session,
     change_order_status,
+    complete_waiter_call,
     create_order,
 )
 from apps.restaurants.models import Restaurant
@@ -100,6 +101,16 @@ class WaiterOrdersApiTests(APITestCase):
     def prepare_delivered_session(self):
         self.assign_session()
         return self.create_test_order(Order.Status.DELIVERED)
+
+    def create_waiter_call(self, call_status):
+        return WaiterCall.objects.create(
+            restaurant=self.restaurant,
+            table_session=self.table_session,
+            customer_session=self.customer_session,
+            assigned_waiter=self.waiter,
+            reason=WaiterCall.Reason.WAITER_NEEDED,
+            status=call_status,
+        )
 
     def close_url(self, table_session=None):
         table_session = table_session or self.table_session
@@ -314,6 +325,68 @@ class WaiterOrdersApiTests(APITestCase):
         self.customer_session.refresh_from_db()
         self.assertFalse(self.customer_session.is_active)
         self.assertIsNotNone(self.customer_session.closed_at)
+
+    def test_waiter_cannot_close_session_with_new_waiter_call(self):
+        self.authenticate(self.waiter)
+        order = self.prepare_delivered_session()
+        waiter_call = self.create_waiter_call(WaiterCall.Status.NEW)
+
+        response = self.client.post(self.close_url())
+
+        self.table_session.refresh_from_db()
+        self.table.refresh_from_db()
+        order.refresh_from_db()
+        waiter_call.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["code"], "TABLE_HAS_UNRESOLVED_CALLS")
+        self.assertEqual(response.data["unresolved_calls"], 1)
+        self.assertIn("waiter calls", response.data["detail"].lower())
+        self.assertEqual(
+            self.table_session.status,
+            ActiveTableSession.Status.ACTIVE,
+        )
+        self.assertEqual(self.table.status, RestaurantTable.Status.OCCUPIED)
+        self.assertEqual(order.status, Order.Status.DELIVERED)
+        self.assertEqual(waiter_call.status, WaiterCall.Status.NEW)
+
+    def test_waiter_cannot_close_session_with_accepted_waiter_call(self):
+        self.authenticate(self.waiter)
+        self.prepare_delivered_session()
+        self.create_waiter_call(WaiterCall.Status.ACCEPTED)
+
+        response = self.client.post(self.close_url())
+
+        self.table_session.refresh_from_db()
+        self.table.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["code"], "TABLE_HAS_UNRESOLVED_CALLS")
+        self.assertEqual(response.data["unresolved_calls"], 1)
+        self.assertEqual(
+            self.table_session.status,
+            ActiveTableSession.Status.ACTIVE,
+        )
+        self.assertEqual(self.table.status, RestaurantTable.Status.OCCUPIED)
+
+    def test_waiter_can_close_session_after_waiter_calls_are_completed(self):
+        self.authenticate(self.waiter)
+        order = self.prepare_delivered_session()
+        waiter_call = self.create_waiter_call(WaiterCall.Status.ACCEPTED)
+        complete_waiter_call(waiter_call, self.waiter)
+
+        response = self.client.post(self.close_url())
+
+        self.table_session.refresh_from_db()
+        self.table.refresh_from_db()
+        order.refresh_from_db()
+        waiter_call.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            self.table_session.status,
+            ActiveTableSession.Status.CLOSED,
+        )
+        self.assertEqual(self.table.status, RestaurantTable.Status.FREE)
+        self.assertEqual(order.status, Order.Status.COMPLETED)
+        self.assertEqual(waiter_call.status, WaiterCall.Status.DONE)
 
     def test_waiter_cannot_close_another_waiters_table_session(self):
         self.authenticate(self.waiter)

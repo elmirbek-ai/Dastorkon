@@ -12,6 +12,7 @@ import { getAvatarInitial } from '../utils/avatar.js'
 const ACTIVE_WAITER_ORDER_STATUSES = ['NEW', 'PREPARING', 'READY', 'DELIVERED']
 const unfinishedOrderStatuses = new Set(['NEW', 'PREPARING', 'READY'])
 const WAITER_HAS_ACTIVE_WORK_CODE = 'WAITER_HAS_ACTIVE_WORK'
+const TABLE_HAS_UNRESOLVED_CALLS_CODE = 'TABLE_HAS_UNRESOLVED_CALLS'
 const WAITER_POLL_INTERVAL_MS = 8000
 const CONNECTED_POLL_INTERVAL_MS = 30000
 const WAITER_NOTIFICATION_EVENTS = new Set([
@@ -552,9 +553,12 @@ function WaiterDashboardPage() {
       await loadDashboard({ refreshAfterCurrent: true })
     } catch (requestError) {
       if (handleUnauthorized(requestError)) return
-      const backendMessage = getResponseErrorCode(requestError) === WAITER_HAS_ACTIVE_WORK_CODE
+      const errorCode = getResponseErrorCode(requestError)
+      const backendMessage = errorCode === WAITER_HAS_ACTIVE_WORK_CODE
         ? t('waiter.endShiftActiveWork')
-        : getBackendErrorMessage(requestError, language)
+        : errorCode === TABLE_HAS_UNRESOLVED_CALLS_CODE
+          ? t('waiter.closeTableUnresolvedCalls')
+          : getBackendErrorMessage(requestError, language)
       setActionError({ key, message: requestError.response?.data ? backendMessage : fallbackError })
     } finally {
       if (pendingActionRef.current === key) pendingActionRef.current = ''

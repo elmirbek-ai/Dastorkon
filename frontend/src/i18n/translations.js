@@ -29,10 +29,12 @@ export const translations = {
 
 Object.assign(translations.ky.waiter, {
   endShiftActiveWork: 'Сменаны жабуу үчүн алгач активдүү столдорду, заказдарды жана чакырууларды бүтүрүңүз.',
+  closeTableUnresolvedCalls: 'Столду жабуу үчүн алгач бардык чакырууларды бүтүрүңүз.',
 })
 
 Object.assign(translations.ru.waiter, {
   endShiftActiveWork: 'Чтобы закрыть смену, сначала завершите активные столы, заказы и вызовы.',
+  closeTableUnresolvedCalls: 'Чтобы закрыть стол, сначала завершите все вызовы.',
 })
 
 Object.assign(translations.ky.admin, {
