@@ -90,7 +90,7 @@ docker compose --env-file .env.docker -f docker-compose.prod-like.yml exec backe
 Use the following checks after all four services report healthy or running:
 
 - Open `http://localhost:8080/` and confirm the React application loads.
-- Open `http://localhost:8080/admin/`, sign in, and confirm admin CSS and
+- Open `http://localhost:8080/django-admin/`, sign in, and confirm admin CSS and
   JavaScript load from `/static/`.
 - Open `http://localhost:8080/api/docs/` or call an API endpoint and confirm the
   request reaches Django through Nginx.

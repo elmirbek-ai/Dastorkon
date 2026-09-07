@@ -33,7 +33,7 @@ from apps.users import urls as user_urls
 from apps.users.views import RoleTokenObtainPairView, RoleTokenRefreshView
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('django-admin/', admin.site.urls),
     path('api/health/', health, name='health'),
     path('api/health/ready/', readiness, name='readiness'),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

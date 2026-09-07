@@ -141,7 +141,7 @@ Do not reuse these credentials outside the local MVP demo.
 | Kitchen login | `http://127.0.0.1:5173/kitchen/login` |
 | Customer menu | `http://127.0.0.1:5173/menu/<table-qr-token>` |
 | Swagger API documentation | `http://127.0.0.1:8000/api/docs/` |
-| Django admin site | `http://127.0.0.1:8000/admin/` |
+| Django admin site | `http://127.0.0.1:8000/django-admin/` |
 
 For the Customer menu, copy the Table 1 token printed by `python manage.py
 seed_demo`, or open **Admin → Tables** and scan/open a generated QR code.

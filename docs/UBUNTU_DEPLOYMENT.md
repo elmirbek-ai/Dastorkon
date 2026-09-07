@@ -17,7 +17,7 @@ Nginx :80/:443
    |-- /, React assets --------> frontend/dist
    |-- /static/ ---------------> Django staticfiles
    |-- /media/ ----------------> persistent media
-   |-- /api/, /admin/, ... ----> Daphne on 127.0.0.1:8000
+   |-- /api/, /django-admin/, ... -> Daphne on 127.0.0.1:8000
    `-- /ws/ -------------------> Daphne WebSocket upgrade
                                       |-- PostgreSQL
                                       `-- Redis channel layer
@@ -273,7 +273,7 @@ of any modified Nginx configuration. Always require `nginx -t` to pass before a
 reload.
 
 The example serves the React build at `/`, static files at `/static/`, and
-persistent media at `/media/`. It proxies `/api/`, `/ws/`, `/admin/`, `/common/`,
+persistent media at `/media/`. It proxies `/api/`, `/ws/`, `/django-admin/`, `/common/`,
 and `/notifications/` to Daphne. Its access format uses `$uri` rather than the
 raw request, so query strings are excluded, and `/ws/` access logging is off.
 
@@ -322,7 +322,7 @@ Then verify through the final HTTPS domain:
 - `/api/health/` returns `{"status":"ok"}`;
 - `/api/health/ready/` returns database and Redis as `ok`;
 - the React frontend and direct nested SPA routes load;
-- `/admin/` loads with Django static CSS/JavaScript;
+- `/django-admin/` loads with Django static CSS/JavaScript;
 - authenticated and public API calls succeed;
 - staff WebSockets connect over `wss://` and deliver events across workers;
 - `/static/` and `/media/` load through Nginx;

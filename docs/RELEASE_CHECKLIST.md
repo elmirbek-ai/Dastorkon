@@ -123,7 +123,7 @@ Run these checks through the real public route, not only against localhost.
 - [ ] `/api/health/ready/` returns HTTP 200 and reports ready dependencies.
 - [ ] The frontend entry page and at least one direct React route load after a
   refresh, confirming SPA fallback.
-- [ ] `/admin/` loads and Django admin CSS and JavaScript are present.
+- [ ] `/django-admin/` loads and Django admin CSS and JavaScript are present.
 - [ ] A designated non-demo account can log in and log out successfully.
 - [ ] A representative customer order can be created and progresses through
   the expected order flow.

@@ -74,12 +74,12 @@ server {
         proxy_read_timeout 60s;
     }
 
-    location = /admin {
-        return 301 /admin/;
+    location = /django-admin {
+        return 301 /django-admin/;
     }
 
     # These routes are owned by Django rather than the React SPA.
-    location ~ ^/(admin|common|notifications)/ {
+    location ~ ^/(django-admin|common|notifications)/ {
         proxy_pass http://dastorkon_asgi;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

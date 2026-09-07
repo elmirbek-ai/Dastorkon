@@ -116,7 +116,7 @@ server {
     }
 
     # These HTTP routes are also owned by Django rather than the React SPA.
-    location ~ ^/(admin|common|notifications)/ {
+    location ~ ^/(django-admin|common|notifications)/ {
         proxy_pass http://dastorkon_asgi;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
