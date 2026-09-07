@@ -164,6 +164,7 @@ expose the socket over `wss://`. See
 
 - [MVP v0.1.0 release notes](docs/MVP_RELEASE_NOTES.md)
 - [MVP demo scenario](docs/MVP_DEMO_SCENARIO.md)
+- [MVP demo talk script](docs/MVP_DEMO_TALK_SCRIPT.md)
 - [Release checklist](docs/RELEASE_CHECKLIST.md)
 - [Demo checklist](docs/DEMO_CHECKLIST.md)
 - [Realtime notes](docs/REALTIME_NOTES.md)
