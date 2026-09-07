@@ -9,6 +9,22 @@ released. Record an owner, timestamp, and evidence (CI run, command output,
 dashboard, ticket, or backup identifier) for every required item. Any
 unresolved public-launch blocker makes the decision **NO-GO**.
 
+## v0.1.0-mvp manual demo gate
+
+Use the [MVP demo scenario](MVP_DEMO_SCENARIO.md) for the detailed flow and the
+[MVP release notes](MVP_RELEASE_NOTES.md) for the supported scope.
+
+- [ ] The demo is running from the recorded release commit for `v0.1.0-mvp`,
+  with no unexplained working-tree changes.
+- [ ] Admin, Waiter, Kitchen, and Customer views load using separate browser
+  contexts, with no console-breaking errors.
+- [ ] One QR order completes from `NEW` through `COMPLETED`; the table changes
+  to `OCCUPIED` only after an order or call and returns to `FREE` after closure.
+- [ ] The order number and persisted total match across all four role views,
+  and completed customer history remains readable after closure.
+- [ ] React Admin works under `/admin/*`, Django admin works under
+  `/django-admin/`, and Admin Orders date filters and dashboard KPIs load.
+
 ## Release record
 
 - Release/version: `________________`

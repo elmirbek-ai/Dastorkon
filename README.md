@@ -162,6 +162,9 @@ expose the socket over `wss://`. See
 
 ## Documentation and validation
 
+- [MVP v0.1.0 release notes](docs/MVP_RELEASE_NOTES.md)
+- [MVP demo scenario](docs/MVP_DEMO_SCENARIO.md)
+- [Release checklist](docs/RELEASE_CHECKLIST.md)
 - [Demo checklist](docs/DEMO_CHECKLIST.md)
 - [Realtime notes](docs/REALTIME_NOTES.md)
 - [Static and media deployment](docs/STATIC_MEDIA_DEPLOYMENT.md)
@@ -172,7 +175,6 @@ expose the socket over `wss://`. See
 - [Backup and restore](docs/BACKUP_AND_RESTORE.md)
 - [Ubuntu production deployment](docs/UBUNTU_DEPLOYMENT.md)
 - [Production readiness](docs/PRODUCTION_READINESS.md)
-- [Production release checklist](docs/RELEASE_CHECKLIST.md)
 - [API overview](docs/API.md)
 
 For production, collect Django and admin static assets with:
