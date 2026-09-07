@@ -174,6 +174,7 @@ expose the socket over `wss://`. See
 - [Email deployment](docs/EMAIL_DEPLOYMENT.md)
 - [Logging and health checks](docs/LOGGING_AND_HEALTHCHECKS.md)
 - [Backup and restore](docs/BACKUP_AND_RESTORE.md)
+- [Production deployment preparation](docs/PRODUCTION_DEPLOYMENT_PREP.md)
 - [Ubuntu production deployment](docs/UBUNTU_DEPLOYMENT.md)
 - [Production readiness](docs/PRODUCTION_READINESS.md)
 - [API overview](docs/API.md)
