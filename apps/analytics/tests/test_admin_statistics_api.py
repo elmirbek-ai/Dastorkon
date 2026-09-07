@@ -254,6 +254,21 @@ class AdminStatisticsApiTests(APITestCase):
 
         self.assertEqual(response.data["completed_amount"], "500.00")
 
+    def test_revenue_uses_persisted_order_totals_after_menu_price_change(self):
+        self.menu_item.price = Decimal("999.99")
+        self.menu_item.save(update_fields=("price", "updated_at"))
+        self.authenticate(self.admin)
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.data["completed_amount"], "500.00")
+        table_stats = next(
+            item
+            for item in response.data["table_stats"]
+            if item["table"] == self.table.pk
+        )
+        self.assertEqual(table_stats["total_amount"], "300.00")
+
     def test_average_order_amount_is_correct(self):
         self.authenticate(self.admin)
 

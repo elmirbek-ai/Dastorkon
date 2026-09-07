@@ -190,6 +190,15 @@ class CartServicesTests(TestCase):
         self.assertEqual(total, Decimal("950.00"))
         self.assertIsInstance(total, Decimal)
 
+    def test_calculate_cart_total_uses_current_menu_item_price(self):
+        add_cart_item(self.customer_session, self.menu_item, quantity=2)
+        self.menu_item.price = Decimal("275.50")
+        self.menu_item.save(update_fields=("price", "updated_at"))
+
+        total = calculate_cart_total(self.customer_session)
+
+        self.assertEqual(total, Decimal("551.00"))
+
     def test_clear_cart_deletes_customer_session_items(self):
         add_cart_item(self.customer_session, self.menu_item)
         add_cart_item(self.customer_session, self.second_menu_item)
@@ -225,6 +234,22 @@ class CartServicesTests(TestCase):
         self.assertEqual(order_item.name_ru_at_order, "Плов")
         self.assertEqual(order_item.price_at_order, Decimal("250.00"))
         self.assertEqual(order_item.comment, "Пиязсыз")
+
+    def test_checkout_snapshots_current_price_and_preserves_total(self):
+        add_cart_item(self.customer_session, self.menu_item, quantity=2)
+        self.menu_item.price = Decimal("275.50")
+        self.menu_item.save(update_fields=("price", "updated_at"))
+
+        order = create_order_from_cart(self.customer_session)
+        order_item = order.items.get()
+        self.menu_item.price = Decimal("300.00")
+        self.menu_item.save(update_fields=("price", "updated_at"))
+        order.refresh_from_db()
+        order_item.refresh_from_db()
+
+        self.assertEqual(order_item.price_at_order, Decimal("275.50"))
+        self.assertEqual(order_item.total_price, Decimal("551.00"))
+        self.assertEqual(order.total_amount, Decimal("551.00"))
 
     def test_create_order_from_cart_clears_cart(self):
         add_cart_item(self.customer_session, self.menu_item)

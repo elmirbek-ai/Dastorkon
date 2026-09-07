@@ -146,8 +146,8 @@ class PublicCartView(CustomerSessionMixin, APIView):
         if not customer_session.is_active:
             return Response({"items": [], "total": "0.00"})
         try:
-            cart_items = get_cart_items(customer_session)
-            total = calculate_cart_total(customer_session)
+            cart_items = list(get_cart_items(customer_session))
+            total = calculate_cart_total(customer_session, cart_items)
         except DjangoValidationError as exc:
             self.raise_service_error(exc)
         return Response(
@@ -270,7 +270,10 @@ def table_sessions_with_totals():
         .annotate(
             orders_count=Count("orders"),
             total_amount=Coalesce(
-                Sum("orders__total_amount"),
+                Sum(
+                    "orders__total_amount",
+                    filter=~Q(orders__status=Order.Status.CANCELLED),
+                ),
                 Value(Decimal("0.00")),
                 output_field=DecimalField(max_digits=10, decimal_places=2),
             ),

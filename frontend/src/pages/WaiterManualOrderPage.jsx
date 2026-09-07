@@ -5,6 +5,7 @@ import MenuItemBadges from '../components/MenuItemBadges.jsx'
 import { useConfirm } from '../components/confirmation/useConfirm.js'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getBackendErrorMessage, getLocalizedField } from '../i18n/index.js'
+import { addMoney, multiplyMoney } from '../utils/money.js'
 
 const steps = ['table', 'menu', 'confirm']
 
@@ -138,9 +139,8 @@ export default function WaiterManualOrderPage() {
 
   const cartItems = useMemo(() => Object.values(cart), [cart])
   const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0)
-  const cartTotal = cartItems.reduce(
-    (total, item) => total + item.unitPrice * item.quantity,
-    0,
+  const cartTotal = addMoney(
+    cartItems.map((item) => multiplyMoney(item.unitPrice, item.quantity)),
   )
 
   function lineKeyFor(menuItem) {
@@ -183,7 +183,7 @@ export default function WaiterManualOrderPage() {
           menuItem,
           quantity: (existing?.quantity || 0) + 1,
           comment: existing?.comment || '',
-          unitPrice: Number(menuItem.price),
+          unitPrice: menuItem.price,
         },
       }
     })
@@ -395,7 +395,7 @@ export default function WaiterManualOrderPage() {
                         </span>
                         <span className="waiter-manual-line-total">
                           <small>{t('common.total')}</small>
-                          <strong>{formatMoney(line.unitPrice * line.quantity)}</strong>
+                          <strong>{formatMoney(multiplyMoney(line.unitPrice, line.quantity))}</strong>
                         </span>
                       </div>
                       <label className="waiter-manual-item-comment">

@@ -61,7 +61,7 @@ def activate_customer_session(customer_session):
     table_session = get_or_create_active_table_session(customer_snapshot.table)
     customer_session = (
         CustomerSession.objects.select_for_update()
-        .select_related("table", "active_table_session")
+        .select_related("table")
         .get(pk=customer_snapshot.pk)
     )
     if not customer_session.is_active:

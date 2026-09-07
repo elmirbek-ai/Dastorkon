@@ -2,6 +2,8 @@ from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import BigIntegerField, Max
+from django.db.models.functions import Cast, Substr
 from django.utils import timezone
 
 from apps.menu.models import MenuItem
@@ -30,6 +32,7 @@ from .models import (
     CartItem,
     Order,
     OrderItem,
+    OrderNumberSequence,
     OrderStatusHistory,
     WaiterCall,
 )
@@ -41,6 +44,7 @@ TABLE_HAS_UNRESOLVED_CALLS_DETAIL = (
 )
 COMMENTS_DISABLED_CODE = "COMMENTS_DISABLED"
 COMMENTS_DISABLED_DETAIL = "Customer item comments are disabled."
+GLOBAL_ORDER_NUMBER_SCOPE = "GLOBAL"
 
 
 def normalize_item_comment(comment):
@@ -99,7 +103,7 @@ def add_cart_item(
     comment="",
 ):
     customer_session = (
-        CustomerSession.objects.select_for_update()
+        CustomerSession.objects.select_for_update(of=("self",))
         .select_related("table", "active_table_session")
         .get(pk=customer_session.pk)
     )
@@ -133,7 +137,7 @@ def add_cart_item(
 @transaction.atomic
 def update_cart_item(cart_item, quantity=None, comment=None):
     cart_item = (
-        CartItem.objects.select_for_update()
+        CartItem.objects.select_for_update(of=("self", "customer_session"))
         .select_related(
             "customer_session__active_table_session",
             "customer_session__table",
@@ -185,11 +189,13 @@ def get_cart_items(customer_session):
     ).select_related("menu_item")
 
 
-def calculate_cart_total(customer_session):
+def calculate_cart_total(customer_session, cart_items=None):
+    if cart_items is None:
+        cart_items = get_cart_items(customer_session)
     return sum(
         (
             cart_item_unit_price(cart_item) * cart_item.quantity
-            for cart_item in get_cart_items(customer_session)
+            for cart_item in cart_items
         ),
         Decimal("0"),
     )
@@ -310,9 +316,30 @@ def complete_waiter_call(waiter_call, waiter):
 
 @transaction.atomic
 def generate_order_number():
-    latest_order = Order.objects.select_for_update().order_by("-id").first()
-    next_number = latest_order.id + 1 if latest_order else 1
+    sequence, _ = (
+        OrderNumberSequence.objects.select_for_update().get_or_create(
+            scope=GLOBAL_ORDER_NUMBER_SCOPE,
+            defaults={"last_number": _highest_generated_order_number},
+        )
+    )
+    next_number = sequence.last_number + 1
+    sequence.last_number = next_number
+    sequence.save(update_fields=("last_number",))
     return f"ORD-{next_number:06d}"
+
+
+def _highest_generated_order_number():
+    return (
+        Order.objects.filter(order_number__regex=r"^ORD-[0-9]+$")
+        .annotate(
+            numeric_order_number=Cast(
+                Substr("order_number", 5),
+                output_field=BigIntegerField(),
+            )
+        )
+        .aggregate(max_number=Max("numeric_order_number"))["max_number"]
+        or 0
+    )
 
 
 def _create_order_record(
@@ -353,11 +380,15 @@ def _create_order_record(
         quantity = item_data["quantity"]
         if quantity <= 0:
             raise ValidationError("Quantity must be greater than zero.")
-        total_price = menu_item.price * quantity
+        snapshot_unit_price = menu_item.price
+        total_price = snapshot_unit_price * quantity
         total_amount += total_price
         validated_items.append(
             {
                 "menu_item": menu_item,
+                "name_ky_at_order": menu_item.name_ky,
+                "name_ru_at_order": menu_item.name_ru,
+                "price_at_order": snapshot_unit_price,
                 "quantity": quantity,
                 "comment": normalize_item_comment(item_data.get("comment", "")),
                 "total_price": total_price,
@@ -378,9 +409,9 @@ def _create_order_record(
         OrderItem.objects.create(
             order=order,
             menu_item=item["menu_item"],
-            name_ky_at_order=item["menu_item"].name_ky,
-            name_ru_at_order=item["menu_item"].name_ru,
-            price_at_order=item["menu_item"].price,
+            name_ky_at_order=item["name_ky_at_order"],
+            name_ru_at_order=item["name_ru_at_order"],
+            price_at_order=item["price_at_order"],
             quantity=item["quantity"],
             comment=item["comment"],
             total_price=item["total_price"],
@@ -455,7 +486,7 @@ def create_manual_order(waiter, table_id, items_data):
 @transaction.atomic
 def create_order_from_cart(customer_session):
     customer_session = (
-        CustomerSession.objects.select_for_update()
+        CustomerSession.objects.select_for_update(of=("self",))
         .select_related("table", "active_table_session")
         .get(pk=customer_session.pk)
     )

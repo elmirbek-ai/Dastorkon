@@ -9,6 +9,7 @@ import WaiterIcon from '../components/WaiterIcon.jsx'
 import { useConfirm } from '../components/confirmation/useConfirm.js'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getBackendErrorMessage, getLocalizedField, getStatusLabel } from '../i18n/index.js'
+import { addMoney } from '../utils/money.js'
 
 const emptyCart = { items: [], total: '0.00' }
 const emptyOrders = { orders: [], total_amount: '0.00' }
@@ -42,8 +43,8 @@ function applyCartItemMutation(cart, cartItemId, updatedItem = null) {
   const items = updatedItem
     ? currentItems.map((item) => item.id === cartItemId ? updatedItem : item)
     : currentItems.filter((item) => item.id !== cartItemId)
-  const total = items.reduce((sum, item) => sum + Number(item.line_total ?? 0), 0)
-  return { ...cart, items, total: total.toFixed(2) }
+  const total = addMoney(items.map((item) => item.line_total))
+  return { ...cart, items, total }
 }
 
 function normalizeOrders(data) {
@@ -1696,9 +1697,10 @@ function CustomerMenuPage() {
         return {
           ...current,
           orders: [createdOrder, ...currentOrders],
-          total_amount: (
-            Number(current.total_amount ?? 0) + Number(createdOrder?.total_amount ?? 0)
-          ).toFixed(2),
+          total_amount: addMoney([
+            current.total_amount,
+            createdOrder?.total_amount,
+          ]),
         }
       })
       setCartSheetOpen(false)

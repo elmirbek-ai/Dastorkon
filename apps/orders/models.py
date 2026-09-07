@@ -10,6 +10,14 @@ from apps.tables.models import ActiveTableSession, CustomerSession
 ITEM_COMMENT_MAX_LENGTH = 300
 
 
+class OrderNumberSequence(models.Model):
+    scope = models.CharField(max_length=20, primary_key=True)
+    last_number = models.PositiveBigIntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.scope}: {self.last_number}"
+
+
 class Order(TimeStampedModel):
     class Source(models.TextChoices):
         CUSTOMER_QR = "CUSTOMER_QR", "Customer QR"

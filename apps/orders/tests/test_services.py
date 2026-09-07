@@ -1,10 +1,11 @@
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from apps.menu.models import Category, MenuItem
-from apps.orders.models import Order, OrderStatusHistory
+from apps.orders.models import Order, OrderNumberSequence, OrderStatusHistory
 from apps.orders.services import (
     assign_waiter_to_table_session,
     change_order_status,
@@ -84,22 +85,49 @@ class OrderServicesTests(TestCase):
     def test_create_order_stores_snapshot_fields(self):
         order = self.create_test_order()
         order_item = order.items.get()
+        original_total = order.total_amount
 
         self.menu_item.name_ky = "Жаңы аталыш"
         self.menu_item.name_ru = "Новое название"
         self.menu_item.price = Decimal("300.00")
         self.menu_item.save()
+        order.refresh_from_db()
         order_item.refresh_from_db()
 
         self.assertEqual(order_item.name_ky_at_order, "Палоо")
         self.assertEqual(order_item.name_ru_at_order, "Плов")
         self.assertEqual(order_item.price_at_order, Decimal("250.00"))
+        self.assertEqual(order_item.total_price, Decimal("500.00"))
+        self.assertEqual(order.total_amount, original_total)
 
     def test_create_order_calculates_total_amount(self):
         order = self.create_test_order(quantity=3)
+        order_items = list(order.items.all())
+        snapshot_total = sum(
+            (
+                order_item.price_at_order * order_item.quantity
+                for order_item in order_items
+            ),
+            Decimal("0"),
+        )
 
-        self.assertEqual(order.total_amount, Decimal("750.00"))
-        self.assertEqual(order.items.get().total_price, Decimal("750.00"))
+        self.assertEqual(order.total_amount, snapshot_total)
+        self.assertEqual(order_items[0].total_price, snapshot_total)
+
+    def test_failed_order_creation_does_not_consume_order_number(self):
+        sequence = OrderNumberSequence.objects.get(scope="GLOBAL")
+        expected_number = f"ORD-{sequence.last_number + 1:06d}"
+
+        with patch(
+            "apps.orders.services.OrderItem.objects.create",
+            side_effect=RuntimeError("item persistence failed"),
+        ):
+            with self.assertRaises(RuntimeError):
+                self.create_test_order()
+
+        order = self.create_test_order()
+
+        self.assertEqual(order.order_number, expected_number)
 
     def test_create_order_rejects_unavailable_menu_item(self):
         self.menu_item.is_available = False
