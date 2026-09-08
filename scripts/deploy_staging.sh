@@ -27,11 +27,11 @@ fail_before_source_update() {
 }
 
 compose() {
-  sudo -n docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+  sudo -n docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@" < /dev/null
 }
 
 docker_inspect() {
-  sudo -n docker inspect "$@"
+  sudo -n docker inspect "$@" < /dev/null
 }
 
 service_container_id() {
@@ -333,10 +333,10 @@ if [[ -n "$(git status --porcelain --untracked-files=normal)" ]]; then
   fail_before_source_update "Server working tree is dirty; refusing to discard local changes."
 fi
 
-if ! sudo -n docker version >/dev/null 2>&1; then
+if ! sudo -n docker version < /dev/null >/dev/null 2>&1; then
   fail_before_source_update "Passwordless sudo access to Docker is unavailable."
 fi
-if ! sudo -n docker compose version >/dev/null 2>&1; then
+if ! sudo -n docker compose version < /dev/null >/dev/null 2>&1; then
   fail_before_source_update "Docker Compose is unavailable through sudo."
 fi
 
@@ -363,7 +363,7 @@ umask 077
 log "Creating PostgreSQL backup before deployment."
 if ! compose exec -T db sh -c \
   'exec pg_dump --format=custom --no-owner --no-acl --username="$POSTGRES_USER" "$POSTGRES_DB"' \
-  > "$backup_temporary_path"; then
+  < /dev/null > "$backup_temporary_path"; then
   rm -f "$backup_temporary_path"
   fail_before_source_update "PostgreSQL backup command failed."
 fi

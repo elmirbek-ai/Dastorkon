@@ -72,8 +72,21 @@ branch.
 
 ## Deployment sequence
 
-The workflow streams `scripts/deploy_staging.sh` over the operating system's
-native SSH client. The script:
+The workflow uses two native SSH sessions. The first session uploads the
+reviewed `scripts/deploy_staging.sh` to a mode-700 temporary file under
+`/home/deploy/dastorkon-deploy-state` and atomically renames it to a filename
+containing only the tested commit SHA. The second session executes that remote
+file with stdin disconnected from the uploaded script. This separation keeps
+stdin consumers such as Docker Compose or `pg_dump` from consuming the
+remaining shell program and causing a false-successful early EOF.
+
+After execution, the workflow makes a best-effort SSH cleanup of only that
+uploaded script and its temporary path. Cleanup runs after success or failure,
+and the workflow exits with the deployment SSH status rather than hiding a
+deployment failure. Exact-SHA validation and the server-side deployment lock
+remain enforced by the uploaded script.
+
+The script then:
 
 1. Validates the full target commit SHA and repository path, then requires the
    local branch to be exactly `main`.
