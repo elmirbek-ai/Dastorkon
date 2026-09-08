@@ -300,7 +300,7 @@ if [[ ! "$1" =~ ^[0-9a-fA-F]{40}$ ]]; then
 fi
 TARGET_SHA="${1,,}"
 
-for required_command in git curl sudo; do
+for required_command in git curl flock sudo; do
   if ! command -v "$required_command" >/dev/null 2>&1; then
     fail_before_source_update "Required command is unavailable: ${required_command}"
   fi
@@ -311,6 +311,19 @@ if [[ ! -d "$DEPLOY_DIR/.git" ]]; then
 fi
 
 cd "$DEPLOY_DIR"
+
+current_branch="$(git symbolic-ref --quiet --short HEAD || true)"
+if [[ "$current_branch" != "main" ]]; then
+  fail_before_source_update \
+    "Deployment repository must be on branch main; current branch is ${current_branch:-detached HEAD}."
+fi
+
+CURRENT_STAGE="deployment-lock"
+install -d -m 700 "$STATE_DIR"
+exec 9>"${STATE_DIR}/deploy.lock"
+if ! flock -n 9; then
+  fail_before_source_update "Another staging deployment is already running."
+fi
 
 if [[ ! -f "$ENV_FILE" ]]; then
   fail_before_source_update "Required server environment file is missing: ${DEPLOY_DIR}/${ENV_FILE}"
@@ -338,7 +351,7 @@ if [[ "$(git rev-parse "${TARGET_SHA}^{commit}")" != "$TARGET_SHA" ]]; then
 fi
 validate_current_main_or_exit
 
-install -d -m 700 "$BACKUP_DIR" "$STATE_DIR"
+install -d -m 700 "$BACKUP_DIR"
 PREVIOUS_HEAD="$(git rev-parse HEAD)"
 
 CURRENT_STAGE="database-backup"

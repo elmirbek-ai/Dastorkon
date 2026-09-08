@@ -31,7 +31,11 @@ running release so the newer workflow can deploy it.
 
 GitHub Actions serializes staging deployments with the
 `staging-deployment` concurrency group. A deployment already running is not
-cancelled midway.
+cancelled midway. The remote script separately holds a non-blocking `flock` on
+`/home/deploy/dastorkon-deploy-state/deploy.lock` for its entire execution.
+GitHub concurrency prevents overlapping workflow jobs, while the server lock
+also prevents a manual or otherwise independently started deployment from
+running at the same time.
 
 ## GitHub Environment and secrets
 
@@ -61,30 +65,38 @@ by the workflow. The `deploy` user must already have non-interactive,
 appropriately restricted `sudo` access to the Docker CLI. Do not add the user
 to the Docker group for this workflow.
 
+The repository at `/srv/dastorkon` must remain checked out on its local `main`
+branch. A detached HEAD or any other local branch is an operational error. The
+automation aborts instead of switching branches or resetting an unexpected
+branch.
+
 ## Deployment sequence
 
 The workflow streams `scripts/deploy_staging.sh` over the operating system's
 native SSH client. The script:
 
-1. Validates the full target commit SHA, repository path, server environment
-   file, required commands, Docker access, and clean Git working tree.
-2. Fetches `origin/main`, confirms the target exists, and rejects commits that
+1. Validates the full target commit SHA and repository path, then requires the
+   local branch to be exactly `main`.
+2. Acquires the external server-side deployment lock without waiting, then
+   validates the environment file, required commands, Docker access, and clean
+   Git working tree.
+3. Fetches `origin/main`, confirms the target exists, and rejects commits that
    are not on current main. An older main ancestor is treated as a stale run
    and skipped.
-3. Creates a non-empty custom-format PostgreSQL dump under
+4. Creates a non-empty custom-format PostgreSQL dump under
    `/home/deploy/dastorkon-backups` using the already-running `db` service.
    Existing backups are retained.
-4. Fetches and checks main again after the backup, records the prior HEAD under
+5. Fetches and checks main again after the backup, records the prior HEAD under
    `/home/deploy/dastorkon-deploy-state`, then runs
    `git reset --hard <tested-sha>`.
-5. Validates Compose and builds only the `backend` and `nginx` images.
-6. Recreates only `backend`, leaving PostgreSQL and Redis running, and waits in
+6. Validates Compose and builds only the `backend` and `nginx` images.
+7. Recreates only `backend`, leaving PostgreSQL and Redis running, and waits in
    a bounded loop for the backend container health check.
-7. Recreates only `nginx`, then requires successful responses from
+8. Recreates only `nginx`, then requires successful responses from
    `http://127.0.0.1/api/health/ready/` and `http://127.0.0.1/`.
-8. Confirms backend, PostgreSQL, and Redis are healthy; Nginx is running; Git is
+9. Confirms backend, PostgreSQL, and Redis are healthy; Nginx is running; Git is
    clean; and HEAD equals the tested commit.
-9. Stores the successful SHA and timestamp outside the repository.
+10. Stores the successful SHA and timestamp outside the repository.
 
 Docker commands continue to use:
 
