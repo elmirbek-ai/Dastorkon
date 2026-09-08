@@ -93,7 +93,7 @@ class CustomerSessionStartView(APIView):
             str(customer_session.session_key),
             httponly=True,
             samesite="Lax",
-            secure=not settings.DEBUG,
+            secure=settings.SESSION_COOKIE_SECURE,
         )
         return response
 

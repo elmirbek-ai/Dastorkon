@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -76,7 +77,24 @@ class PublicCustomerSessionApiTests(APITestCase):
         self.assertEqual(cookie.value, str(customer_session.session_key))
         self.assertTrue(cookie["httponly"])
         self.assertEqual(cookie["samesite"], "Lax")
-        self.assertEqual(bool(cookie["secure"]), not settings.DEBUG)
+        self.assertEqual(
+            bool(cookie["secure"]),
+            settings.SESSION_COOKIE_SECURE,
+        )
+
+    @override_settings(SESSION_COOKIE_SECURE=False)
+    def test_customer_session_cookie_is_not_secure_when_setting_is_disabled(self):
+        response = self.client.post(self.url)
+
+        cookie = response.cookies["customer_session_key"]
+        self.assertFalse(bool(cookie["secure"]))
+
+    @override_settings(SESSION_COOKIE_SECURE=True)
+    def test_customer_session_cookie_is_secure_when_setting_is_enabled(self):
+        response = self.client.post(self.url)
+
+        cookie = response.cookies["customer_session_key"]
+        self.assertTrue(bool(cookie["secure"]))
 
     def test_session_endpoint_reuses_valid_customer_session_cookie(self):
         first_response = self.client.post(self.url)
