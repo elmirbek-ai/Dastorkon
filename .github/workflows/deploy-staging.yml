@@ -64,13 +64,58 @@ jobs:
           STAGING_USER: ${{ secrets.STAGING_USER }}
           TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
+          set -euo pipefail
+
           test -n "$STAGING_HOST"
           test -n "$STAGING_USER"
-          ssh \
-            -i "$HOME/.ssh/staging_deploy_key" \
-            -o BatchMode=yes \
-            -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=yes \
-            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
-            "${STAGING_USER}@${STAGING_HOST}" \
-            "bash -s -- $TARGET_SHA" < scripts/deploy_staging.sh
+
+          remote_host="${STAGING_USER}@${STAGING_HOST}"
+          remote_state_dir="/home/deploy/dastorkon-deploy-state"
+          remote_script="${remote_state_dir}/github-actions-deploy-${TARGET_SHA}.sh"
+          remote_script_tmp="${remote_script}.tmp"
+          ssh_options=(
+            -i "$HOME/.ssh/staging_deploy_key"
+            -o BatchMode=yes
+            -o IdentitiesOnly=yes
+            -o StrictHostKeyChecking=yes
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts"
+          )
+
+          cleanup_remote_script() {
+            local cleanup_status
+
+            set +e
+            ssh "${ssh_options[@]}" "$remote_host" \
+              "rm -f '$remote_script' '$remote_script_tmp'" < /dev/null
+            cleanup_status=$?
+            set -e
+
+            if ((cleanup_status != 0)); then
+              echo "Warning: failed to remove the uploaded deployment script." >&2
+            fi
+          }
+
+          set +e
+          ssh "${ssh_options[@]}" "$remote_host" \
+            "install -d -m 700 '$remote_state_dir' &&
+             umask 077 &&
+             cat > '$remote_script_tmp' &&
+             chmod 700 '$remote_script_tmp' &&
+             mv '$remote_script_tmp' '$remote_script'" \
+            < scripts/deploy_staging.sh
+          upload_status=$?
+          set -e
+
+          if ((upload_status != 0)); then
+            cleanup_remote_script
+            exit "$upload_status"
+          fi
+
+          set +e
+          ssh "${ssh_options[@]}" "$remote_host" \
+            "bash '$remote_script' '$TARGET_SHA'" < /dev/null
+          deploy_status=$?
+          set -e
+
+          cleanup_remote_script
+          exit "$deploy_status"
