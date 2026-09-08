@@ -7,50 +7,27 @@ import MenuItemBadges from '../components/MenuItemBadges.jsx'
 import TableIcon from '../components/TableIcon.jsx'
 import WaiterIcon from '../components/WaiterIcon.jsx'
 import { useConfirm } from '../components/confirmation/useConfirm.js'
+import {
+  applyCustomerCartItemMutation,
+  customerCartItemIsUnavailable,
+  EMPTY_CART,
+  EMPTY_ORDERS,
+  formatCustomerMoney,
+  getCustomerApiBasePath,
+  getCustomerMenuItemsById,
+  getCustomerMenuPath,
+  loadCustomerData,
+  normalizeCustomerCart,
+  normalizeCustomerMenu,
+} from '../customer/customerData.js'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getBackendErrorMessage, getLocalizedField, getStatusLabel } from '../i18n/index.js'
-import { addMoney } from '../utils/money.js'
 
-const emptyCart = { items: [], total: '0.00' }
-const emptyOrders = { orders: [], total_amount: '0.00' }
-const CUSTOMER_REQUEST_CONFIG = { timeout: 15000 }
 const PRICE_SORT_OPTIONS = [
   { value: 'default', labelKey: 'customer.sortDefault' },
   { value: 'price-asc', labelKey: 'customer.sortPriceAscending' },
   { value: 'price-desc', labelKey: 'customer.sortPriceDescending' },
 ]
-
-function normalizeMenu(data) {
-  if (!data || typeof data !== 'object' || !data.table) return null
-  return {
-    ...data,
-    categories: Array.isArray(data.categories)
-      ? data.categories.map((category) => ({
-          ...category,
-          items: Array.isArray(category?.items) ? category.items : [],
-        }))
-      : [],
-  }
-}
-
-function normalizeCart(data) {
-  if (!data || typeof data !== 'object') return emptyCart
-  return { ...data, items: Array.isArray(data.items) ? data.items : [] }
-}
-
-function applyCartItemMutation(cart, cartItemId, updatedItem = null) {
-  const currentItems = Array.isArray(cart?.items) ? cart.items : []
-  const items = updatedItem
-    ? currentItems.map((item) => item.id === cartItemId ? updatedItem : item)
-    : currentItems.filter((item) => item.id !== cartItemId)
-  const total = addMoney(items.map((item) => item.line_total))
-  return { ...cart, items, total }
-}
-
-function normalizeOrders(data) {
-  if (!data || typeof data !== 'object') return emptyOrders
-  return { ...data, orders: Array.isArray(data.orders) ? data.orders : [] }
-}
 
 function getSortablePrice(value) {
   if (
@@ -79,10 +56,7 @@ function sortMenuItemsByPrice(items, sortOrder) {
     .map(({ item }) => item)
 }
 
-function money(value) {
-  const amount = Number(value ?? 0)
-  return `${Number.isInteger(amount) ? amount : amount.toFixed(2)} сом`
-}
+const money = formatCustomerMoney
 
 function resolveImageUrl(image) {
   return resolveApiAssetUrl(image)
@@ -850,19 +824,23 @@ export function OrderHistory({ orders, tableNumber, onBackToMenu }) {
   )
 }
 
-function cartItemIsUnavailable(cartItem, menuItem) {
-  return cartItem.is_available === false
-    || !menuItem
-    || menuItem.is_available === false
-}
-
-function CartReviewItem({ cartItem, menuItem, pending, commentsEnabled, onIncrease, onDecrease, onRemove }) {
+function CartReviewItem({
+  cartItem,
+  menuItem,
+  pending,
+  commentsEnabled,
+  onIncrease,
+  onDecrease,
+  onRemove,
+  onCommentChange,
+  onCommentBlur,
+}) {
   const { language, t } = useLanguage()
   const [imageFailed, setImageFailed] = useState(false)
   const imageUrl = resolveImageUrl(menuItem?.image)
   const itemName = getLocalizedField(menuItem, 'name', language) || getLocalizedField(cartItem, 'menu_item_name', language)
   const unitPrice = cartItem.unit_price ?? Number(cartItem.line_total) / cartItem.quantity
-  const unavailable = cartItemIsUnavailable(cartItem, menuItem)
+  const unavailable = customerCartItemIsUnavailable(cartItem, menuItem)
 
   return (
     <article className={`cart-sheet-item ${unavailable ? 'is-unavailable' : ''}`}>
@@ -884,11 +862,6 @@ function CartReviewItem({ cartItem, menuItem, pending, commentsEnabled, onIncrea
             <h3>{itemName}</h3>
             <p>{money(unitPrice)}</p>
             {unavailable && <small className="cart-item-unavailable">{t('customer.temporarilyUnavailable')}</small>}
-            {commentsEnabled && cartItem.comment && (
-              <small className="cart-sheet-item__comment">
-                {t('customer.kitchenNote')}: {cartItem.comment}
-              </small>
-            )}
           </div>
           <button
             className="cart-sheet-item__remove"
@@ -925,99 +898,17 @@ function CartReviewItem({ cartItem, menuItem, pending, commentsEnabled, onIncrea
           </div>
           <strong>{money(cartItem.line_total)}</strong>
         </div>
-      </div>
-    </article>
-  )
-}
-
-function CheckoutReviewItem({
-  cartItem,
-  menuItem,
-  pending,
-  disabled,
-  commentsEnabled,
-  onIncrease,
-  onDecrease,
-  onRemove,
-  onCommentChange,
-}) {
-  const { language, t } = useLanguage()
-  const [imageFailed, setImageFailed] = useState(false)
-  const imageUrl = resolveImageUrl(menuItem?.image)
-  const itemName = getLocalizedField(menuItem, 'name', language)
-    || getLocalizedField(cartItem, 'menu_item_name', language)
-  const unitPrice = cartItem.unit_price ?? Number(cartItem.line_total) / cartItem.quantity
-  const unavailable = cartItemIsUnavailable(cartItem, menuItem)
-
-  return (
-    <article className={`checkout-item ${unavailable ? 'is-unavailable' : ''}`} aria-busy={pending}>
-      <div className="checkout-item__media">
-        {imageUrl && !imageFailed ? (
-          <img src={imageUrl} alt="" onError={() => setImageFailed(true)} />
-        ) : (
-          <span aria-hidden="true"><FoodIcon /></span>
-        )}
-      </div>
-      <div className="checkout-item__body">
-        <div className="checkout-item__top">
-          <div className="checkout-item__copy">
-            <h3>{itemName}</h3>
-            <p>{money(unitPrice)}</p>
-            {unavailable && <small className="cart-item-unavailable">{t('customer.temporarilyUnavailable')}</small>}
-          </div>
-          <strong className="checkout-item__subtotal">{money(cartItem.line_total)}</strong>
-        </div>
-        <div className="checkout-item__controls">
-          <div className="cart-sheet-stepper" aria-label={`${itemName}: ${cartItem.quantity}`}>
-            <button
-              type="button"
-              onClick={onDecrease}
-              disabled={disabled || unavailable}
-              title={t('customer.decreaseQuantity')}
-              aria-label={t('customer.decreaseQuantity')}
-            >
-              −
-            </button>
-            <strong aria-live="polite">
-              {pending ? <span className="stepper-loader" /> : cartItem.quantity}
-            </strong>
-            <button
-              type="button"
-              onClick={onIncrease}
-              disabled={disabled || unavailable}
-              title={t('customer.increaseQuantity')}
-              aria-label={t('customer.increaseQuantity')}
-            >
-              +
-            </button>
-          </div>
-          {pending && (
-            <span className="checkout-item__updating" role="status">
-              {t('customer.updatingCart')}
-            </span>
-          )}
-          <button
-            className="checkout-item__remove"
-            type="button"
-            onClick={onRemove}
-            disabled={disabled}
-            title={t('customer.removeItem')}
-            aria-label={`${itemName}: ${t('customer.removeItem')}`}
-          >
-            <span aria-hidden="true">×</span>
-            <small>{t('customer.removeItem')}</small>
-          </button>
-        </div>
         {commentsEnabled && (
-          <label className="checkout-item__comment">
+          <label className="cart-sheet-item__comment-field">
             <span>{t('customer.itemNote')}</span>
             <textarea
               rows="2"
               maxLength={300}
               value={cartItem.comment || ''}
               onChange={(event) => onCommentChange(event.target.value)}
+              onBlur={onCommentBlur}
               placeholder={t('customer.itemNotePlaceholder')}
-              disabled={disabled}
+              disabled={pending}
             />
           </label>
         )}
@@ -1028,30 +919,27 @@ function CheckoutReviewItem({
 
 function CartReviewSheet({
   open,
-  stage,
   cart,
   itemCount,
-  tableNumber,
   menuItemsById,
   pendingItemId,
-  submitting,
+  savingComments,
   error,
   commentsEnabled,
   onClose,
   onIncrease,
   onDecrease,
   onCommentChange,
+  onCommentBlur,
   onRequestRemoval,
   onContinueOrdering,
   onCheckout,
-  onBackToCart,
-  onSubmit,
 }) {
   const { language, t } = useLanguage()
   if (!open) return null
-  const checkout = stage === 'checkout'
+  const busy = savingComments || pendingItemId !== null
   const hasUnavailableItems = cart.items.some((cartItem) => (
-    cartItemIsUnavailable(cartItem, menuItemsById.get(cartItem.menu_item))
+    customerCartItemIsUnavailable(cartItem, menuItemsById.get(cartItem.menu_item))
   ))
   const unavailableMessage = t('errors.menuItemUnavailable')
 
@@ -1059,44 +947,27 @@ function CartReviewSheet({
     <div
       className="sheet-backdrop cart-sheet-backdrop"
       role="presentation"
-      onMouseDown={submitting || pendingItemId !== null ? undefined : onClose}
+      onMouseDown={busy ? undefined : onClose}
     >
       <section
-        className={`cart-sheet ${checkout ? 'cart-sheet--checkout' : ''}`}
+        className="cart-sheet"
         role="dialog"
         aria-modal="true"
         aria-labelledby="cart-sheet-title"
-        aria-busy={submitting || pendingItemId !== null}
+        aria-busy={busy}
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="sheet-handle" aria-hidden="true" />
         <header className="cart-sheet__heading">
-          {checkout && (
-            <button
-              className="cart-sheet__back"
-              type="button"
-              onClick={onBackToCart}
-              disabled={submitting || pendingItemId !== null}
-              aria-label={t('customer.backToCart')}
-            >
-              <span aria-hidden="true">←</span>
-            </button>
-          )}
           <div>
-            <h2 id="cart-sheet-title">
-              {checkout ? t('customer.checkoutTitle') : t('customer.cart')}
-            </h2>
-            <p>
-              {checkout
-                ? t('customer.tableLabel', { number: tableNumber })
-                : t('customer.itemCount', { count: itemCount })}
-            </p>
+            <h2 id="cart-sheet-title">{t('customer.cart')}</h2>
+            <p>{t('customer.itemCount', { count: itemCount })}</p>
           </div>
           <button
             className="cart-sheet__close"
             type="button"
             onClick={onClose}
-            disabled={submitting || pendingItemId !== null}
+            disabled={busy}
             aria-label={t('customer.closeCart')}
           >
             ×
@@ -1113,86 +984,6 @@ function CartReviewSheet({
             <span aria-hidden="true"><CartIcon /></span>
             <strong>{t('customer.cartEmpty')}</strong>
             <button type="button" onClick={onClose}>{t('customer.goToMenu')}</button>
-          </div>
-        ) : checkout ? (
-          <div className="checkout-review">
-            <div className="checkout-review__order">
-              <section className="checkout-table-card">
-                <span aria-hidden="true"><TableIcon /></span>
-                <div>
-                  <small>{t('customer.yourTable')}</small>
-                  <strong>{t('customer.tableLabel', { number: tableNumber })}</strong>
-                </div>
-              </section>
-
-              <div className="checkout-kitchen-message">
-                <span aria-hidden="true">✓</span>
-                <p>{t('customer.sentToKitchenMessage')}</p>
-              </div>
-
-              <section className="checkout-review__items" aria-labelledby="checkout-items-title">
-                <div className="checkout-review__section-heading">
-                  <h3 id="checkout-items-title">{t('customer.orderComposition')}</h3>
-                  <span>{t('customer.itemCount', { count: itemCount })}</span>
-                </div>
-                {cart.items.map((cartItem) => {
-                  const menuItem = menuItemsById.get(cartItem.menu_item)
-                  const item = menuItem || { id: cartItem.menu_item }
-                  const itemName = getLocalizedField(menuItem, 'name', language)
-                    || getLocalizedField(cartItem, 'menu_item_name', language)
-
-                  return (
-                    <CheckoutReviewItem
-                      key={cartItem.id}
-                      cartItem={cartItem}
-                      menuItem={menuItem}
-                      pending={pendingItemId === item.id}
-                      disabled={submitting || pendingItemId !== null}
-                      commentsEnabled={commentsEnabled}
-                      onIncrease={() => onIncrease(item, cartItem)}
-                      onDecrease={() => (
-                        cartItem.quantity === 1
-                          ? onRequestRemoval(item, cartItem, itemName)
-                          : onDecrease(item, cartItem)
-                      )}
-                      onRemove={() => onRequestRemoval(item, cartItem, itemName)}
-                      onCommentChange={(comment) => onCommentChange(cartItem, comment)}
-                    />
-                  )
-                })}
-              </section>
-            </div>
-
-            <aside className="checkout-summary" aria-label={t('customer.orderSummary')}>
-              <div>
-                <p>{t('customer.yourOrder')}</p>
-                <h3>{t('customer.orderSummary')}</h3>
-              </div>
-              <dl>
-                <div>
-                  <dt>{t('customer.dishes')}</dt>
-                  <dd>{t('customer.itemCount', { count: itemCount })}</dd>
-                </div>
-                <div>
-                  <dt>{t('customer.subtotal')}</dt>
-                  <dd>{money(cart.total)}</dd>
-                </div>
-                <div className="checkout-summary__total">
-                  <dt>{t('common.total')}</dt>
-                  <dd>{money(cart.total)}</dd>
-                </div>
-              </dl>
-              <button
-                className="order-button"
-                type="button"
-                onClick={onSubmit}
-                disabled={submitting || pendingItemId !== null || cart.items.length === 0 || hasUnavailableItems}
-              >
-                {submitting ? t('customer.placingOrder') : t('customer.sendOrderToKitchen')}
-                {!submitting && <span aria-hidden="true">→</span>}
-              </button>
-              <small>{t('customer.submitOrderHelp')}</small>
-            </aside>
           </div>
         ) : (
           <div className="cart-sheet__body">
@@ -1217,6 +1008,8 @@ function CartReviewSheet({
                         : onDecrease(item, cartItem)
                     )}
                     onRemove={() => onRequestRemoval(item, cartItem, itemName)}
+                    onCommentChange={(comment) => onCommentChange(cartItem, comment)}
+                    onCommentBlur={() => onCommentBlur(cartItem.id)}
                   />
                 )
               })}
@@ -1240,7 +1033,7 @@ function CartReviewSheet({
                   className="order-button"
                   type="button"
                   onClick={onCheckout}
-                  disabled={pendingItemId !== null || hasUnavailableItems}
+                  disabled={busy || hasUnavailableItems}
                 >
                   {t('customer.proceedToCheckout')}
                   <span aria-hidden="true">→</span>
@@ -1366,13 +1159,14 @@ function CustomerMenuPage() {
   const navigate = useNavigate()
   const { language, t } = useLanguage()
   const confirm = useConfirm()
-  const sessionRequestRef = useRef({ basePath: '', promise: null })
-  const orderSubmitInFlightRef = useRef(false)
   const waiterCallInFlightRef = useRef(false)
   const cartUpdateInFlightRef = useRef(false)
+  const checkoutNavigationInFlightRef = useRef(false)
+  const dirtyCartCommentsRef = useRef(new Map())
+  const commentSavesInFlightRef = useRef(new Map())
   const [menu, setMenu] = useState(null)
-  const [cart, setCart] = useState(emptyCart)
-  const [orders, setOrders] = useState(emptyOrders)
+  const [cart, setCart] = useState(EMPTY_CART)
+  const [orders, setOrders] = useState(EMPTY_ORDERS)
   const [readOnly, setReadOnly] = useState(false)
   const [commentsEnabled, setCommentsEnabled] = useState(true)
   const [loading, setLoading] = useState(true)
@@ -1380,30 +1174,27 @@ function CustomerMenuPage() {
   const [loadRevision, setLoadRevision] = useState(0)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [showOrdersSuccessAction, setShowOrdersSuccessAction] = useState(false)
   const [pendingMenuItemId, setPendingMenuItemId] = useState(null)
-  const [submittingOrder, setSubmittingOrder] = useState(false)
+  const [savingComments, setSavingComments] = useState(false)
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState('all')
   const [priceSort, setPriceSort] = useState('default')
   const [selectedDish, setSelectedDish] = useState(null)
   const [cartSheetOpen, setCartSheetOpen] = useState(false)
-  const [cartStage, setCartStage] = useState('cart')
   const [waiterSheetOpen, setWaiterSheetOpen] = useState(false)
   const [sendingWaiterCall, setSendingWaiterCall] = useState(false)
 
-  const basePath = `/api/public/qr/${encodeURIComponent(qrToken)}`
-  const customerOrdersPath = `/menu/${encodeURIComponent(qrToken)}/orders`
+  const basePath = getCustomerApiBasePath(qrToken)
+  const customerMenuPath = getCustomerMenuPath(qrToken)
+  const customerCheckoutPath = `${customerMenuPath}/checkout`
+  const customerOrdersPath = `${customerMenuPath}/orders`
   const cartItemCount = cart.items.reduce((sum, item) => sum + item.quantity, 0)
   const cartItemsByMenuItem = useMemo(
     () => new Map(cart.items.map((cartItem) => [cartItem.menu_item, cartItem])),
     [cart.items],
   )
   const menuItemsById = useMemo(
-    () => new Map(
-      (menu?.categories || []).flatMap((category) => category.items)
-        .map((item) => [item.id, item]),
-    ),
+    () => getCustomerMenuItemsById(menu),
     [menu],
   )
 
@@ -1440,34 +1231,14 @@ function CustomerMenuPage() {
       setError('')
 
       try {
-        if (sessionRequestRef.current.basePath !== basePath) {
-          sessionRequestRef.current = { basePath, promise: null }
-        }
-
-        if (!sessionRequestRef.current.promise) {
-          sessionRequestRef.current.promise = apiClient.post(`${basePath}/session/`, undefined, CUSTOMER_REQUEST_CONFIG)
-            .catch((requestError) => {
-              sessionRequestRef.current.promise = null
-              throw requestError
-            })
-        }
-
-        const sessionResponse = await sessionRequestRef.current.promise
-
-        const [menuResponse, cartResponse, ordersResponse] = await Promise.all([
-          apiClient.get(`${basePath}/menu/`, CUSTOMER_REQUEST_CONFIG),
-          apiClient.get(`${basePath}/cart/`, CUSTOMER_REQUEST_CONFIG),
-          apiClient.get(`${basePath}/orders/`, CUSTOMER_REQUEST_CONFIG),
-        ])
+        const pageData = await loadCustomerData(basePath, { includeOrders: true })
 
         if (active) {
-          const nextMenu = normalizeMenu(menuResponse.data)
-          if (!nextMenu) throw new Error('Invalid customer menu response')
-          setMenu(nextMenu)
-          setReadOnly(sessionResponse.data?.read_only === true)
-          setCommentsEnabled(sessionResponse.data?.comments_enabled !== false)
-          setCart(normalizeCart(cartResponse.data))
-          setOrders(normalizeOrders(ordersResponse.data))
+          setMenu(pageData.menu)
+          setReadOnly(pageData.session?.read_only === true)
+          setCommentsEnabled(pageData.session?.comments_enabled !== false)
+          setCart(pageData.cart)
+          setOrders(pageData.orders)
         }
       } catch {
         if (active) setLoadFailed(true)
@@ -1501,8 +1272,8 @@ function CustomerMenuPage() {
 
     function closeOnEscape(event) {
       if (event.key !== 'Escape') return
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
       setCartSheetOpen(false)
-      setCartStage('cart')
     }
 
     document.addEventListener('keydown', closeOnEscape)
@@ -1531,31 +1302,34 @@ function CustomerMenuPage() {
 
   async function refreshCart() {
     const response = await apiClient.get(`${basePath}/cart/`)
-    setCart(normalizeCart(response.data))
+    const nextCart = normalizeCustomerCart(response.data)
+    setCart({
+      ...nextCart,
+      items: nextCart.items.map((item) => (
+        dirtyCartCommentsRef.current.has(item.id)
+          ? { ...item, comment: dirtyCartCommentsRef.current.get(item.id) }
+          : item
+      )),
+    })
   }
 
   async function refreshMenu() {
     const response = await apiClient.get(`${basePath}/menu/`)
-    const nextMenu = normalizeMenu(response.data)
+    const nextMenu = normalizeCustomerMenu(response.data)
     if (!nextMenu) throw new Error('Invalid customer menu response')
     setMenu(nextMenu)
   }
 
-  async function refreshOrders() {
-    const response = await apiClient.get(`${basePath}/orders/`)
-    setOrders(response.data)
-    setReadOnly(response.data?.read_only === true)
-  }
-
-  function openCartSheet(stage = 'cart') {
-    setCartStage(stage)
+  function openCartSheet() {
     setCartSheetOpen(true)
-    Promise.allSettled([refreshMenu(), refreshCart()])
+    void persistDirtyCartComments().then((commentsSaved) => {
+      if (commentsSaved) Promise.allSettled([refreshMenu(), refreshCart()])
+    })
   }
 
   function closeCartSheet() {
     setCartSheetOpen(false)
-    setCartStage('cart')
+    void persistDirtyCartComments()
   }
 
   async function addToCart(item, options = {}) {
@@ -1564,7 +1338,6 @@ function CustomerMenuPage() {
     setPendingMenuItemId(item.id)
     setError('')
     setSuccess('')
-    setShowOrdersSuccessAction(false)
 
     try {
       await apiClient.post(`${basePath}/cart/items/`, {
@@ -1593,7 +1366,6 @@ function CustomerMenuPage() {
     setPendingMenuItemId(item.id)
     setError('')
     setSuccess('')
-    setShowOrdersSuccessAction(false)
 
     try {
       const itemPath = `${basePath}/cart/items/${cartItem.id}/`
@@ -1607,7 +1379,8 @@ function CustomerMenuPage() {
       } else {
         await apiClient.delete(itemPath)
       }
-      setCart((current) => applyCartItemMutation(current, cartItem.id, updatedItem))
+      dirtyCartCommentsRef.current.delete(cartItem.id)
+      setCart((current) => applyCustomerCartItemMutation(current, cartItem.id, updatedItem))
       await refreshCart().catch(() => undefined)
       return true
     } catch (requestError) {
@@ -1633,14 +1406,76 @@ function CustomerMenuPage() {
 
   function changeCartItemComment(cartItem, comment) {
     if (!commentsEnabled) return
+    dirtyCartCommentsRef.current.set(cartItem.id, comment)
     setCart((current) => {
       const currentItem = current.items.find((item) => item.id === cartItem.id)
       if (!currentItem) return current
-      return applyCartItemMutation(current, cartItem.id, {
+      return applyCustomerCartItemMutation(current, cartItem.id, {
         ...currentItem,
         comment,
       })
     })
+  }
+
+  async function persistCartItemComment(cartItemId) {
+    const activeSave = commentSavesInFlightRef.current.get(cartItemId)
+    if (activeSave) {
+      const activeSaveSucceeded = await activeSave
+      if (!activeSaveSucceeded) return false
+    }
+
+    if (!dirtyCartCommentsRef.current.has(cartItemId)) return true
+    const comment = dirtyCartCommentsRef.current.get(cartItemId)
+    const request = apiClient.patch(`${basePath}/cart/items/${cartItemId}/`, { comment })
+      .then((response) => {
+        if (dirtyCartCommentsRef.current.get(cartItemId) === comment) {
+          dirtyCartCommentsRef.current.delete(cartItemId)
+          setCart((current) => (
+            current.items.some((item) => item.id === cartItemId)
+              ? applyCustomerCartItemMutation(current, cartItemId, response.data)
+              : current
+          ))
+        }
+        return true
+      })
+      .catch((requestError) => {
+        setError(getBackendErrorMessage(requestError, language))
+        return false
+      })
+      .finally(() => {
+        if (commentSavesInFlightRef.current.get(cartItemId) === request) {
+          commentSavesInFlightRef.current.delete(cartItemId)
+        }
+      })
+
+    commentSavesInFlightRef.current.set(cartItemId, request)
+    const succeeded = await request
+    if (!succeeded) return false
+    return dirtyCartCommentsRef.current.has(cartItemId)
+      ? persistCartItemComment(cartItemId)
+      : true
+  }
+
+  async function persistDirtyCartComments() {
+    if (!commentsEnabled || dirtyCartCommentsRef.current.size === 0) return true
+    setSavingComments(true)
+    const results = await Promise.all(
+      [...dirtyCartCommentsRef.current.keys()].map(persistCartItemComment),
+    )
+    setSavingComments(false)
+    return results.every(Boolean)
+  }
+
+  async function proceedToCheckout() {
+    if (checkoutNavigationInFlightRef.current || cart.items.length === 0) return
+    checkoutNavigationInFlightRef.current = true
+    setError('')
+    const commentsSaved = await persistDirtyCartComments()
+    if (commentsSaved) {
+      setCartSheetOpen(false)
+      navigate(customerCheckoutPath)
+    }
+    checkoutNavigationInFlightRef.current = false
   }
 
   async function requestCartItemRemoval(item, cartItem, itemName = '') {
@@ -1662,69 +1497,6 @@ function CustomerMenuPage() {
     return decreaseCartItem(item, cartItem)
   }
 
-  async function submitOrder() {
-    if (orderSubmitInFlightRef.current || cart.items.length === 0) return
-    if (cart.items.some((cartItem) => (
-      cartItemIsUnavailable(cartItem, menuItemsById.get(cartItem.menu_item))
-    ))) {
-      setError(t('errors.menuItemUnavailable'))
-      setCartSheetOpen(true)
-      return
-    }
-
-    orderSubmitInFlightRef.current = true
-    setSubmittingOrder(true)
-    setError('')
-    setSuccess('')
-    setShowOrdersSuccessAction(false)
-
-    try {
-      await Promise.all(
-        cart.items.map((cartItem) => (
-          apiClient.patch(`${basePath}/cart/items/${cartItem.id}/`, {
-            comment: commentsEnabled ? cartItem.comment || '' : '',
-          })
-        )),
-      )
-      const response = await apiClient.post(`${basePath}/orders/`)
-      const createdOrder = response.data
-
-      setCart(emptyCart)
-      setOrders((current) => {
-        const currentOrders = Array.isArray(current.orders) ? current.orders : []
-        const alreadyPresent = currentOrders.some((order) => order.id === createdOrder?.id)
-        if (alreadyPresent || !createdOrder) return current
-        return {
-          ...current,
-          orders: [createdOrder, ...currentOrders],
-          total_amount: addMoney([
-            current.total_amount,
-            createdOrder?.total_amount,
-          ]),
-        }
-      })
-      setCartSheetOpen(false)
-      setCartStage('cart')
-      setSuccess(
-        createdOrder?.order_number
-          ? t('customer.orderAcceptedWithNumber', { number: createdOrder.order_number })
-          : t('customer.orderAccepted'),
-      )
-      setShowOrdersSuccessAction(true)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-      await Promise.allSettled([refreshCart(), refreshOrders()])
-    } catch (requestError) {
-      const message = getBackendErrorMessage(requestError, language)
-      if (message === t('errors.menuItemUnavailable')) {
-        await Promise.allSettled([refreshMenu(), refreshCart()])
-      }
-      setError(message)
-    } finally {
-      orderSubmitInFlightRef.current = false
-      setSubmittingOrder(false)
-    }
-  }
-
   async function callWaiter(reason) {
     if (waiterCallInFlightRef.current) return
 
@@ -1732,7 +1504,6 @@ function CustomerMenuPage() {
     setSendingWaiterCall(true)
     setError('')
     setSuccess('')
-    setShowOrdersSuccessAction(false)
 
     try {
       await apiClient.post(`${basePath}/waiter-calls/`, { reason })
@@ -1808,21 +1579,7 @@ function CustomerMenuPage() {
       </section>
 
       {error && <div className="notice notice--error" role="alert">{error}</div>}
-      {success && (
-        <div className={`notice notice--success${showOrdersSuccessAction ? ' notice--order-success' : ''}`}>
-          <span role="status">{success}</span>
-          {showOrdersSuccessAction && (
-            <button
-              className="order-success__action"
-              type="button"
-              onClick={() => navigate(customerOrdersPath)}
-            >
-              {t('customer.viewMyOrders')}
-              <span aria-hidden="true">→</span>
-            </button>
-          )}
-        </div>
-      )}
+      {success && <div className="notice notice--success" role="status">{success}</div>}
 
       <section className="menu-tools" aria-label={t('customer.menuToolsLabel')}>
         <div className="menu-tools__search-row">
@@ -1897,7 +1654,7 @@ function CustomerMenuPage() {
           cart={cart}
           itemCount={cartItemCount}
           commentsEnabled={commentsEnabled}
-          onCheckout={() => openCartSheet('checkout')}
+          onCheckout={proceedToCheckout}
         />
       </div>
 
@@ -1917,30 +1674,27 @@ function CustomerMenuPage() {
         <StickyCartBar
           itemCount={cartItemCount}
           total={cart.total}
-          onOpen={() => openCartSheet('cart')}
+          onOpen={openCartSheet}
         />
       )}
 
       <CartReviewSheet
         open={cartSheetOpen}
-        stage={cartStage}
         cart={cart}
         itemCount={cartItemCount}
-        tableNumber={menu.table.number}
         menuItemsById={menuItemsById}
         pendingItemId={pendingMenuItemId}
-        submitting={submittingOrder}
+        savingComments={savingComments}
         error={error}
         commentsEnabled={commentsEnabled}
         onClose={closeCartSheet}
         onIncrease={increaseCartItem}
         onDecrease={decreaseCartItem}
         onCommentChange={changeCartItemComment}
+        onCommentBlur={persistCartItemComment}
         onRequestRemoval={requestCartItemRemoval}
         onContinueOrdering={closeCartSheet}
-        onCheckout={() => setCartStage('checkout')}
-        onBackToCart={() => setCartStage('cart')}
-        onSubmit={submitOrder}
+        onCheckout={proceedToCheckout}
       />
 
       {!readOnly && (

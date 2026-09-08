@@ -11,6 +11,7 @@ import AdminSettingsPage from './pages/AdminSettingsPage.jsx'
 import AdminStatisticsPage from './pages/AdminStatisticsPage.jsx'
 import AdminTablesPage from './pages/AdminTablesPage.jsx'
 import AdminUsersPage from './pages/AdminUsersPage.jsx'
+import CustomerCheckoutPage from './pages/CustomerCheckoutPage.jsx'
 import CustomerMenuPage from './pages/CustomerMenuPage.jsx'
 import CustomerOrdersPage from './pages/CustomerOrdersPage.jsx'
 import KitchenDisplayPage from './pages/KitchenDisplayPage.jsx'
@@ -71,6 +72,7 @@ function App() {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<StaffLoginRoute><LoginHubPage /></StaffLoginRoute>} />
         <Route path="/menu/:qrToken" element={<CustomerRoute><CustomerMenuPage /></CustomerRoute>} />
+        <Route path="/menu/:qrToken/checkout" element={<CustomerRoute><CustomerCheckoutPage /></CustomerRoute>} />
         <Route path="/menu/:qrToken/orders" element={<CustomerRoute><CustomerOrdersPage /></CustomerRoute>} />
         <Route path="/kitchen/login" element={<LegacyLoginRedirect />} />
         <Route path="/kitchen/orders" element={<ProtectedRoleRoute tokenKey={KITCHEN_TOKEN_KEY} expectedRole="KITCHEN"><KitchenDisplayPage /></ProtectedRoleRoute>} />

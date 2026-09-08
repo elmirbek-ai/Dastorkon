@@ -593,6 +593,20 @@ Object.assign(translations.ru.customer, {
   itemNotePlaceholder: 'Например: без лука',
 })
 
+Object.assign(translations.ky.customer, {
+  checkoutLoading: 'Заказ жүктөлүүдө...',
+  checkoutLoadingHelp: 'Себет жана меню текшерилип жатат, бир аз күтө туруңуз.',
+  checkoutLoadError: 'Заказды жүктөө мүмкүн болгон жок',
+  checkoutLoadErrorHelp: 'QR кодду же интернет байланышын текшерип, кайра аракет кылыңыз.',
+})
+
+Object.assign(translations.ru.customer, {
+  checkoutLoading: 'Заказ загружается...',
+  checkoutLoadingHelp: 'Проверяем корзину и меню, подождите немного.',
+  checkoutLoadError: 'Не удалось загрузить заказ',
+  checkoutLoadErrorHelp: 'Проверьте QR-код или подключение к интернету и попробуйте снова.',
+})
+
 Object.assign(translations.ky.errors, {
   menuItemUnavailable: 'Бул тамак убактылуу жок. Аны себеттен чыгарып, заказды кайра ырастап көрүңүз.',
 })

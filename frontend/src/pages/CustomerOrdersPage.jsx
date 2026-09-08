@@ -3,12 +3,17 @@ import { useNavigate, useParams } from 'react-router-dom'
 import apiClient from '../api/client.js'
 import ConnectionStatus from '../components/ConnectionStatus.jsx'
 import WaiterIcon from '../components/WaiterIcon.jsx'
+import {
+  CUSTOMER_REQUEST_CONFIG,
+  EMPTY_ORDERS,
+  getCustomerApiBasePath,
+  getCustomerMenuPath,
+  normalizeCustomerOrders,
+} from '../customer/customerData.js'
 import { CustomerHeader, OrderHistory, WaiterCallSheet } from './CustomerMenuPage.jsx'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getBackendErrorMessage } from '../i18n/index.js'
 
-const emptyOrders = { orders: [], total_amount: '0.00' }
-const CUSTOMER_REQUEST_CONFIG = { timeout: 15000 }
 const CUSTOMER_ORDERS_POLL_INTERVAL_MS = 8000
 
 function CustomerOrdersPage() {
@@ -16,7 +21,7 @@ function CustomerOrdersPage() {
   const navigate = useNavigate()
   const { language, t } = useLanguage()
   const waiterCallInFlightRef = useRef(false)
-  const [orders, setOrders] = useState(emptyOrders)
+  const [orders, setOrders] = useState(EMPTY_ORDERS)
   const [tableNumber, setTableNumber] = useState(null)
   const [readOnly, setReadOnly] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -26,7 +31,7 @@ function CustomerOrdersPage() {
   const [waiterSheetOpen, setWaiterSheetOpen] = useState(false)
   const [sendingWaiterCall, setSendingWaiterCall] = useState(false)
 
-  const basePath = `/api/public/qr/${encodeURIComponent(qrToken)}`
+  const basePath = getCustomerApiBasePath(qrToken)
 
   useEffect(() => {
     let active = true
@@ -44,10 +49,7 @@ function CustomerOrdersPage() {
         const response = await apiClient.get(`${basePath}/orders/`, CUSTOMER_REQUEST_CONFIG)
         if (active) {
           setTableNumber(sessionResponse.data?.table?.number ?? null)
-          setOrders({
-            ...response.data,
-            orders: Array.isArray(response.data?.orders) ? response.data.orders : [],
-          })
+          setOrders(normalizeCustomerOrders(response.data))
           setReadOnly(response.data?.read_only === true)
         }
       } catch {
@@ -76,10 +78,7 @@ function CustomerOrdersPage() {
       try {
         const response = await apiClient.get(`${basePath}/orders/`, CUSTOMER_REQUEST_CONFIG)
         if (active) {
-          setOrders({
-            ...response.data,
-            orders: Array.isArray(response.data?.orders) ? response.data.orders : [],
-          })
+          setOrders(normalizeCustomerOrders(response.data))
           setReadOnly(response.data?.read_only === true)
         }
       } catch {
@@ -127,7 +126,7 @@ function CustomerOrdersPage() {
     }
   }
 
-  const goToMenu = () => navigate(`/menu/${encodeURIComponent(qrToken)}`)
+  const goToMenu = () => navigate(getCustomerMenuPath(qrToken))
 
   return (
     <main className="customer-orders-page">
