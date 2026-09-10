@@ -126,7 +126,10 @@ function CustomerOrdersPage() {
     }
   }
 
-  const goToMenu = () => navigate(getCustomerMenuPath(qrToken))
+  const goToMenu = () => navigate(
+    getCustomerMenuPath(qrToken),
+    { state: { skipActiveOrderRecovery: true } },
+  )
 
   return (
     <main className="customer-orders-page">

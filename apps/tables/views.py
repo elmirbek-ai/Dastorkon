@@ -17,6 +17,9 @@ from .services import (
 )
 
 
+CUSTOMER_SESSION_COOKIE_MAX_AGE = 12 * 60 * 60
+
+
 class RestaurantTableAdminViewSet(viewsets.ModelViewSet):
     queryset = RestaurantTable.objects.select_related("restaurant")
     serializer_class = RestaurantTableSerializer
@@ -91,6 +94,7 @@ class CustomerSessionStartView(APIView):
         response.set_cookie(
             "customer_session_key",
             str(customer_session.session_key),
+            max_age=CUSTOMER_SESSION_COOKIE_MAX_AGE,
             httponly=True,
             samesite="Lax",
             secure=settings.SESSION_COOKIE_SECURE,
