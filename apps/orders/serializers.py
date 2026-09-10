@@ -135,6 +135,7 @@ class WaiterTableSessionSerializer(serializers.ModelSerializer):
     table = WaiterTableSerializer(read_only=True)
     restaurant = WaiterRestaurantSerializer(read_only=True)
     orders_count = serializers.IntegerField(read_only=True)
+    customer_count = serializers.IntegerField(read_only=True)
     total_amount = serializers.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -152,6 +153,7 @@ class WaiterTableSessionSerializer(serializers.ModelSerializer):
             "created_at",
             "orders_count",
             "total_amount",
+            "customer_count",
         )
         read_only_fields = fields
 
@@ -176,6 +178,47 @@ class WaiterOrderSerializer(serializers.ModelSerializer):
             "total_amount",
             "created_at",
             "items",
+        )
+        read_only_fields = fields
+
+
+class WaiterCustomerOrderGroupSerializer(serializers.Serializer):
+    customer_session_id = serializers.IntegerField(read_only=True)
+    customer_number = serializers.IntegerField(read_only=True)
+    orders_count = serializers.IntegerField(read_only=True)
+    subtotal = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        read_only=True,
+    )
+    orders = WaiterOrderSerializer(many=True, read_only=True)
+
+
+class WaiterManualOrderGroupSerializer(serializers.Serializer):
+    orders_count = serializers.IntegerField(read_only=True)
+    subtotal = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        read_only=True,
+    )
+    orders = WaiterOrderSerializer(many=True, read_only=True)
+
+
+class WaiterTableSessionSummarySerializer(WaiterTableSessionSerializer):
+    customers = WaiterCustomerOrderGroupSerializer(
+        source="customer_order_groups",
+        many=True,
+        read_only=True,
+    )
+    manual_orders = WaiterManualOrderGroupSerializer(
+        source="manual_order_group",
+        read_only=True,
+    )
+
+    class Meta(WaiterTableSessionSerializer.Meta):
+        fields = WaiterTableSessionSerializer.Meta.fields + (
+            "customers",
+            "manual_orders",
         )
         read_only_fields = fields
 

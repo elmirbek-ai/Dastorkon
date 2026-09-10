@@ -41,6 +41,7 @@ from .serializers import (
     WaiterCallCreateSerializer,
     WaiterCallSerializer,
     WaiterOrderSerializer,
+    WaiterTableSessionSummarySerializer,
     WaiterTableSessionSerializer,
 )
 from .services import (
@@ -269,6 +270,11 @@ def table_sessions_with_totals():
         )
         .annotate(
             orders_count=Count("orders"),
+            customer_count=Count(
+                "orders__customer_session",
+                filter=Q(orders__customer_session__isnull=False),
+                distinct=True,
+            ),
             total_amount=Coalesce(
                 Sum(
                     "orders__total_amount",
@@ -279,6 +285,52 @@ def table_sessions_with_totals():
             ),
         )
     )
+
+
+def attach_table_session_order_groups(table_session):
+    customer_groups_by_id = {}
+    manual_orders = []
+    manual_subtotal = Decimal("0.00")
+
+    for order in table_session.summary_orders:
+        contributes_to_total = order.status != Order.Status.CANCELLED
+        if order.customer_session_id is None:
+            manual_orders.append(order)
+            if contributes_to_total:
+                manual_subtotal += order.total_amount
+            continue
+
+        customer_group = customer_groups_by_id.setdefault(
+            order.customer_session_id,
+            {
+                "customer_session_id": order.customer_session_id,
+                "orders_count": 0,
+                "subtotal": Decimal("0.00"),
+                "orders": [],
+            },
+        )
+        customer_group["orders"].append(order)
+        customer_group["orders_count"] += 1
+        if contributes_to_total:
+            customer_group["subtotal"] += order.total_amount
+
+    customer_groups = sorted(
+        customer_groups_by_id.values(),
+        key=lambda group: (
+            group["orders"][0].created_at,
+            group["customer_session_id"],
+        ),
+    )
+    for customer_number, customer_group in enumerate(customer_groups, start=1):
+        customer_group["customer_number"] = customer_number
+
+    table_session.customer_order_groups = customer_groups
+    table_session.manual_order_group = {
+        "orders_count": len(manual_orders),
+        "subtotal": manual_subtotal,
+        "orders": manual_orders,
+    }
+    return table_session
 
 
 class ActiveWaiterShiftMixin:
@@ -446,6 +498,40 @@ class MyTableSessionsView(ActiveWaiterShiftMixin, APIView):
         return Response(
             WaiterTableSessionSerializer(table_sessions, many=True).data
         )
+
+
+class TableSessionSummaryView(ActiveWaiterShiftMixin, APIView):
+    @extend_schema(responses=WaiterTableSessionSummarySerializer)
+    def get(self, request, session_id):
+        try:
+            table_session = table_sessions_with_totals().get(pk=session_id)
+        except ActiveTableSession.DoesNotExist as exc:
+            raise NotFound("Table session not found.") from exc
+
+        if (
+            table_session.assigned_waiter_id is not None
+            and table_session.assigned_waiter_id != request.user.pk
+        ):
+            raise PermissionDenied(
+                "Table session is assigned to another waiter."
+            )
+        if (
+            table_session.assigned_waiter_id is None
+            and table_session.status != ActiveTableSession.Status.ACTIVE
+        ):
+            raise PermissionDenied("Table session is not active.")
+
+        table_session.summary_orders = list(
+            Order.objects.filter(table_session=table_session)
+            .select_related(
+                "table_session__table",
+                "responsible_waiter",
+            )
+            .prefetch_related("items")
+            .order_by("created_at", "id")
+        )
+        attach_table_session_order_groups(table_session)
+        return Response(WaiterTableSessionSummarySerializer(table_session).data)
 
 
 class AcceptTableSessionView(ActiveWaiterShiftMixin, APIView):
