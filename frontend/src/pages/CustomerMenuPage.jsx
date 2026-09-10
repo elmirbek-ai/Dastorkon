@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import apiClient, { resolveApiAssetUrl } from '../api/client.js'
 import FoodIcon from '../components/FoodIcon.jsx'
 import LanguageSwitch from '../components/LanguageSwitch.jsx'
@@ -16,6 +16,7 @@ import {
   getCustomerApiBasePath,
   getCustomerMenuItemsById,
   getCustomerMenuPath,
+  hasActiveCustomerOrders,
   loadCustomerData,
   normalizeCustomerCart,
   normalizeCustomerMenu,
@@ -1156,12 +1157,16 @@ export function WaiterCallSheet({ open, sending, onClose, onCall }) {
 
 function CustomerMenuPage() {
   const { qrToken } = useParams()
+  const { state: navigationState } = useLocation()
   const navigate = useNavigate()
   const { language, t } = useLanguage()
   const confirm = useConfirm()
   const waiterCallInFlightRef = useRef(false)
   const cartUpdateInFlightRef = useRef(false)
   const checkoutNavigationInFlightRef = useRef(false)
+  const recoveryBypassTokenRef = useRef(
+    navigationState?.skipActiveOrderRecovery === true ? qrToken : null,
+  )
   const dirtyCartCommentsRef = useRef(new Map())
   const commentSavesInFlightRef = useRef(new Map())
   const [menu, setMenu] = useState(null)
@@ -1223,6 +1228,11 @@ function CustomerMenuPage() {
   }, [activeCategory, menu, priceSort, search])
 
   useEffect(() => {
+    if (recoveryBypassTokenRef.current !== qrToken) return
+    navigate(customerMenuPath, { replace: true, state: null })
+  }, [customerMenuPath, navigate, qrToken])
+
+  useEffect(() => {
     let active = true
 
     async function loadPage() {
@@ -1234,6 +1244,11 @@ function CustomerMenuPage() {
         const pageData = await loadCustomerData(basePath, { includeOrders: true })
 
         if (active) {
+          const skipActiveOrderRecovery = recoveryBypassTokenRef.current === qrToken
+          if (!skipActiveOrderRecovery && hasActiveCustomerOrders(pageData.orders)) {
+            navigate(customerOrdersPath, { replace: true })
+            return
+          }
           setMenu(pageData.menu)
           setReadOnly(pageData.session?.read_only === true)
           setCommentsEnabled(pageData.session?.comments_enabled !== false)
@@ -1251,7 +1266,7 @@ function CustomerMenuPage() {
     return () => {
       active = false
     }
-  }, [basePath, loadRevision])
+  }, [basePath, customerOrdersPath, loadRevision, navigate, qrToken])
 
   useEffect(() => {
     if (!waiterSheetOpen) return undefined

@@ -2,7 +2,7 @@ from django.conf import settings
 from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status
-from rest_framework.test import APITestCase
+from rest_framework.test import APIClient, APITestCase
 
 from apps.restaurants.models import Restaurant, RestaurantSettings
 from apps.tables.models import ActiveTableSession, CustomerSession, RestaurantTable
@@ -75,6 +75,7 @@ class PublicCustomerSessionApiTests(APITestCase):
         self.assertEqual(customer_session.table, self.table)
         self.assertIsNone(customer_session.active_table_session)
         self.assertEqual(cookie.value, str(customer_session.session_key))
+        self.assertAlmostEqual(int(cookie["max-age"]), 12 * 60 * 60, delta=1)
         self.assertTrue(cookie["httponly"])
         self.assertEqual(cookie["samesite"], "Lax")
         self.assertEqual(
@@ -106,6 +107,26 @@ class PublicCustomerSessionApiTests(APITestCase):
             first_response.data["customer_session_id"],
         )
         self.assertEqual(CustomerSession.objects.count(), 1)
+
+    def test_same_qr_in_different_browsers_creates_distinct_customer_sessions(self):
+        first_client = APIClient()
+        second_client = APIClient()
+
+        first_response = first_client.post(self.url)
+        second_response = second_client.post(self.url)
+
+        self.assertNotEqual(
+            first_response.data["customer_session_id"],
+            second_response.data["customer_session_id"],
+        )
+        self.assertNotEqual(
+            first_response.cookies["customer_session_key"].value,
+            second_response.cookies["customer_session_key"].value,
+        )
+        self.assertEqual(
+            CustomerSession.objects.filter(table=self.table).count(),
+            2,
+        )
 
     def test_session_endpoint_reuses_bound_operational_context(self):
         first_response = self.client.post(self.url)

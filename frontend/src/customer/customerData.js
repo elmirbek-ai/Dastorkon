@@ -36,6 +36,13 @@ export function normalizeCustomerOrders(data) {
   return { ...data, orders: Array.isArray(data.orders) ? data.orders : [] }
 }
 
+export function hasActiveCustomerOrders(data) {
+  return Array.isArray(data?.orders) && data.orders.some((order) => {
+    const status = String(order?.status || '').toUpperCase()
+    return ['NEW', 'PREPARING', 'READY', 'DELIVERED'].includes(status)
+  })
+}
+
 export function applyCustomerCartItemMutation(cart, cartItemId, updatedItem = null) {
   const currentItems = Array.isArray(cart?.items) ? cart.items : []
   const items = updatedItem

@@ -611,14 +611,26 @@ class PublicCartOrderApiTests(APITestCase):
 
     def test_get_orders_excludes_other_customer_orders(self):
         own_order = self.create_order()
-        other_customer = create_customer_session(table=self.table)
+        other_client = APIClient()
+        session_response = other_client.post(
+            reverse("public-customer-session", args=(self.table.qr_token,))
+        )
+        other_customer = self.table.customer_sessions.get(
+            pk=session_response.data["customer_session_id"]
+        )
         other_order = self.create_order(other_customer)
 
-        response = self.client.get(self.orders_url)
+        own_response = self.client.get(self.orders_url)
+        other_response = other_client.get(self.orders_url)
 
-        order_ids = [item["id"] for item in response.data["orders"]]
-        self.assertIn(own_order.pk, order_ids)
-        self.assertNotIn(other_order.pk, order_ids)
+        self.assertEqual(
+            [item["id"] for item in own_response.data["orders"]],
+            [own_order.pk],
+        )
+        self.assertEqual(
+            [item["id"] for item in other_response.data["orders"]],
+            [other_order.pk],
+        )
 
     def test_additional_order_reuses_existing_active_table_session(self):
         first_order = self.create_order()
