@@ -199,6 +199,7 @@ function SessionFacts({ session }) {
   return (
     <div className="waiter-session-facts">
       <span>{t('waiter.opened')}<strong>{timeAgo(session.created_at, language, t)}</strong></span>
+      <span>{t('waiter.customersWithOrders')}<strong>{session.customer_count ?? 0}</strong></span>
       <span>{t('waiter.orders')}<strong>{session.orders_count}</strong></span>
       <span>{t('common.total')}<strong>{formatMoney(session.total_amount)}</strong></span>
     </div>
@@ -223,7 +224,7 @@ function OrderStatusBadges({ counts }) {
   )
 }
 
-function NewOrderCard({ session, compact = false, pending, disabled, error, onAccept, referenceTime }) {
+function NewOrderCard({ session, compact = false, pending, disabled, error, onAccept, onViewOrders, referenceTime }) {
   const { language, t } = useLanguage()
   const ageMinutes = (referenceTime - new Date(session.created_at).getTime()) / 60000
   const highPriority = ageMinutes >= 5
@@ -242,22 +243,34 @@ function NewOrderCard({ session, compact = false, pending, disabled, error, onAc
         </div>
         <strong>{t('waiter.orderCount', { count: session.orders_count })}</strong>
       </div>
-      {!compact && <SessionFacts session={session} />}
-      {compact && <p className="waiter-order-summary">{t('common.total')}: {formatMoney(session.total_amount)}</p>}
-      <button
-        type="button"
-        onClick={() => onAccept(session)}
-        disabled={disabled}
-        aria-label={`${t('waiter.acceptTable')}: ${t('customer.tableLabel', { number: session.table.number })}`}
-      >
-        {pending ? <span className="waiter-action-spinner" /> : t('waiter.acceptTable')}
-      </button>
+      <SessionFacts session={session} />
+      <div className="waiter-table-card-actions">
+        <button
+          className="is-details"
+          type="button"
+          onClick={(event) => onViewOrders(session, event.currentTarget)}
+          aria-label={`${t('waiter.viewOrders')}: ${t('customer.tableLabel', { number: session.table.number })}`}
+          aria-haspopup="dialog"
+          aria-controls="waiter-summary-dialog"
+        >
+          {t('waiter.viewOrders')}
+        </button>
+        <button
+          className="is-primary"
+          type="button"
+          onClick={() => onAccept(session)}
+          disabled={disabled}
+          aria-label={`${t('waiter.acceptTable')}: ${t('customer.tableLabel', { number: session.table.number })}`}
+        >
+          {pending ? <span className="waiter-action-spinner" /> : t('waiter.acceptTable')}
+        </button>
+      </div>
       {error && <p className="waiter-card-error" role="alert">{error}</p>}
     </article>
   )
 }
 
-function MyTableCard({ session, orderCounts, compact = false, pending, disabled, error, onClose }) {
+function MyTableCard({ session, orderCounts, compact = false, pending, disabled, error, onClose, onViewOrders }) {
   const { t } = useLanguage()
   const hasUnfinishedOrders = [...unfinishedOrderStatuses].some((status) => orderCounts[status] > 0)
 
@@ -276,19 +289,192 @@ function MyTableCard({ session, orderCounts, compact = false, pending, disabled,
           <small>{t('waiter.deliverReadyOrdersFirst')}</small>
         </div>
       )}
-      {!compact && (
+      <div className={`waiter-table-card-actions ${compact ? 'has-single-action' : ''}`}>
         <button
-          className={hasUnfinishedOrders ? 'is-blocked' : ''}
+          className="is-details"
           type="button"
-          onClick={() => onClose(session)}
-          disabled={disabled || hasUnfinishedOrders}
-          aria-describedby={hasUnfinishedOrders ? `table-warning-${session.id}` : undefined}
+          onClick={(event) => onViewOrders(session, event.currentTarget)}
+          aria-label={`${t('waiter.viewOrders')}: ${t('customer.tableLabel', { number: session.table.number })}`}
+          aria-haspopup="dialog"
+          aria-controls="waiter-summary-dialog"
         >
-          {pending ? <span className="waiter-dark-spinner" /> : t('waiter.closeTable')}
+          {t('waiter.viewOrders')}
         </button>
-      )}
+        {!compact && (
+          <button
+            className={`is-close ${hasUnfinishedOrders ? 'is-blocked' : ''}`}
+            type="button"
+            onClick={() => onClose(session)}
+            disabled={disabled || hasUnfinishedOrders}
+            aria-describedby={hasUnfinishedOrders ? `table-warning-${session.id}` : undefined}
+          >
+            {pending ? <span className="waiter-dark-spinner" /> : t('waiter.closeTable')}
+          </button>
+        )}
+      </div>
       {error && <p className="waiter-card-error" role="alert">{error}</p>}
     </article>
+  )
+}
+
+function TableSummaryOrder({ order }) {
+  const { language, t } = useLanguage()
+  const items = Array.isArray(order.items) ? order.items : []
+  const statusClass = String(order.status || '').toLowerCase()
+
+  return (
+    <article className="waiter-summary-order">
+      <header>
+        <div className="waiter-summary-order__heading">
+          <small>{t('common.orderNumber')}</small>
+          <strong>№{order.order_number}</strong>
+        </div>
+        <span className={`waiter-summary-order__status is-${statusClass}`}>
+          {getStatusLabel(order.status, language)}
+        </span>
+      </header>
+      <div className="waiter-summary-order__meta">
+        <time dateTime={order.created_at}>{formatDateTime(order.created_at, language)}</time>
+        <strong>{formatMoney(order.total_amount)}</strong>
+      </div>
+      {items.length > 0 ? (
+        <ul className="waiter-summary-order__items">
+          {items.map((item) => (
+            <li key={item.id}>
+              <div>
+                <span><b>{item.quantity}×</b> {getLocalizedField(item, 'name_at_order', language)}</span>
+                <strong className="waiter-summary-order__item-total">{formatMoney(item.total_price)}</strong>
+              </div>
+              {item.comment && <p><b>{t('common.comments')}:</b> {item.comment}</p>}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="waiter-summary-order__empty">{t('waiter.noOrderItems')}</p>
+      )}
+    </article>
+  )
+}
+
+function TableSummaryOrderGroup({ title, ordersCount, subtotal, subtotalLabel, orders, defaultOpen = false, manual = false }) {
+  const { t } = useLanguage()
+  const groupOrders = Array.isArray(orders) ? orders : []
+
+  return (
+    <details className={`waiter-summary-group ${manual ? 'is-manual' : ''}`} defaultOpen={defaultOpen}>
+      <summary>
+        <span className="waiter-summary-group__heading">
+          <strong>{title}</strong>
+          <small>{t('waiter.orderCount', { count: ordersCount })}</small>
+        </span>
+        <span className="waiter-summary-group__subtotal">
+          <small>{subtotalLabel}</small>
+          <strong>{formatMoney(subtotal)}</strong>
+        </span>
+      </summary>
+      <div className="waiter-summary-group__orders">
+        {groupOrders.map((order) => <TableSummaryOrder order={order} key={order.id} />)}
+      </div>
+    </details>
+  )
+}
+
+function TableSessionSummarySheet({ session, summary, loading, error, onClose, onRefresh }) {
+  const { t } = useLanguage()
+  if (!session) return null
+
+  const table = summary?.table || session.table
+  const customers = Array.isArray(summary?.customers) ? summary.customers : []
+  const manualOrders = summary?.manual_orders
+  const hasManualOrders = (manualOrders?.orders_count ?? 0) > 0
+  const hasOrderGroups = customers.length > 0 || hasManualOrders
+
+  return (
+    <div className="sheet-backdrop waiter-summary-backdrop" role="presentation" onMouseDown={onClose}>
+      <section
+        className="cart-sheet waiter-summary-sheet"
+        id="waiter-summary-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="waiter-summary-title"
+        aria-busy={loading}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="sheet-handle" aria-hidden="true" />
+        <header className="cart-sheet__heading waiter-summary-sheet__header">
+          <div className="waiter-summary-sheet__heading-copy">
+            <h2 id="waiter-summary-title">{t('customer.tableLabel', { number: table?.number })}</h2>
+            <p>{t('waiter.tableOrderDetails')}</p>
+          </div>
+          <div className="waiter-summary-sheet__actions">
+            {summary && (
+              <button type="button" onClick={onRefresh} disabled={loading} aria-label={t('waiter.refreshOrderDetails')}>
+                {loading ? <span className="waiter-action-spinner" /> : <AppIcon name="refresh" />}
+              </button>
+            )}
+            <button type="button" onClick={onClose} aria-label={t('common.close')} autoFocus>×</button>
+          </div>
+        </header>
+
+        <div className="cart-sheet__list waiter-summary-sheet__body">
+          {summary && (
+            <div className="waiter-summary-overview">
+              <span><small>{t('waiter.customersWithOrders')}</small><strong>{summary.customer_count}</strong></span>
+              <span><small>{t('waiter.totalOrders')}</small><strong>{summary.orders_count}</strong></span>
+              <span className="is-total"><small>{t('waiter.totalAmount')}</small><strong>{formatMoney(summary.total_amount)}</strong></span>
+            </div>
+          )}
+
+          {error && (
+            <div className="waiter-summary-error" role="alert">
+              <p>{error}</p>
+              <button type="button" onClick={onRefresh} disabled={loading}>{t('common.tryAgain')}</button>
+            </div>
+          )}
+
+          {!summary && loading && (
+            <div className="waiter-summary-loading" role="status" aria-live="polite">
+              <span className="waiter-screen-spinner" />
+              <strong>{t('waiter.loadingOrderDetails')}</strong>
+            </div>
+          )}
+
+          {summary && (
+            <div className="waiter-summary-groups">
+              {!hasOrderGroups && <p className="waiter-summary-empty">{t('waiter.noTableOrders')}</p>}
+              {customers.map((customer, index) => (
+                <TableSummaryOrderGroup
+                  title={t('waiter.customerNumber', { number: customer.customer_number })}
+                  ordersCount={customer.orders_count}
+                  subtotal={customer.subtotal}
+                  subtotalLabel={t('waiter.customerSubtotal')}
+                  orders={customer.orders}
+                  defaultOpen={index === 0}
+                  key={customer.customer_session_id}
+                />
+              ))}
+              {hasManualOrders && (
+                <TableSummaryOrderGroup
+                  title={t('waiter.manualOrders')}
+                  ordersCount={manualOrders.orders_count}
+                  subtotal={manualOrders.subtotal}
+                  subtotalLabel={t('waiter.manualSubtotal')}
+                  orders={manualOrders.orders}
+                  manual
+                />
+              )}
+            </div>
+          )}
+        </div>
+
+        {summary && (
+          <footer className="cart-sheet__footer waiter-summary-sheet__total">
+            <span>{t('waiter.totalAmount')}</span>
+            <strong>{formatMoney(summary.total_amount)}</strong>
+          </footer>
+        )}
+      </section>
+    </div>
   )
 }
 
@@ -404,6 +590,8 @@ function WaiterDashboardPage() {
   const { language, t } = useLanguage()
   const dashboardLoadInFlightRef = useRef(null)
   const pendingActionRef = useRef('')
+  const summaryRequestRef = useRef(null)
+  const summaryTriggerRef = useRef(null)
   const [shift, setShift] = useState(null)
   const [availableSessions, setAvailableSessions] = useState([])
   const [mySessions, setMySessions] = useState([])
@@ -417,7 +605,12 @@ function WaiterDashboardPage() {
   const [error, setError] = useState('')
   const [actionError, setActionError] = useState(null)
   const [waiterProfile, setWaiterProfile] = useState(null)
+  const [summarySession, setSummarySession] = useState(null)
+  const [tableSummary, setTableSummary] = useState(null)
+  const [summaryLoading, setSummaryLoading] = useState(false)
+  const [summaryError, setSummaryError] = useState('')
   const socketToken = localStorage.getItem(WAITER_TOKEN_KEY)
+  const summaryOpen = Boolean(summarySession)
 
   const logout = useCallback((authError = '') => {
     const message = typeof authError === 'string' ? authError : ''
@@ -433,6 +626,54 @@ function WaiterDashboardPage() {
     logout(t('auth.sessionExpired'))
     return true
   }, [logout, t])
+
+  const closeTableSummary = useCallback(() => {
+    const trigger = summaryTriggerRef.current
+    summaryRequestRef.current?.controller.abort()
+    summaryRequestRef.current = null
+    summaryTriggerRef.current = null
+    setSummarySession(null)
+    setTableSummary(null)
+    setSummaryLoading(false)
+    setSummaryError('')
+    window.requestAnimationFrame(() => trigger?.focus())
+  }, [])
+
+  const loadTableSummary = useCallback(async (sessionId, { keepCurrent = false } = {}) => {
+    const normalizedSessionId = Number(sessionId)
+    const activeRequest = summaryRequestRef.current
+    if (activeRequest?.sessionId === normalizedSessionId) return activeRequest.request
+    activeRequest?.controller.abort()
+
+    if (!keepCurrent) setTableSummary(null)
+    setSummaryLoading(true)
+    setSummaryError('')
+
+    const controller = new AbortController()
+    const request = waiterApiClient.get(
+      `/api/waiter/table-sessions/${normalizedSessionId}/summary/`,
+      { signal: controller.signal },
+    )
+    const requestState = { sessionId: normalizedSessionId, request, controller }
+    summaryRequestRef.current = requestState
+
+    try {
+      const response = await request
+      if (summaryRequestRef.current !== requestState) return response
+      setTableSummary(response.data)
+      return response
+    } catch (requestError) {
+      if (controller.signal.aborted || summaryRequestRef.current !== requestState) return undefined
+      if (handleUnauthorized(requestError)) return undefined
+      setSummaryError(getBackendErrorMessage(requestError, language))
+      return undefined
+    } finally {
+      if (summaryRequestRef.current === requestState) {
+        summaryRequestRef.current = null
+        setSummaryLoading(false)
+      }
+    }
+  }, [handleUnauthorized, language])
 
   const loadDashboard = useCallback(async ({ refreshAfterCurrent = false } = {}) => {
     if (dashboardLoadInFlightRef.current) {
@@ -519,6 +760,28 @@ function WaiterDashboardPage() {
     return () => { active = false }
   }, [handleUnauthorized, language])
 
+  useEffect(() => {
+    if (!summaryOpen) return undefined
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    function closeOnEscape(event) {
+      if (event.key === 'Escape') closeTableSummary()
+    }
+
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [closeTableSummary, summaryOpen])
+
+  useEffect(() => () => {
+    summaryRequestRef.current?.controller.abort()
+    summaryRequestRef.current = null
+  }, [])
+
   const readyOrders = useMemo(() => orders.filter((order) => order.status === 'READY'), [orders])
   const orderCountsBySession = useMemo(() => {
     const countsBySession = new Map()
@@ -596,6 +859,16 @@ function WaiterDashboardPage() {
     loadDashboard()
   }
 
+  function openTableSummary(session, trigger) {
+    summaryTriggerRef.current = trigger
+    setSummarySession(session)
+    void loadTableSummary(session.id)
+  }
+
+  function refreshTableSummary() {
+    if (summarySession) void loadTableSummary(summarySession.id, { keepCurrent: true })
+  }
+
   function cardError(key) {
     return actionError?.key === key ? actionError.message : ''
   }
@@ -610,10 +883,10 @@ function WaiterDashboardPage() {
   }
 
   const newCards = (compact = false, limit) => availableSessions.slice(0, limit).map((session) => (
-    <NewOrderCard session={session} compact={compact} pending={pendingAction === `session-${session.id}`} disabled={actionsLocked} error={cardError(`session-${session.id}`)} onAccept={acceptSession} referenceTime={lastUpdatedAt} key={session.id} />
+    <NewOrderCard session={session} compact={compact} pending={pendingAction === `session-${session.id}`} disabled={actionsLocked} error={cardError(`session-${session.id}`)} onAccept={acceptSession} onViewOrders={openTableSummary} referenceTime={lastUpdatedAt} key={session.id} />
   ))
   const tableCards = (compact = false, limit) => mySessions.slice(0, limit).map((session) => (
-    <MyTableCard session={session} orderCounts={orderCountsBySession.get(Number(session.id)) || emptyOrderStatusCounts()} compact={compact} pending={pendingAction === `session-${session.id}`} disabled={actionsLocked} error={cardError(`session-${session.id}`)} onClose={closeSession} key={session.id} />
+    <MyTableCard session={session} orderCounts={orderCountsBySession.get(Number(session.id)) || emptyOrderStatusCounts()} compact={compact} pending={pendingAction === `session-${session.id}`} disabled={actionsLocked} error={cardError(`session-${session.id}`)} onClose={closeSession} onViewOrders={openTableSummary} key={session.id} />
   ))
   const callCards = (compact = false, limit) => waiterCalls.slice(0, limit).map((waiterCall) => (
     <WaiterCallCard waiterCall={waiterCall} compact={compact} pending={pendingAction === `call-${waiterCall.id}`} disabled={actionsLocked} error={cardError(`call-${waiterCall.id}`)} onAction={actOnCall} key={waiterCall.id} />
@@ -679,6 +952,14 @@ function WaiterDashboardPage() {
         {activeView === 'profile' && <ProfilePanel avatarInitial={avatarInitial} shift={shift} refreshing={refreshing} pending={pendingAction === 'shift'} actionsLocked={actionsLocked} error={cardError('shift')} onRefresh={refreshManually} onStart={startShift} onEnd={endShift} onViewProfile={() => navigate('/waiter/profile')} onMenuAvailability={() => navigate('/waiter/menu-availability')} onLogout={logout} />}
       </div>
       <WaiterBottomNav activeView={activeView} counts={counts} onChange={navigateView} />
+      <TableSessionSummarySheet
+        session={summarySession}
+        summary={tableSummary}
+        loading={summaryLoading}
+        error={summaryError}
+        onClose={closeTableSummary}
+        onRefresh={refreshTableSummary}
+      />
     </main>
   )
 }

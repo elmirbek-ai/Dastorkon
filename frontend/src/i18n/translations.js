@@ -30,11 +30,37 @@ export const translations = {
 Object.assign(translations.ky.waiter, {
   endShiftActiveWork: 'Сменаны жабуу үчүн алгач активдүү столдорду, заказдарды жана чакырууларды бүтүрүңүз.',
   closeTableUnresolvedCalls: 'Столду жабуу үчүн алгач бардык чакырууларды бүтүрүңүз.',
+  customersWithOrders: 'Заказ берген кардарлар',
+  viewOrders: 'Заказдарды көрүү',
+  tableOrderDetails: 'Столдун заказдары',
+  customerNumber: 'Кардар {number}',
+  manualOrders: 'Официант кошкон заказдар',
+  customerSubtotal: 'Кардардын суммасы',
+  manualSubtotal: 'Официант заказдарынын суммасы',
+  totalOrders: 'Заказдар',
+  totalAmount: 'Жалпы сумма',
+  loadingOrderDetails: 'Заказдардын маалыматы жүктөлүүдө...',
+  refreshOrderDetails: 'Заказдарды жаңыртуу',
+  noTableOrders: 'Бул стол сессиясында заказдар жок',
+  noOrderItems: 'Заказдын курамы жок',
 })
 
 Object.assign(translations.ru.waiter, {
   endShiftActiveWork: 'Чтобы закрыть смену, сначала завершите активные столы, заказы и вызовы.',
   closeTableUnresolvedCalls: 'Чтобы закрыть стол, сначала завершите все вызовы.',
+  customersWithOrders: 'Клиенты с заказами',
+  viewOrders: 'Посмотреть заказы',
+  tableOrderDetails: 'Заказы стола',
+  customerNumber: 'Клиент {number}',
+  manualOrders: 'Заказы официанта',
+  customerSubtotal: 'Сумма клиента',
+  manualSubtotal: 'Сумма заказов официанта',
+  totalOrders: 'Всего заказов',
+  totalAmount: 'Общая сумма',
+  loadingOrderDetails: 'Загрузка заказов стола...',
+  refreshOrderDetails: 'Обновить заказы',
+  noTableOrders: 'В этой сессии стола нет заказов',
+  noOrderItems: 'В заказе нет позиций',
 })
 
 Object.assign(translations.ky.admin, {
