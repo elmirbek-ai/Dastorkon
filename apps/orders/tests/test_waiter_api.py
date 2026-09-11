@@ -156,6 +156,7 @@ class WaiterOrdersApiTests(APITestCase):
         self.assertEqual([item["id"] for item in response.data], [self.table_session.pk])
         self.assertEqual(response.data[0]["orders_count"], 1)
         self.assertEqual(response.data[0]["total_amount"], "250.00")
+        self.assertEqual(response.data[0]["customer_count"], 1)
         self.assertEqual(order.table_session_id, self.table_session.pk)
 
     def test_available_sessions_exclude_already_assigned_sessions(self):
@@ -231,6 +232,7 @@ class WaiterOrdersApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual([item["id"] for item in response.data], [self.table_session.pk])
+        self.assertEqual(response.data[0]["customer_count"], 0)
 
     def test_waiter_can_list_own_active_orders(self):
         self.authenticate(self.waiter)

@@ -22,6 +22,7 @@ from .views import (
     PublicCartView,
     PublicOrderView,
     PublicWaiterCallCreateView,
+    TableSessionSummaryView,
     WaiterCallsView,
 )
 
@@ -79,6 +80,11 @@ waiter_urlpatterns = [
         "table-sessions/my/",
         MyTableSessionsView.as_view(),
         name="waiter-table-sessions-my",
+    ),
+    path(
+        "table-sessions/<int:session_id>/summary/",
+        TableSessionSummaryView.as_view(),
+        name="waiter-table-session-summary",
     ),
     path(
         "table-sessions/<int:session_id>/accept/",
